@@ -16,7 +16,7 @@ class App extends BaseConfig
      *
      * E.g., http://example.com/
      */
-    public string $baseURL = 'https://staging.fods.fnri.dost.gov.ph/';
+    public string $baseURL = 'http://localhost/fods-local/public/';
 
     /**
      * Allowed Hostnames in the Site URL other than the hostname in the baseURL.
