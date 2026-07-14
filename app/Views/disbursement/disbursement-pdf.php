@@ -282,12 +282,11 @@ $pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(160, $Y);
 $pdf->Cell(10, 4, 'DV.No.: ' , 'L', 1, 'L');
 $pdf->SetXY(170, $Y);
-$pdf->SetFont('Times', '', 8);
-$pdf->Cell(30, 4, $dvno , 'R', 1, 'L');
-$pdf->SetFont('Times', '', 8);
+$pdf->Cell(30, 4, '' , 'R', 1, 'L');
+$pdf->SetFont('Times', 'B', 10);
 $Y = $pdf->GetY();
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 4, '' , 'BRL', 1, 'L');
+$pdf->Cell(40, 4, $dvno , 'BRL', 1, 'L');
 
 $pdf->SetFont('Times', 'B', 8);
 
@@ -332,35 +331,49 @@ $pdf->Cell(25, 4, '', 'B',1); // underline (blank)
 
 $Y = $pdf->GetY()+4;
 $pdf->SetXY(10, $Y);
-$pdf->Cell(15, 4, '' , 'LR', 1, 'C');
+$pdf->Cell(15, 3, '' , 'LR', 1, 'C');
 
 $pdf->SetXY(25, $Y);
-$pdf->Cell(85, 4, '' , 0, 1, 'L');
+$pdf->Cell(85, 3, '' , 0, 1, 'L');
 
 $pdf->SetXY(110, $Y);
-$pdf->Cell(50, 4, 'TIN/Employee No.:' , 'L', 1, 'L');
+$pdf->Cell(50, 3, 'TIN/Employee No.:' , 'L', 1, 'L');
 
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 4, 'ORS/BURS No.:' , 'LR', 1, 'L');
+$pdf->Cell(40, 3, 'ORS/BURS No.:' , 'LR', 1, 'L');
 
 $Y = $pdf->GetY();
+$cellHeight = 7;
+
+// Left border
+$pdf->Line(10, $Y, 10, $Y + $cellHeight);
+
+// Right border
+$pdf->Line(25, $Y, 25, $Y + $cellHeight);
+
+$pdf->Line(110, $Y, 110, $Y + $cellHeight);
+
+// Right border
+$pdf->Line(160, $Y, 160, $Y + $cellHeight);
+
+// Label at the top
+$pdf->SetXY(10, $Y + 1);
 $pdf->SetFont('Times', 'B', 8);
-$pdf->SetXY(10, $Y);
-$pdf->Cell(15, 6, 'Payee' , 'LR', 1, 'C');
+$pdf->Cell(15, 3, 'Payee', 0, 0, 'C');
 $pdf->SetFont('Times', '', 8);
 
-$pdf->SetXY(25, $Y);
+$pdf->SetXY(25, $Y+1);
 $pdf->SetFont('Times', 'B', 8);
-$pdf->Cell(85, 6, $payee_name , 0, 1, 'L');
+$pdf->MultiCell(85, 3, $payee_name, 0, 'L');
 
 $pdf->SetFont('Times', '', 8);
 $pdf->SetXY(110, $Y);
-$pdf->Cell(50, 6, $payee_tin , 'L', 1, 'L');
+$pdf->Cell(50, 7, $payee_tin , 'L', 1, 'L');
 
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 6, $serialno , 'LR', 1, 'L');
+$pdf->Cell(40, 7, $serialno , 'LR', 1, 'L');
 
-$Y = $pdf->GetY();
+$Y = $pdf->GetY()+0.3;
 $pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(15, 6, 'Address' , 1, 1, 'C');
@@ -456,8 +469,8 @@ foreach ($result as $row) {
     $startY = $Y;
 
     // Responsibility
-    $pdf->SetXY(100, $startY);
-    $pdf->MultiCell(30, 6, $responsibility_code, 'LR', 'C');
+    $pdf->SetXY(100, $startY+1);
+    $pdf->MultiCell(30, 4, $responsibility_code, 'LR', 'C');
     $endY = $pdf->GetY();
 
     // Draw borders for the remaining columns
