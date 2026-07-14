@@ -218,7 +218,7 @@ $pdf = new FPDF('P', 'mm', 'A4');
 $pdf->AliasNbPages();
 $pdf->AddPage();
 $pdf->SetTitle('DV Print');
-$pdf->SetFont('Arial', 'B', 16);
+$pdf->SetFont('Times', 'B', 16);
 
 $pdf->SetXY(0, 8);
 
@@ -229,7 +229,7 @@ $pdf->SetXY(10, $Y);
 $pdf->Cell(150, 12, '' , 'TRL', 1, 'L');
 
 // Insert image INSIDE the cell
-$imagePath = FCPATH . 'assets/images/logos/fnriheader.png';
+$imagePath = FCPATH . 'assets/images/logos/fnri-header2.png';
 if(file_exists($imagePath)) {
     $pdf->Image(
         $imagePath,
@@ -239,25 +239,25 @@ if(file_exists($imagePath)) {
     );
 }
 
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 8);
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 4, 'FAD-BS-001' , 'TRL', 1, 'L');
+$pdf->Cell(40, 4, 'FAD-AS-005' , 'TRL', 1, 'L');
 
 $Y = $pdf->GetY();
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 4, 'Revision 0' , 'RL', 1, 'L');
+$pdf->Cell(40, 4, 'Revision 4' , 'RL', 1, 'L');
 
 $Y = $pdf->GetY();
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 4, 'June 10 2024' , 'BRL', 1, 'L');
+$pdf->Cell(40, 4, '24 Oct 2025' , 'BRL', 1, 'L');
 
 $Y = $pdf->GetY();
 $pdf->Cell(150, 12, '' , 'RLB', 1, 'L');
 
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, 'Fund Cluster:' , 'TRL', 1, 'L');
-
+$pdf->SetFont('Times', '', 8);
 $Y = $pdf->GetY();
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, $fund_cluster_code , 'RL', 1, 'L');
@@ -266,23 +266,30 @@ $Y = $pdf->GetY();
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, '' , 'BRL', 1, 'L');
 
-$pdf->SetFont('Arial', 'B', 13);
+$pdf->SetFont('Times', 'B', 13);
 $Y = $pdf->GetY();
 $pdf->Cell(150, 12, 'DISBURSEMENT VOUCHER' , 1, 1, 'C');
 
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 4, 'Date: ' . $disbursement_date , 'TRL', 1, 'L');
+$pdf->Cell(10, 4, 'Date: ' , 'TL', 1, 'L');
+$pdf->SetXY(170, $Y);
+$pdf->SetFont('Times', '', 8);
+$pdf->Cell(30, 4, $disbursement_date , 'R', 1, 'L');
 
 $Y = $pdf->GetY();
+$pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 4, 'DV.No.: ' . $dvno , 'RL', 1, 'L');
-
+$pdf->Cell(10, 4, 'DV.No.: ' , 'L', 1, 'L');
+$pdf->SetXY(170, $Y);
+$pdf->SetFont('Times', '', 8);
+$pdf->Cell(30, 4, $dvno , 'R', 1, 'L');
+$pdf->SetFont('Times', '', 8);
 $Y = $pdf->GetY();
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, '' , 'BRL', 1, 'L');
 
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', 'B', 8);
 
 $Y = $pdf->GetY();
 
@@ -292,7 +299,7 @@ $pdf->Cell(15, 6, 'Mode of', 'TRL', 2, 'C');
 
 $pdf->SetX(10);
 $pdf->Cell(15, 6, 'Payment', 'BRL', 0, 'C');
-
+$pdf->SetFont('Times', '', 8);
 // RIGHT CELL (container)
 $pdf->SetXY(25, $Y);
 $pdf->Cell(175, 12, '', 1, 0); // empty container
@@ -337,12 +344,16 @@ $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, 'ORS/BURS No.:' , 'LR', 1, 'L');
 
 $Y = $pdf->GetY();
+$pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(15, 6, 'Payee' , 'LR', 1, 'C');
+$pdf->SetFont('Times', '', 8);
 
 $pdf->SetXY(25, $Y);
+$pdf->SetFont('Times', 'B', 8);
 $pdf->Cell(85, 6, $payee_name , 0, 1, 'L');
 
+$pdf->SetFont('Times', '', 8);
 $pdf->SetXY(110, $Y);
 $pdf->Cell(50, 6, $payee_tin , 'L', 1, 'L');
 
@@ -350,9 +361,10 @@ $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 6, $serialno , 'LR', 1, 'L');
 
 $Y = $pdf->GetY();
+$pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(15, 6, 'Address' , 1, 1, 'C');
-
+$pdf->SetFont('Times', '', 8);
 $pdf->SetXY(25, $Y);
 $pdf->Cell(175, 6, $payee_address , 1, 1, 'L');
 
@@ -420,7 +432,7 @@ $query = $this->db->query("
         SELECT responsibility_code, mfopaps_code, amount
         FROM tbl_disbursement_indirect_co_dt WHERE project_id = ?
     ) AS combined
-    GROUP BY responsibility_code, mfopaps_code
+    LIMIT 1
 ", [
     $recid,
     $recid,
@@ -438,21 +450,29 @@ foreach ($result as $row) {
     $mfopaps_code = $row['mfopaps_code'];
     $amount = $row['amount'];
 
-    $total_amount += $amount; // 👈 ADD THIS
+    $pdf->SetFont('Times', '', 8);
+    $total_amount += $amount;
 
-    $pdf->SetFont('Arial', '', 6.5);
-    $pdf->SetXY(100, $Y);
-    $pdf->Cell(30, 6, $responsibility_code , 'LR', 1, 'C');
+    $startY = $Y;
 
-    $pdf->SetXY(130, $Y);
-    $pdf->Cell(30, 6, $mfopaps_code , 'LR', 1, 'C');
+    // Responsibility
+    $pdf->SetXY(100, $startY);
+    $pdf->MultiCell(30, 6, $responsibility_code, 'LR', 'C');
+    $endY = $pdf->GetY();
 
-    $pdf->SetXY(160, $Y);
-    $pdf->Cell(40, 6, number_format($amount,2) , 'R', 1, 'R');
+    // Draw borders for the remaining columns
+    $height = $endY - $startY;
 
-    $Y = $pdf->GetY();
+
+    // Print text aligned to the first row
+    $pdf->SetXY(130, $startY);
+    $pdf->Cell(30, 6, $mfopaps_code, 0, 0, 'C');
+
+    $pdf->SetXY(160, $startY);
+    $pdf->Cell(40, 6, number_format($amount,2), 0, 0, 'R');
+
+    $Y = $endY;
 }
-
 $vat_amount = 0;
 $ewt_amount = 0;
 $pt_amount  = 0;
@@ -539,21 +559,21 @@ if ($is_vatable == 1) {
     // VAT
     $Y = 120;
     $pdf->SetXY(10, $Y);
-    $pdf->Cell(90, 4, 'LESS '. $vat_percent .'% VAT', 0, 1, 'R');
+    $pdf->Cell(75, 4, 'LESS '. $vat_percent .'% VAT', 0, 1, 'R');
 
-    $pdf->SetXY(160, $Y);
-    $pdf->Cell(40, 4, number_format($vat_amount,2), 0, 1, 'L');
+    $pdf->SetXY(85, $Y);
+    $pdf->Cell(15, 4, number_format($vat_amount,2), 0, 1, 'R');
 
     // EWT
     $Y = 124;
     $pdf->SetXY(10, $Y);
-    $pdf->Cell(90, 4, $ewt_percent .'% EWT', 0, 1, 'R');
+    $pdf->Cell(75, 4, $ewt_percent .'% EWT', 0, 1, 'R');
+
+    $pdf->SetXY(85, $Y);
+    $pdf->Cell(15, 4, number_format($ewt_amount,2), 0, 1, 'R');
 
     $pdf->SetXY(160, $Y);
-    $pdf->Cell(20, 4, number_format($ewt_amount,2), 'B', 1, 'L');
-
-    $pdf->SetXY(180, $Y);
-    $pdf->Cell(20, 4, number_format($vat_amount + $ewt_amount,2), 'B', 1, 'R');
+    $pdf->Cell(40, 4, number_format($vat_amount + $ewt_amount,2), 'B', 1, 'R');
 }else {
 
     // EWT
@@ -572,13 +592,13 @@ if ($is_vatable == 1) {
     $pdf->SetXY(160, $Y);
     $pdf->Cell(20, 4, number_format($pt_amount,2), 'B', 1, 'L');
 
-    $pdf->SetXY(180, $Y);
-    $pdf->Cell(20, 4, number_format($ewt_amount + $pt_amount,2), 'B', 1, 'R');
+    $pdf->SetXY(160, $Y);
+    $pdf->Cell(40, 4, number_format($ewt_amount + $pt_amount,2), 'B', 1, 'R');
 }
 
 $Y = 128;
 $pdf->SetXY(10, $Y);
-$pdf->Cell(90, 4, 'NET', 0, 1, 'R');
+$pdf->Cell(75, 4, 'NET', 0, 1, 'R');
 
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, number_format($net,2), 0, 1, 'R');
@@ -587,6 +607,7 @@ $pdf->Cell(40, 4, number_format($net,2), 0, 1, 'R');
 $Y = 144;
 
 $pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', 'B', 8);
 $pdf->Cell(90, 6, 'Amount Due' , 'L', 1, 'C');
 
 $pdf->SetXY(100, $Y);
@@ -596,13 +617,15 @@ $pdf->SetXY(130, $Y);
 $pdf->Cell(30, 6, '' , 'L', 1, 'C');
 
 $pdf->SetXY(160, $Y);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(40, 6, number_format($net,2) , 'LTR', 1, 'R');
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 8);
 //CERTIFY BOX A --------------------------------------------
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', 'B', 8);
 $pdf->Cell(4, 4, 'A.' , 1, 1, 'C');
-
+$pdf->SetFont('Times', '', 8);
 $pdf->SetXY(14, $Y);
 $pdf->Cell(186, 4, 'Certified: Expenses/Cash Advance necessary, lawful and incurred under my direct supervision.' , 'RT', 1, 'L');
 
@@ -615,7 +638,7 @@ $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 8, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', 'B', 10);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(40, 4, '' , 'L', 1, 'C');
 $pdf->SetXY(50, $Y);
@@ -625,7 +648,7 @@ $pdf->Cell(40, 4, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 8);
 $pdf->Cell(40, 4, '' , 'L', 1, 'C');
 $pdf->SetXY(50, $Y);
 $pdf->Cell(110, 4, $position_a , 0, 1, 'C');
@@ -633,7 +656,7 @@ $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 8);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(40, 4, '' , 'BL', 1, 'C');
 $pdf->SetXY(50, $Y);
@@ -643,10 +666,10 @@ $pdf->Cell(40, 4, '' , 'RB', 1, 'C');
 
 //BOX B-----------------------------------------------
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(4, 4, 'B.' , 1, 1, 'C');
-
+$pdf->SetFont('Times', '', 8);
 $pdf->SetXY(14, $Y);
 $pdf->Cell(186, 4, 'Accounting Entry:' , 'R', 1, 'L');
 
@@ -680,10 +703,11 @@ $pdf->Cell(33, 6, '' , 1, 1, 'C');
 
 // ================= BOX C & D =================
 
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 8);
 $Y = $pdf->GetY();
 
 // ---- LEFT SIDE (C) ----
+$pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(4, 4, 'C.', 1, 0, 'C');
 
@@ -696,7 +720,7 @@ $pdf->Cell(4, 4, 'D.', 1, 0, 'C');
 
 $pdf->SetXY(105, $Y);
 $pdf->Cell(95, 4, 'Approved for Payment', 1, 1, 'L');
-
+$pdf->SetFont('Times', '', 8);
 
 // ================= CONTENT ROW =================
 $startY = $pdf->GetY();
@@ -733,6 +757,7 @@ $pdf->MultiCell(80, 4, ' Supporting documents complete and amount claimed proper
 // ================= AMOUNT IN WORDS (D) =================
 
 // Example value (replace with your dynamic value)
+$pdf->SetFont('Times', '', 10);
 $amountWords = numberToWords(number_format($net, 2, '.', '')) . " Pesos";
 
 $pdf->SetXY(105, $startY + 5);
@@ -740,8 +765,8 @@ $pdf->MultiCell(90, 5, $amountWords, 0, 'C');
 
 
 //SIGNATURES -----------------------------------------------
-$pdf->SetFont('Arial', '', 8);
-$Y = $pdf->GetY()+10;
+$pdf->SetFont('Times', '', 8);
+$Y = $pdf->GetY()+5;
 
 $pdf->SetXY(10, $Y);
 $pdf->Cell(15, 8, 'Signature', 1, 0, 'C');
@@ -775,32 +800,32 @@ $pdf->SetXY(10, $Y);
 $pdf->Cell(15, 4, 'Name', 'BLR', 0, 'C');
 
 $pdf->SetXY(25, $Y);
-$pdf->SetFont('Arial', 'B', 10);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(76, 4, 'BONJOBIE F. CAJANO, CPA, CTT', 0, 0, 'C');
 
 $pdf->SetXY(101, $Y);
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 8);
 $pdf->Cell(15, 4, 'Name', 'BRL', 0, 'C');
 
 $pdf->SetXY(116, $Y);
-$pdf->SetFont('Arial', 'B',10);
+$pdf->SetFont('Times', 'B',10);
 $pdf->Cell(84, 4, 'Atty. LUCIEDEN G. RAZ', 'R', 1, 'C');
 
 // ================= POSITION =================
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 8);
 
 // LEFT
 $pdf->SetXY(10, $Y);
 $pdf->Cell(15, 8, 'Position', 'BLR', 0, 'C');
 
 $pdf->SetXY(25, $Y);
-$pdf->SetFont('Arial', '', 9);
+$pdf->SetFont('Times', '', 9);
 $pdf->Cell(76, 4, 'Accountant III', 1, 0, 'C');
 
 // RIGHT
 $pdf->SetXY(101, $Y);
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 8);
 $pdf->Cell(15, 8, 'Position', 1, 0, 'C');
 
 $pdf->SetXY(116, $Y);
@@ -842,64 +867,86 @@ $pdf->Cell(84, 5, '', 1, 1, 'C');
 
 // ================= BOX E =================
 $Y = $pdf->GetY();
-
+$pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(4, 4, 'E.', 1, 0, 'C');
 
 $pdf->SetXY(14, $Y);
-$pdf->Cell(186, 4, 'Receipt of Payment', 1, 1, 'L');
+$pdf->Cell(145, 4, 'Receipt of Payment', 1, 1, 'L');
+$pdf->SetFont('Times', '', 8);
+$pdf->SetXY(159, $Y);
+$pdf->Cell(41, 4, 'JEV No.', 'LR', 1, 'L');
 
 
 // ================= ROW 1 =================
 $Y = $pdf->GetY();
 
 $pdf->SetXY(10, $Y);
-$pdf->Cell(40, 5, 'Check/ADA No.:', 1, 0, 'L');
+$pdf->Cell(15, 4, 'Check/', 'LR', 0, 'L');
 
-$pdf->SetXY(50, $Y);
-$pdf->Cell(51, 5, '', 1, 0, 'C');
+$pdf->SetXY(25, $Y);
+$pdf->Cell(45, 4, '', 0, 0, 'C');
+
+$pdf->SetXY(70, $Y);
+$pdf->Cell(31, 4, 'Date:', 'L', 0, 'L');
 
 $pdf->SetXY(101, $Y);
-$pdf->Cell(15, 5, 'Date:', 1, 0, 'L');
+$pdf->Cell(58, 4, 'Bank Name & Account Number:', 'L', 0, 'L');
 
-$pdf->SetXY(116, $Y);
-$pdf->Cell(24, 5, '', 1, 0, 'C');
 
-$pdf->SetXY(140, $Y);
-$pdf->Cell(35, 5, 'Bank Name & Account Number:', 1, 0, 'L');
-
-$pdf->SetXY(175, $Y);
-$pdf->Cell(25, 5, '', 1, 1, 'C');
-
+$pdf->SetXY(159, $Y);
+$pdf->Cell(41, 4, '', 'LR', 1, 'L');
 
 // ================= ROW 2 =================
 $Y = $pdf->GetY();
 
 $pdf->SetXY(10, $Y);
-$pdf->Cell(40, 5, 'Signature:', 1, 0, 'L');
+$pdf->Cell(15, 4, 'ADA No.:', 'LR', 0, 'L');
 
-$pdf->SetXY(50, $Y);
-$pdf->Cell(51, 5, '', 1, 0);
+$pdf->SetXY(25, $Y);
+$pdf->Cell(45, 4, '', 0, 0, 'C');
+
+$pdf->SetXY(70, $Y);
+$pdf->Cell(31, 4, '', 'L', 0, 'L');
 
 $pdf->SetXY(101, $Y);
-$pdf->Cell(39, 5, 'Printed Name:', 1, 0, 'L');
+$pdf->Cell(58, 4, '', 'L', 0, 'C');
 
-$pdf->SetXY(140, $Y);
-$pdf->Cell(35, 5, '', 1, 0);
+$pdf->SetXY(159, $Y);
+$pdf->Cell(41, 4, '', 'LR', 1, 'L');
 
-$pdf->SetXY(175, $Y);
-$pdf->Cell(25, 5, 'Date', 1, 1, 'C');
+
+// ================= ROW 3 =================
+$Y = $pdf->GetY();
+
+$pdf->SetXY(10, $Y);
+$pdf->Cell(15, 6, 'Signature:', 1, 0, 'L');
+
+$pdf->SetXY(25, $Y);
+$pdf->Cell(45, 6, '', 1, 0, 'C');
+
+$pdf->SetXY(70, $Y);
+$pdf->Cell(31, 6, 'Date:', 1, 0, 'L');
+
+$pdf->SetXY(101, $Y);
+$pdf->Cell(58, 6, 'Printed Name:', 1, 0, 'L');
+
+$pdf->SetXY(159, $Y);
+$pdf->Cell(41, 6, 'Date:', 'LR', 1, 'L');
 
 
 // ================= FINAL =================
 $Y = $pdf->GetY();
 
 $pdf->SetXY(10, $Y);
-$pdf->Cell(190, 5, 'Official Receipt No. & Date/Other Documents', 1, 1, 'L');
+$pdf->Cell(149, 5, 'Official Receipt No. & Date/Other Documents', 1, 1, 'C');
 
-$Y = $pdf->GetY()+5;
+$pdf->SetXY(159, $Y);
+$pdf->Cell(41, 5, '', 'LBR', 1, 'L');
 
-$pdf->SetFont('Arial', '', 8);
+$Y = 268.5;
+
+$pdf->SetFont('Times', '', 8);
 $pdf->SetXY(10, $Y);
 
 // ----- LINE 1 -----
@@ -914,7 +961,7 @@ $text1_parts = [
 // Calculate total width of text
 $totalWidth = 0;
 foreach ($text1_parts as $part) {
-    $pdf->SetFont('Arial', $part[1], 8);
+    $pdf->SetFont('Times', $part[1], 8);
     $totalWidth += $pdf->GetStringWidth($part[0]);
 }
 
@@ -924,7 +971,7 @@ $pdf->SetX($startX);
 
 // Print parts
 foreach ($text1_parts as $part) {
-    $pdf->SetFont('Arial', $part[1], 8);
+    $pdf->SetFont('Times', $part[1], 8);
     $pdf->Cell($pdf->GetStringWidth($part[0]), 4, $part[0], 0, 0);
 }
 $pdf->Ln(4);
@@ -938,7 +985,7 @@ $text2_parts = [
 
 $totalWidth = 0;
 foreach ($text2_parts as $part) {
-    $pdf->SetFont('Arial', $part[1], 8);
+    $pdf->SetFont('Times', $part[1], 8);
     $totalWidth += $pdf->GetStringWidth($part[0]);
 }
 
@@ -948,7 +995,7 @@ $pdf->SetX($startX);
 
 // Print parts
 foreach ($text2_parts as $part) {
-    $pdf->SetFont('Arial', $part[1], 8);
+    $pdf->SetFont('Times', $part[1], 8);
     $pdf->Cell($pdf->GetStringWidth($part[0]), 4, $part[0], 0, 0);
 }
 
