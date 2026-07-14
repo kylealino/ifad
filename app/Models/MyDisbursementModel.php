@@ -366,7 +366,7 @@ class MyDisbursementModel extends Model
 				}
 			}
 
-			$status = "disbursement Saved Successfully!";
+			$status = "Disbursement Saved Successfully!";
 			$color = "success";
 		}else{
 			$query = $this->db->query("
@@ -607,7 +607,7 @@ class MyDisbursementModel extends Model
 				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_co_dt WHERE `project_id` = '$project_id'");
 			}
 
-			$status = "disbursement Updated Successfully!";
+			$status = "Disbursement Updated Successfully!";
 			$color = "info";
 		}
 

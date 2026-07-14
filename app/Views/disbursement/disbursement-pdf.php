@@ -579,18 +579,18 @@ if ($is_vatable == 1) {
     // EWT
     $Y = 120;
     $pdf->SetXY(10, $Y);
-    $pdf->Cell(90, 4, $ewt_percent .'% EWT', 0, 1, 'R');
+    $pdf->Cell(75, 4, 'LESS ' . $ewt_percent .'% EWT', 0, 1, 'R');
 
-    $pdf->SetXY(160, $Y);
-    $pdf->Cell(40, 4, number_format($ewt_amount,2), 0, 1, 'L');
+    $pdf->SetXY(85, $Y);
+    $pdf->Cell(15, 4, number_format($ewt_amount,2), 0, 1, 'L');
 
     // PT
     $Y = 124;
     $pdf->SetXY(10, $Y);
-    $pdf->Cell(90, 4, $pt_percent .'% PT', 0, 1, 'R');
+    $pdf->Cell(75, 4, $pt_percent .'% PT', 0, 1, 'R');
 
-    $pdf->SetXY(160, $Y);
-    $pdf->Cell(20, 4, number_format($pt_amount,2), 'B', 1, 'L');
+    $pdf->SetXY(85, $Y);
+    $pdf->Cell(15, 4, number_format($pt_amount,2), 0, 1, 'L');
 
     $pdf->SetXY(160, $Y);
     $pdf->Cell(40, 4, number_format($ewt_amount + $pt_amount,2), 'B', 1, 'R');
@@ -766,7 +766,7 @@ $pdf->MultiCell(90, 5, $amountWords, 0, 'C');
 
 //SIGNATURES -----------------------------------------------
 $pdf->SetFont('Times', '', 8);
-$Y = $pdf->GetY()+5;
+$Y = 212;
 
 $pdf->SetXY(10, $Y);
 $pdf->Cell(15, 8, 'Signature', 1, 0, 'C');
