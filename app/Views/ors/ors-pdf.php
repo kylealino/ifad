@@ -61,12 +61,12 @@ $pdf = new FPDF('P', 'mm', 'A4');
 $pdf->AliasNbPages();
 $pdf->AddPage();
 $pdf->SetTitle('ORS Print');
-$pdf->SetFont('Arial', 'B', 16);
+$pdf->SetFont('Times', 'B', 16);
 
 $pdf->SetXY(0, 8);
 
 $Y = 8;
-$pdf->SetFont('Arial', 'B', 8);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->SetXY(170, $Y);
 $pdf->Cell(30, 4, 'FAD-BS-001' , 'TRL', 1, 'L');
 
@@ -80,56 +80,61 @@ $pdf->Cell(30, 4, 'June 10 2024' , 'BRL', 1, 'L');
 
 $Y = $pdf->GetY()+4;
 $pdf->SetXY(170, $Y);
-$pdf->SetFont('Arial', 'I', 8);
+$pdf->SetFont('Times', 'I', 10);
 $pdf->Cell(30, 4, 'Appendix 11' , 0, 1, 'R');
 
 
 $Y = 32;
 $pdf->SetXY(10, $Y);
-$pdf->SetFont('Arial', 'B', 10);
+$pdf->SetFont('Times', 'B', 12);
 
 $pdf->Cell(120, 2, '' , 'TRL', 1, 'C');
 $Y = 2;
 $pdf->Cell(120, 5, 'OBLIGATION REQUEST AND STATUS' , 'RL', 1, 'C');
 
 $Y += 5;
-$pdf->SetFont('Arial', 'B', 10);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(120, 1, '' , 'RL', 1, 'C');
 
 $Y += 1;
-$pdf->SetFont('Arial', 'B', 10);
+$pdf->SetFont('Times', 'B', 12);
 $pdf->Cell(120, 8, 'FOOD AND NUTRITION RESEARCH INSTITUTE' , 'RL', 1, 'C');
 
 $Y = 32;
-$pdf->SetFont('Arial', 'B', 7);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(120, 5, 'Entity Name' , 'RL', 1, 'C');
 
 $Y = 32;
 
-$pdf->SetFont('Arial', 'B', 8);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->SetXY(130, $Y);
 $pdf->Cell(20, 2, '' , 'T', 1, 'C');
 $pdf->SetXY(150, $Y);
 $pdf->Cell(50, 2, '' , 'TR', 1, 'L');
 $Y += 2;
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 10);
 $pdf->SetXY(130, $Y);
 $pdf->Cell(20, 5, 'Serial No.:' ,0, 1, 'L');
 $pdf->SetXY(150, $Y);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(50, 5, $serialno , 'R', 1, 'L');
 $pdf->SetXY(150, $Y);
 $pdf->Cell(40, 5, '' , 'B', 1, 'L');
 $Y += 5;
 $pdf->SetXY(130, $Y);
+$pdf->SetFont('Times', '', 10);
 $pdf->Cell(20, 5, 'Date:' , 0, 1, 'L');
 $pdf->SetXY(150, $Y);
 $pdf->Cell(50, 5, '' , 'R', 1, 'L');
 $pdf->SetXY(150, $Y);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(40, 5, $ors_date , 'B', 1, 'L');
 $Y += 5;
 $pdf->SetXY(130, $Y);
+$pdf->SetFont('Times', '', 10);
 $pdf->Cell(20, 5, 'Fund Cluster:' , 0, 1, 'L');
 $pdf->SetXY(150, $Y);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(50, 5, '01' , 'R', 1, 'L');
 $pdf->SetXY(150, $Y);
 $pdf->Cell(40, 5, '' , 'B', 1, 'L');
@@ -139,16 +144,16 @@ $pdf->Cell(20, 4, '' , 'L', 1, 'C');
 $pdf->SetXY(150, $Y);
 $pdf->Cell(50, 4, '' , 'R', 1, 'C');
 
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 10);
 $Y +=4;
 $pdf->SetXY(10, $Y);
 $pdf->Cell(37, 7, 'Payee' , 1, 1, 'C');
-$pdf->SetFont('Arial', 'B', 8);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->SetXY(47, $Y);
 $pdf->Cell(153, 7, $payee_name , 1, 1, 'L');
 
 $Y +=7;
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 10);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(37, 7, 'Office' , 1, 1, 'C');
 $pdf->SetXY(47, $Y);
@@ -162,36 +167,19 @@ $pdf->Cell(153, 7, $payee_address , 1, 1, 'L');
 
 $Y+= 7;
 $pdf->SetXY(10, $Y);
-$pdf->Cell(37, 9, 'Responsibility Center' , 1, 1, 'C');
+$pdf->Cell(37, 7, 'Responsibility Center' , 1, 1, 'C');
 
 $pdf->SetXY(47, $Y);
-$pdf->Cell(58, 9, 'Particulars' , 1, 1, 'C');
+$pdf->Cell(58, 7, 'Particulars' , 1, 1, 'C');
 
 $pdf->SetXY(105, $Y);
-$pdf->Cell(30, 9, 'MFO/PAP' , 1, 1, 'C');
+$pdf->Cell(30, 7, 'MFO/PAP' , 1, 1, 'C');
 
 $pdf->SetXY(135, $Y);
-$pdf->Cell(30, 9, 'UACS Object Code' , 1, 1, 'C');
+$pdf->Cell(30, 7, 'UACS Object Code' , 1, 1, 'C');
 
 $pdf->SetXY(165, $Y);
-$pdf->Cell(35, 9, 'Amount' , 1, 1, 'C');
-
-//DT BORDERING
-$Y+= 9;
-$pdf->SetXY(10, $Y);
-$pdf->Cell(37, 107, '' , 1, 1, 'C');//Responsibility Center
-
-$pdf->SetXY(47, $Y);
-$pdf->Cell(58, 107, '' , 1, 1, 'C');//Particulars
-
-$pdf->SetXY(105, $Y);
-$pdf->Cell(30, 107, '' , 1, 1, 'C');//MFO/PAP
-
-$pdf->SetXY(135, $Y);
-$pdf->Cell(30, 107, '' , 1, 1, 'C');//UACS Object Code
-
-$pdf->SetXY(165, $Y);
-$pdf->Cell(35, 107, '' , 1, 1, 'C');//Amount
+$pdf->Cell(35, 7, 'Amount' , 1, 1, 'C');
 
 
 //HD
@@ -208,207 +196,228 @@ $data = $query->getRowArray();
 $particulars = $data['particulars'];
 $total_amount = 0;
 
+$YP = 84;
+$pdf->SetXY(47, $YP);
+$pdf->MultiCell(58, 4, $particulars, 0, 'L'); // full width usage
+
 //---------------------------------------------------------   DIRECT PS RC CODE, MFO PAPS FETCHING   --------------------------------------------------------------------
-$DPSY= 85;
-$DPSY_MFO = $DPSY;
-$rc_list_psd = [];
-$mfo_list_psd = [];
-$pdf->SetXY(10, $DPSY);
-$query = $this->db->query("
-    SELECT
-        `responsibility_code`,
-        `mfopaps_code`
-    FROM
-        `tbl_ors_direct_ps_dt`
-    WHERE
-        `project_id` = '$recid'
-");
+// $DPSY= 85;
+// $DPSY_MFO = $DPSY;
+// $rc_list_psd = [];
+// $mfo_list_psd = [];
+// $pdf->SetXY(10, $DPSY);
+// $query = $this->db->query("
+//     SELECT
+//         `responsibility_code`,
+//         `mfopaps_code`
+//     FROM
+//         `tbl_ors_direct_ps_dt`
+//     WHERE
+//         `project_id` = '$recid'
+// ");
 
-$data = $query->getResultArray();
+// $data = $query->getResultArray();
 
-foreach ($data as $row) {
-    $rc_list_psd[] = $row['responsibility_code'];
-    $mfo_list_psd[] = $row['mfopaps_code'];
-}
+// foreach ($data as $row) {
+//     $rc_list_psd[] = $row['responsibility_code'];
+//     $mfo_list_psd[] = $row['mfopaps_code'];
+// }
 
-// Get unique RCs only
-$unique_rc_list_psd = array_unique($rc_list_psd);
-$unique_mfo_list_psd = array_unique($mfo_list_psd);
+// // Get unique RCs only
+// $unique_rc_list_psd = array_unique($rc_list_psd);
+// $unique_mfo_list_psd = array_unique($mfo_list_psd);
 
-$previous_rc = null;
-foreach ($unique_rc_list_psd as $rc) {
-    $pdf->MultiCell(38, 4, $rc, 0, 'L'); // full width usage
+// $previous_rc = null;
+// foreach ($unique_rc_list_psd as $rc) {
+//     $pdf->MultiCell(38, 4, $rc, 0, 'L'); // full width usage
     
-    // If current RC is not the same as previous, add 5 to y-coordinate
-    if ($rc !== $previous_rc) {
-        $DPSY += 5;
-    }
-    $previous_rc = $rc;
-}
-foreach ($unique_mfo_list_psd as $mfo) {
-    $pdf->SetXY(105, $DPSY_MFO);
-    $pdf->MultiCell(30, 4, $mfo, 0, 'L'); // full width usage
-    $DPSY_MFO = $pdf->GetY($DPSY_MFO);
-}
+//     // If current RC is not the same as previous, add 5 to y-coordinate
+//     if ($rc !== $previous_rc) {
+//         $DPSY += 5;
+//     }
+//     $previous_rc = $rc;
+// }
+// foreach ($unique_mfo_list_psd as $mfo) {
+//     $pdf->SetXY(105, $DPSY_MFO);
+//     $pdf->MultiCell(30, 4, $mfo, 0, 'L'); // full width usage
+//     $DPSY_MFO = $pdf->GetY($DPSY_MFO);
+// }
 
 
-//DT INDIRECT PS
-if($DPSY == 85){
-    $IDPSY = $DPSY;
-    $IDPSY_MFO = $IDPSY;
-}else{
-    $IDPSY = $pdf->GetY($DPSY);
-    $IDPSY_MFO = $IDPSY;
-}
+// //DT INDIRECT PS
+// if($DPSY == 85){
+//     $IDPSY = $DPSY+4;
+//     $IDPSY_MFO = $IDPSY;
+// }else{
+//     $IDPSY = $pdf->GetY($DPSY)+4;
+//     $IDPSY_MFO = $IDPSY;
+// }
 
-$rc_list_psid = [];
-$mfo_list_psid = [];
-$pdf->SetXY(10, $DPSY);
-$query = $this->db->query("
-    SELECT
-        `responsibility_code`,
-        `mfopaps_code`
-    FROM
-        `tbl_ors_indirect_ps_dt`
-    WHERE
-        `project_id` = '$recid'
-");
+// $rc_list_psid = [];
+// $mfo_list_psid = [];
+// $pdf->SetXY(10, $DPSY);
+// $query = $this->db->query("
+//     SELECT
+//         `responsibility_code`,
+//         `mfopaps_code`
+//     FROM
+//         `tbl_ors_indirect_ps_dt`
+//     WHERE
+//         `project_id` = '$recid'
+// ");
 
-$data = $query->getResultArray();
+// $data = $query->getResultArray();
 
-foreach ($data as $row) {
-    $rc_list_psid[] = $row['responsibility_code'];
-    $mfo_list_psid[] = $row['mfopaps_code'];
-}
+// foreach ($data as $row) {
+//     $rc_list_psid[] = $row['responsibility_code'];
+//     $mfo_list_psid[] = $row['mfopaps_code'];
+// }
 
-// Get unique RCs only
-$unique_rc_list_psid = array_unique($rc_list_psid);
-$unique_mfo_list_psid = array_unique($mfo_list_psid);
+// // Get unique RCs only
+// $unique_rc_list_psid = array_unique($rc_list_psid);
+// $unique_mfo_list_psid = array_unique($mfo_list_psid);
 
-$previous_rc = null;
-foreach ($unique_rc_list_psid as $rc) {
-    $pdf->MultiCell(38, 4, $rc, 0, 'L'); // full width usage
+// $previous_rc = null;
+// foreach ($unique_rc_list_psid as $rc) {
+//     $pdf->MultiCell(38, 4, $rc, 0, 'L'); // full width usage
     
-    // If current RC is not the same as previous, add 5 to y-coordinate
-    if ($rc !== $previous_rc) {
-        $IDPSY += 5;
-    }
-    $previous_rc = $rc;
-}
-foreach ($unique_mfo_list_psid as $mfo) {
-    $pdf->SetXY(105, $IDPSY_MFO);
-    $pdf->MultiCell(30, 4, $mfo, 0, 'L'); // full width usage
-    $IDPSY_MFO = $pdf->GetY($IDPSY_MFO);
-}
+//     // If current RC is not the same as previous, add 5 to y-coordinate
+//     if ($rc !== $previous_rc) {
+//         $IDPSY += 5;
+//     }
+//     $previous_rc = $rc;
+// }
+// foreach ($unique_mfo_list_psid as $mfo) {
+//     $pdf->SetXY(105, $IDPSY_MFO);
+//     $pdf->MultiCell(30, 4, $mfo, 0, 'L'); // full width usage
+//     $IDPSY_MFO = $pdf->GetY($IDPSY_MFO);
+// }
 
-//DT DIRECT MOOE
-if($IDPSY >= 85){
-    $DMOOEY = $IDPSY;
-    $DMOOEY_MFO = $DMOOEY;
-}else{
-    $DMOOEY = $pdf->GetY($IDPSY);
-    $DMOOEY_MFO = $DMOOEY;
-}
+// //DT DIRECT MOOE
+// if($IDPSY >= 85){
+//     $DMOOEY = $IDPSY;
+//     $DMOOEY_MFO = $DMOOEY;
+// }else{
+//     $DMOOEY = $pdf->GetY($IDPSY);
+//     $DMOOEY_MFO = $DMOOEY;
+// }
 
 
-$rc_list_mooed = [];
-$mfo_list_mooed = [];
-$pdf->SetXY(10, $DPSY);
-$query = $this->db->query("
-    SELECT
-        `responsibility_code`,
-        `mfopaps_code`
-    FROM
-        `tbl_ors_direct_mooe_dt`
-    WHERE
-        `project_id` = '$recid'
-");
+// $rc_list_mooed = [];
+// $mfo_list_mooed = [];
+// $pdf->SetXY(10, $DPSY);
+// $query = $this->db->query("
+//     SELECT
+//         `responsibility_code`,
+//         `mfopaps_code`
+//     FROM
+//         `tbl_ors_direct_mooe_dt`
+//     WHERE
+//         `project_id` = '$recid'
+// ");
 
-$data = $query->getResultArray();
+// $data = $query->getResultArray();
 
-foreach ($data as $row) {
-    $rc_list_mooed[] = $row['responsibility_code'];
-    $mfo_list_mooed[] = $row['mfopaps_code'];
-}
+// foreach ($data as $row) {
+//     $rc_list_mooed[] = $row['responsibility_code'];
+//     $mfo_list_mooed[] = $row['mfopaps_code'];
+// }
 
-// Get unique RCs only
-$unique_rc_list_mooed = array_unique($rc_list_mooed);
-$unique_mfo_list_mooed = array_unique($mfo_list_mooed);
+// // Get unique RCs only
+// $unique_rc_list_mooed = array_unique($rc_list_mooed);
+// $unique_mfo_list_mooed = array_unique($mfo_list_mooed);
 
-$previous_rc = null;
-foreach ($unique_rc_list_mooed as $rc) {
-    $pdf->SetXY(10, $DMOOEY);
-    $pdf->MultiCell(38, 4, $rc, 0, 'L'); // full width usage
+// $previous_rc = null;
+// foreach ($unique_rc_list_mooed as $rc) {
+//     $pdf->SetXY(10, $DMOOEY);
+//     $pdf->MultiCell(38, 4, $rc, 0, 'L'); // full width usage
     
-    // If current RC is not the same as previous, add 5 to y-coordinate
-    if ($rc !== $previous_rc) {
-        $DMOOEY += 5;
-    }
-    $previous_rc = $rc;
-}
+//     // If current RC is not the same as previous, add 5 to y-coordinate
+//     if ($rc !== $previous_rc) {
+//         $DMOOEY += 5;
+//     }
+//     $previous_rc = $rc;
+// }
 
-foreach ($unique_mfo_list_mooed as $mfo) {
-    $pdf->SetXY(105, $DMOOEY_MFO);
-    $pdf->MultiCell(30, 4, $mfo, 0, 'L'); // full width usage
-    $DMOOEY_MFO = $pdf->GetY($DMOOEY_MFO);
-}
+// foreach ($unique_mfo_list_mooed as $mfo) {
+//     $pdf->SetXY(105, $DMOOEY_MFO);
+//     $pdf->MultiCell(30, 4, $mfo, 0, 'L'); // full width usage
+//     $DMOOEY_MFO = $pdf->GetY($DMOOEY_MFO);
+// }
 
-//DT INDIRECT MOOE
-if($DMOOEY >= 85){
-    $IDMOOEY = $DMOOEY;
-    $IDMOOEY_MFO = $IDMOOEY;
-}else{
-    $IDMOOEY = $pdf->GetY($DMOOEY);
-    $IDMOOEY_MFO = $IDMOOEY;
-}
+// //DT INDIRECT MOOE
+// if($DMOOEY >= 85){
+//     $IDMOOEY = $DMOOEY;
+//     $IDMOOEY_MFO = $IDMOOEY;
+// }else{
+//     $IDMOOEY = $pdf->GetY($DMOOEY);
+//     $IDMOOEY_MFO = $IDMOOEY;
+// }
 
-$rc_list_mooeid = [];
-$mfo_list_mooeid = [];
-$pdf->SetXY(10, $DPSY);
-$query = $this->db->query("
-    SELECT
-        `responsibility_code`,
-        `mfopaps_code`
-    FROM
-        `tbl_ors_indirect_mooe_dt`
-    WHERE
-        `project_id` = '$recid'
-");
+// $rc_list_mooeid = [];
+// $mfo_list_mooeid = [];
+// $pdf->SetXY(10, $DPSY);
+// $query = $this->db->query("
+//     SELECT
+//         `responsibility_code`,
+//         `mfopaps_code`
+//     FROM
+//         `tbl_ors_indirect_mooe_dt`
+//     WHERE
+//         `project_id` = '$recid'
+// ");
 
-$data = $query->getResultArray();
+// $data = $query->getResultArray();
 
-foreach ($data as $row) {
-    $rc_list_mooeid[] = $row['responsibility_code'];
-    $mfo_list_mooeid[] = $row['mfopaps_code'];
-}
+// foreach ($data as $row) {
+//     $rc_list_mooeid[] = $row['responsibility_code'];
+//     $mfo_list_mooeid[] = $row['mfopaps_code'];
+// }
 
-// Get unique RCs only
-$unique_rc_list_mooeid = array_unique($rc_list_mooeid);
-$unique_mfo_list_mooeid = array_unique($mfo_list_mooeid);
+// // Get unique RCs only
+// $unique_rc_list_mooeid = array_unique($rc_list_mooeid);
+// $unique_mfo_list_mooeid = array_unique($mfo_list_mooeid);
 
-$previous_rc = null;
-foreach ($unique_rc_list_mooeid as $rc) {
-    $pdf->SetXY(10, $IDMOOEY);
-    $pdf->MultiCell(38, 4, $rc, 0, 'L'); // full width usage
+// $previous_rc = null;
+// foreach ($unique_rc_list_mooeid as $rc) {
+//     $pdf->SetXY(10, $IDMOOEY);
+//     $pdf->MultiCell(38, 4, $rc, 0, 'L'); // full width usage
     
-    // If current RC is not the same as previous, add 5 to y-coordinate
-    if ($rc !== $previous_rc) {
-        $IDMOOEY += 5;
-    }
-    $previous_rc = $rc;
-}
+//     // If current RC is not the same as previous, add 5 to y-coordinate
+//     if ($rc !== $previous_rc) {
+//         $IDMOOEY += 5;
+//     }
+//     $previous_rc = $rc;
+// }
 
-foreach ($unique_mfo_list_mooeid as $mfo) {
-    $pdf->SetXY(105, $IDMOOEY_MFO);
-    $pdf->MultiCell(30, 4, $mfo, 0, 'L'); // full width usage
-    $IDMOOEY_MFO = $pdf->GetY($IDMOOEY_MFO);
-}
+// foreach ($unique_mfo_list_mooeid as $mfo) {
+//     $pdf->SetXY(105, $IDMOOEY_MFO);
+//     $pdf->MultiCell(30, 4, $mfo, 0, 'L'); // full width usage
+//     $IDMOOEY_MFO = $pdf->GetY($IDMOOEY_MFO);
+// }
 
 
 //-----------------------------------------------------  UACS CODE AND AMOUNT DT FETCHING    ----------------------------------------------------------------------------------
 
 //DT DIRECT PS
-$DPS = 85;
+$pdf->SetFont('Times', '', 10);
+
+$DPS = 81;
+$pdf->SetXY(10, $DPS);
+$pdf->Cell(37, 3, '' , 'LR', 1, 'C');
+
+$pdf->SetXY(47, $DPS);
+$pdf->Cell(58, 3, '' , 'R', 1, 'C');
+
+$pdf->SetXY(105, $DPS);
+$pdf->Cell(30, 3, '' , 'R', 1, 'C');
+
+$pdf->SetXY(135, $DPS);
+$pdf->Cell(30, 3, '' , 'R', 1, 'C');
+
+$pdf->SetXY(165, $DPS);
+$pdf->Cell(35, 3, '' , 'R', 1, 'C');
+
 $query = $this->db->query("
 SELECT
     `recid`,
@@ -425,39 +434,89 @@ FROM
     `tbl_ors_direct_ps_dt`
 WHERE
     `project_id` = '$recid'
-"
-);
+");
+
 $data = $query->getResultArray();
-$last_responsibility_code = '';
+
 foreach ($data as $row) {
+
     $responsibility_code = $row['responsibility_code'];
-    $mfopaps_code = $row['mfopaps_code'];
-    $uacs_code = $row['uacs_code'];
-    $amount = $row['amount'];
-    
-    // if ($responsibility_code !== $last_responsibility_code && $responsibility_code !== null) {
-    //     $pdf->SetXY(10, $DPS);
-    //     $pdf->MultiCell(38, 4, $responsibility_code, 0, 'L'); // full width usage
-    //     $last_responsibility_code = $responsibility_code;
-    // }
+    $mfopaps_code        = $row['mfopaps_code'];
+    $uacs_code           = $row['uacs_code'];
+    $amount              = $row['amount'];
 
-    // $pdf->SetXY(105, $DPS);
-    // $pdf->Cell(30, 4, $mfopaps_code , 0, 1, 'C');
+    // Save current Y position
+    $startY = $DPS +3;
 
-    $pdf->SetXY(135, $DPS);
-    $pdf->Cell(30, 4, $uacs_code , 0, 1, 'C');
+    // Add new page when reaching the bottom
+    if ($startY > 250) {
+        $pdf->AddPage();
+        $DPS = 20;
+        $startY = $DPS;
+    }
 
-    $pdf->SetXY(165, $DPS);
-    $pdf->Cell(25, 4, number_format($amount,2), 0, 1, 'R');
+    // ==========================================
+    // Responsibility Center (can wrap)
+    // ==========================================
+    $pdf->SetXY(10, $startY);
+    $pdf->MultiCell(37, 4, $responsibility_code, 'LR', 'C');
+
+    // Height used by the MultiCell
+    $endY = $pdf->GetY();
+    $rowHeight = $endY - $startY;
+
+    // Minimum row height
+    if ($rowHeight < 4) {
+        $rowHeight = 4;
+    }
+
+    // MFO/PAP Border
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'LR', 0);
+
+    // MFO/PAP Text
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, 4, $mfopaps_code, 0, 0, 'C');
+
+
+    // UACS Border
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'R', 0);
+
+    // UACS Text
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, 4, $uacs_code, 0, 0, 'C');
+
+
+    // Amount Border
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, $rowHeight, '', 0, 0);
+
+    // Amount Text
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, 4, number_format($amount, 2), 0, 0, 'R');
+
+    // LAST CELL Border
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, $rowHeight, '', 'R', 0);
+
+    // LAST CELL Text
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, 4, '', 0, 0, 'R');
+
     $total_amount += $amount;
-    $DPS = $pdf->GetY($DPS);
+
+    // Move to the next row
+    $DPS += $rowHeight;
 }
 
 //DT INDIRECT PS
-if($DPS == 85){
+$pdf->SetFont('Times', '', 10);
+
+if ($DPS >= 85) {
     $IDPS = $DPS;
-}else{
-    $IDPS = $pdf->GetY($DPS);
+} else {
+    $IDPS = $pdf->GetY();
 }
 
 $query = $this->db->query("
@@ -476,41 +535,89 @@ FROM
     `tbl_ors_indirect_ps_dt`
 WHERE
     `project_id` = '$recid'
-"
-);
+");
+
 $data = $query->getResultArray();
-$last_responsibility_code = '';
+
 foreach ($data as $row) {
+
     $responsibility_code = $row['responsibility_code'];
-    $mfopaps_code = $row['mfopaps_code'];
-    $uacs_code = $row['uacs_code'];
-    $amount = $row['amount'];
-    
-    // if ($responsibility_code !== $last_responsibility_code && $responsibility_code !== null) {
-    //     $pdf->SetXY(10, $IDPS);
-    //     $pdf->MultiCell(37, 4, $responsibility_code, 0, 'L'); // full width usage
-    //     $last_responsibility_code = $responsibility_code;
-    // }
+    $mfopaps_code        = $row['mfopaps_code'];
+    $uacs_code           = $row['uacs_code'];
+    $amount              = $row['amount'];
 
-    // $pdf->SetXY(105, $IDPS);
-    // $pdf->Cell(30, 4, $mfopaps_code , 0, 1, 'C');
+    // Save current Y position
+    $startY = $IDPS;
 
-    $pdf->SetXY(135, $IDPS);
-    $pdf->Cell(30, 4, $uacs_code , 0, 1, 'C');
+    // Add new page when reaching the bottom
+    if ($startY > 250) {
+        $pdf->AddPage();
+        $IDPS = 20;
+        $startY = $IDPS;
+    }
 
-    $pdf->SetXY(165, $IDPS);
-    $pdf->Cell(25, 4, number_format($amount,2), 0, 1, 'R');
+    // ==========================================
+    // Responsibility Center (can wrap)
+    // ==========================================
+    $pdf->SetXY(10, $startY);
+    $pdf->MultiCell(37, 4, $responsibility_code, 'LR', 'C');
+
+    // Height used by the MultiCell
+    $endY = $pdf->GetY();
+    $rowHeight = $endY - $startY;
+
+    // Minimum row height
+    if ($rowHeight < 4) {
+        $rowHeight = 4;
+    }
+
+    // MFO/PAP Border
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'LR', 0);
+
+    // MFO/PAP Text
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, 4, $mfopaps_code, 0, 0, 'C');
+
+
+    // UACS Border
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'R', 0);
+
+    // UACS Text
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, 4, $uacs_code, 0, 0, 'C');
+
+
+    // Amount Border
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, $rowHeight, '', 0, 0);
+
+    // Amount Text
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, 4, number_format($amount, 2), 0, 0, 'R');
+
+    // LAST CELL Border
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, $rowHeight, '', 'R', 0);
+
+    // LAST CELL Text
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, 4, '', 0, 0, 'R');
+
     $total_amount += $amount;
-    $IDPS = $pdf->GetY($IDPS);
+
+    // Move to the next row
+    $IDPS += $rowHeight;
 }
 
 //MOEE ENTRY
-
+ $pdf->SetFont('Times', '', 10);
 //DT DIRECT MOOE
-if($IDPS >= 85){
+if ($IDPS >= 85) {
     $DMOOE = $IDPS;
-}else{
-    $DMOOE = $pdf->GetY($IDPS);
+} else {
+    $DMOOE = $pdf->GetY();
 }
 
 $query = $this->db->query("
@@ -529,39 +636,86 @@ FROM
     `tbl_ors_direct_mooe_dt`
 WHERE
     `project_id` = '$recid'
-"
-);
+");
+
 $data = $query->getResultArray();
-$last_responsibility_code = '';
+
 foreach ($data as $row) {
+
     $responsibility_code = $row['responsibility_code'];
-    $mfopaps_code = $row['mfopaps_code'];
-    $uacs_code = $row['uacs_code'];
-    $amount = $row['amount'];
-    
-    // if ($responsibility_code !== $last_responsibility_code && $responsibility_code !== null) {
-    //     $pdf->SetXY(10, $DMOOE);
-    //     $pdf->MultiCell(37, 4, $responsibility_code, 0, 'L'); // full width usage
-    //     $last_responsibility_code = $responsibility_code;
-    // }
+    $mfopaps_code        = $row['mfopaps_code'];
+    $uacs_code           = $row['uacs_code'];
+    $amount              = $row['amount'];
 
-    // $pdf->SetXY(105, $DMOOE);
-    // $pdf->Cell(30, 4, $mfopaps_code , 0, 1, 'C');
+    // Save current Y position
+    $startY = $DMOOE;
 
-    $pdf->SetXY(135, $DMOOE);
-    $pdf->Cell(30, 4, $uacs_code , 0, 1, 'C');
+    if ($startY > 250) {
+        $pdf->AddPage();
+        $DMOOE = 20;
+        $startY = $DMOOE;
+    }
+    // ==========================================
+    // Responsibility Center (can wrap)
+    // ==========================================
+    $pdf->SetXY(10, $startY);
+    $pdf->MultiCell(37, 4, $responsibility_code, 'LR', 'C');
 
-    $pdf->SetXY(165, $DMOOE);
-    $pdf->Cell(25, 4, number_format($amount,2), 0, 1, 'R');
+    // Height used by the MultiCell
+    $endY = $pdf->GetY();
+    $rowHeight = $endY - $startY;
+
+    // Minimum row height
+    if ($rowHeight < 4) {
+        $rowHeight = 4;
+    }
+
+    // MFO/PAP Border
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'LR', 0);
+
+    // MFO/PAP Text
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, 4, $mfopaps_code, 0, 0, 'C');
+
+
+    // UACS Border
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'R', 0);
+
+    // UACS Text
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, 4, $uacs_code, 0, 0, 'C');
+
+    // Amount Border
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, $rowHeight, '', 0, 0);
+
+    // Amount Text
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, 4, number_format($amount, 2), 0, 0, 'R');
+
+    // LAST CELL Border
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, $rowHeight, '', 'R', 0);
+
+    // LAST CELL Text
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, 4, '', 0, 0, 'R');
+
     $total_amount += $amount;
-    $DMOOE = $pdf->GetY($DMOOE);
+
+    // Move to the next row
+    $DMOOE += $rowHeight;
 }
 
 //DT INDIRECT MOOE
-if($DMOOE >= 85){
+$pdf->SetFont('Times', '', 10);
+
+if ($DMOOE >= 85) {
     $IDMOOE = $DMOOE;
-}else{
-    $IDMOOE = $pdf->GetY($DMOOE);
+} else {
+    $IDMOOE = $pdf->GetY();
 }
 
 $query = $this->db->query("
@@ -580,39 +734,89 @@ FROM
     `tbl_ors_indirect_mooe_dt`
 WHERE
     `project_id` = '$recid'
-"
-);
+");
+
 $data = $query->getResultArray();
-$last_responsibility_code = '';
+
 foreach ($data as $row) {
+
     $responsibility_code = $row['responsibility_code'];
-    $mfopaps_code = $row['mfopaps_code'];
-    $uacs_code = $row['uacs_code'];
-    $amount = $row['amount'];
-    
-    // if ($responsibility_code !== $last_responsibility_code && $responsibility_code !== null) {
-    //     $pdf->SetXY(10, $IDMOOE);
-    //     $pdf->MultiCell(37, 4, $responsibility_code, 0, 'L'); // full width usage
-    //     $last_responsibility_code = $responsibility_code;
-    // }
+    $mfopaps_code        = $row['mfopaps_code'];
+    $uacs_code           = $row['uacs_code'];
+    $amount              = $row['amount'];
 
-    // $pdf->SetXY(105, $IDMOOE);
-    // $pdf->Cell(30, 4, $mfopaps_code , 0, 1, 'C');
+    // Save current Y position
+    $startY = $IDMOOE;
 
-    $pdf->SetXY(135, $IDMOOE);
-    $pdf->Cell(30, 4, $uacs_code , 0, 1, 'C');
+    // Add new page when reaching the bottom
+    if ($startY > 250) {
+        $pdf->AddPage();
+        $IDMOOE = 20;
+        $startY = $IDMOOE;
+    }
 
-    $pdf->SetXY(165, $IDMOOE);
-    $pdf->Cell(25, 4, number_format($amount,2), 0, 1, 'R');
+    // ==========================================
+    // Responsibility Center (can wrap)
+    // ==========================================
+    $pdf->SetXY(10, $startY);
+    $pdf->MultiCell(37, 4, $responsibility_code, 'LR', 'C');
+
+    // Height used by the MultiCell
+    $endY = $pdf->GetY();
+    $rowHeight = $endY - $startY;
+
+    // Minimum row height
+    if ($rowHeight < 4) {
+        $rowHeight = 4;
+    }
+
+    // MFO/PAP Border
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'LR', 0);
+
+    // MFO/PAP Text
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, 4, $mfopaps_code, 0, 0, 'C');
+
+
+    // UACS Border
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'R', 0);
+
+    // UACS Text
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, 4, $uacs_code, 0, 0, 'C');
+
+
+    // Amount Border
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, $rowHeight, '', 0, 0);
+
+    // Amount Text
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, 4, number_format($amount, 2), 0, 0, 'R');
+
+    // LAST CELL Border
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, $rowHeight, '', 'R', 0);
+
+    // LAST CELL Text
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, 4, '', 0, 0, 'R');
+
     $total_amount += $amount;
-    $IDMOOE = $pdf->GetY($IDMOOE);
+
+    // Move to the next row
+    $IDMOOE += $rowHeight;
 }
 
 //DT DIRECT CO
-if($IDMOOE >= 85){
+$pdf->SetFont('Times', '', 10);
+
+if ($IDMOOE >= 85) {
     $DCO = $IDMOOE;
-}else{
-    $DCO = $pdf->GetY($IDMOOE);
+} else {
+    $DCO = $pdf->GetY();
 }
 
 $query = $this->db->query("
@@ -631,39 +835,89 @@ FROM
     `tbl_ors_direct_co_dt`
 WHERE
     `project_id` = '$recid'
-"
-);
+");
+
 $data = $query->getResultArray();
-$last_responsibility_code = '';
+
 foreach ($data as $row) {
+
     $responsibility_code = $row['responsibility_code'];
-    $mfopaps_code = $row['mfopaps_code'];
-    $uacs_code = $row['uacs_code'];
-    $amount = $row['amount'];
-    
-    // if ($responsibility_code !== $last_responsibility_code && $responsibility_code !== null) {
-    //     $pdf->SetXY(10, $DCO);
-    //     $pdf->MultiCell(37, 4, $responsibility_code, 0, 'L'); // full width usage
-    //     $last_responsibility_code = $responsibility_code;
-    // }
+    $mfopaps_code        = $row['mfopaps_code'];
+    $uacs_code           = $row['uacs_code'];
+    $amount              = $row['amount'];
 
-    // $pdf->SetXY(105, $DCO);
-    // $pdf->Cell(30, 4, $mfopaps_code , 0, 1, 'C');
+    // Save current Y position
+    $startY = $DCO;
 
-    $pdf->SetXY(135, $DCO);
-    $pdf->Cell(30, 4, $uacs_code , 0, 1, 'C');
+    // Add new page when reaching the bottom
+    if ($startY > 250) {
+        $pdf->AddPage();
+        $DCO = 20;
+        $startY = $DCO;
+    }
 
-    $pdf->SetXY(165, $DCO);
-    $pdf->Cell(25, 4, number_format($amount,2), 0, 1, 'R');
+    // ==========================================
+    // Responsibility Center (can wrap)
+    // ==========================================
+    $pdf->SetXY(10, $startY);
+    $pdf->MultiCell(37, 4, $responsibility_code, 'LR', 'C');
+
+    // Height used by the MultiCell
+    $endY = $pdf->GetY();
+    $rowHeight = $endY - $startY;
+
+    // Minimum row height
+    if ($rowHeight < 4) {
+        $rowHeight = 4;
+    }
+
+    // MFO/PAP Border
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'LR', 0);
+
+    // MFO/PAP Text
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, 4, $mfopaps_code, 0, 0, 'C');
+
+
+    // UACS Border
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'R', 0);
+
+    // UACS Text
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, 4, $uacs_code, 0, 0, 'C');
+
+
+    // Amount Border
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, $rowHeight, '', 0, 0);
+
+    // Amount Text
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, 4, number_format($amount, 2), 0, 0, 'R');
+
+    // LAST CELL Border
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, $rowHeight, '', 'R', 0);
+
+    // LAST CELL Text
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, 4, '', 0, 0, 'R');
+
     $total_amount += $amount;
-    $DCO = $pdf->GetY($DCO);
+
+    // Move to the next row
+    $DCO += $rowHeight;
 }
 
 //DT INDIRECT CO
-if($DCO >= 85){
+$pdf->SetFont('Times', '', 10);
+
+if ($DCO >= 85) {
     $IDCO = $DCO;
-}else{
-    $IDCO = $pdf->GetY($DCO);
+} else {
+    $IDCO = $pdf->GetY();
 }
 
 $query = $this->db->query("
@@ -682,204 +936,364 @@ FROM
     `tbl_ors_indirect_co_dt`
 WHERE
     `project_id` = '$recid'
-"
-);
+");
+
 $data = $query->getResultArray();
-$last_responsibility_code = '';
+
 foreach ($data as $row) {
+
     $responsibility_code = $row['responsibility_code'];
-    $mfopaps_code = $row['mfopaps_code'];
-    $uacs_code = $row['uacs_code'];
-    $amount = $row['amount'];
-    
-    // if ($responsibility_code !== $last_responsibility_code && $responsibility_code !== null) {
-    //     $pdf->SetXY(10, $IDCO);
-    //     $pdf->MultiCell(37, 4, $responsibility_code, 0, 'L'); // full width usage
-    //     $last_responsibility_code = $responsibility_code;
-    // }
+    $mfopaps_code        = $row['mfopaps_code'];
+    $uacs_code           = $row['uacs_code'];
+    $amount              = $row['amount'];
 
-    // $pdf->SetXY(105, $IDCO);
-    // $pdf->Cell(30, 4, $mfopaps_code , 0, 1, 'C');
+    // Save current Y position
+    $startY = $IDCO;
 
-    $pdf->SetXY(135, $IDCO);
-    $pdf->Cell(30, 4, $uacs_code , 0, 1, 'C');
+    // Add new page when reaching the bottom
+    if ($startY > 250) {
+        $pdf->AddPage();
+        $IDCO = 20;
+        $startY = $IDCO;
+    }
 
-    $pdf->SetXY(165, $IDCO);
-    $pdf->Cell(25, 4, number_format($amount,2), 0, 1, 'R');
+    // ==========================================
+    // Responsibility Center (can wrap)
+    // ==========================================
+    $pdf->SetXY(10, $startY);
+    $pdf->MultiCell(37, 4, $responsibility_code, 'LR', 'C');
+
+    // Height used by the MultiCell
+    $endY = $pdf->GetY();
+    $rowHeight = $endY - $startY;
+
+    // Minimum row height
+    if ($rowHeight < 4) {
+        $rowHeight = 4;
+    }
+
+    // MFO/PAP Border
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'LR', 0);
+
+    // MFO/PAP Text
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(30, 4, $mfopaps_code, 0, 0, 'C');
+
+
+    // UACS Border
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, $rowHeight, '', 'R', 0);
+
+    // UACS Text
+    $pdf->SetXY(135, $startY);
+    $pdf->Cell(30, 4, $uacs_code, 0, 0, 'C');
+
+
+    // Amount Border
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, $rowHeight, '', 0, 0);
+
+    // Amount Text
+    $pdf->SetXY(165, $startY);
+    $pdf->Cell(27, 4, number_format($amount, 2), 0, 0, 'R');
+
+    // LAST CELL Border
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, $rowHeight, '', 'R', 0);
+
+    // LAST CELL Text
+    $pdf->SetXY(192, $startY);
+    $pdf->Cell(8, 4, '', 0, 0, 'R');
     $total_amount += $amount;
-    $IDCO = $pdf->GetY($IDCO);
+
+    // Move to the next row
+    $IDCO += $rowHeight;
 }
 
 
-$Y += 2;
-$pdf->SetXY(47, $Y);
-$pdf->MultiCell(58, 4, $particulars, 0, 'L'); // full width usage
-
-$Y = 186.5;
+$Y = $pdf->GetY()+8;
 $pdf->SetXY(10, $Y);
-$pdf->Cell(35, 3, '' , 0, 1, 'C');
+$pdf->Cell(37, 4, '' , 'LR', 1, 'C');
 
 $pdf->SetXY(45, $Y);
-$pdf->Cell(60, 3, 'TOTAL' , 0, 1, 'R');
+$pdf->Cell(60, 4, '' , 'R', 1, 'R');
 
 $pdf->SetXY(105, $Y);
-$pdf->Cell(30, 3, '' , 0, 1, 'C');
+$pdf->Cell(30, 4, '' , 'R', 1, 'C');
 
 $pdf->SetXY(135, $Y);
-$pdf->Cell(30, 3, '' , 0, 1, 'C');
+$pdf->Cell(30, 4, '' , 'R', 1, 'C');
 
-$pdf->SetXY(155, $Y);
-$pdf->SetFont('Arial', 'B', 8);
-$pdf->Cell(35, 3, number_format($total_amount, 2) , 0, 1, 'R');
-$pdf->SetFont('Arial', '', 8);
+// Amount Text
+$pdf->SetXY(165, $Y);
+$pdf->Cell(27, 4, '', 'T', 0, 'R');
 
+// LAST CELL Text
+$pdf->SetXY(192, $Y);
+$pdf->Cell(8, 4, '', 'TR', 0, 'R');
 
-// $Y = 171.5;
-$Y = 190;
-
-//CERTIFY BORDERING
+$Y = $pdf->GetY()+4;
 $pdf->SetXY(10, $Y);
-$pdf->Cell(95, 60, '' , 1, 1, 'C'); //Certify A
+$pdf->Cell(37, 4, '' , 'LBR', 1, 'C');
 
-$CY = 190;
-$pdf->SetXY(10, $CY);
-$pdf->SetFont('Arial', 'B', 8);
-$pdf->Cell(15, 10, 'A.' , 1, 1, 'L');
-$pdf->SetFont('Arial', '', 8);
-$CY += 4;
-$pdf->SetXY(27, $CY);
-$pdf->MultiCell(75, 4, '     Certified: Charges to appropriate/allotment are necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal.', 0, 'L'); // full width usage
-
-$CY = $pdf->GetY($CY) +4;
-
-$pdf->SetXY(10, $CY);
-$pdf->Cell(15, 4, 'Signature' , 0, 1, 'L');
-$pdf->SetXY(30, $CY);
-$pdf->Cell(4, 4, ':' , 0, 1, 'L');
-$pdf->SetXY(35, $CY);
-$pdf->Cell(65, 4, '' , 'B', 1, 'L');
-
-$CY = $pdf->GetY($CY) +4;
-
-$pdf->SetXY(10, $CY);
-$pdf->Cell(15, 4, 'Printed Name' , 0, 1, 'L');
-$pdf->SetXY(30, $CY);
-$pdf->Cell(4, 4, ':' , 0, 1, 'L');
-$pdf->SetXY(35, $CY);
-$pdf->SetFont('Arial', 'B', 8);
-$pdf->Cell(65, 4, $certified_a , 'B', 1, 'C');
-$pdf->SetFont('Arial', '', 8);
-$CY = $pdf->GetY($CY) +4;
-
-$pdf->SetXY(10, $CY);
-$pdf->Cell(15, 4, 'Position' , 0, 1, 'L');
-$pdf->SetXY(30, $CY);
-$pdf->Cell(4, 4, ':' , 0, 1, 'L');
-$pdf->SetXY(35, $CY);
-$pdf->SetFont('Arial', 'B', 8);
-$pdf->Cell(65, 4, $position_a . ', ' . $division_a , 'B', 1, 'C');
-$pdf->SetFont('Arial', '', 8);
-$CY = $pdf->GetY($CY);
-$pdf->SetXY(10, $CY);
-$pdf->SetXY(35, $CY);
-$pdf->Cell(65, 4, 'Head, Requesting Office/Authorized' , 0, 1, 'C');
-
-$CY = $pdf->GetY($CY);
-$pdf->SetXY(10, $CY);
-$pdf->SetXY(35, $CY);
-$pdf->Cell(65, 4, 'Representative' , 0, 1, 'C');
-
-$CY = $pdf->GetY($CY) +4;
-
-$pdf->SetXY(10, $CY);
-$pdf->Cell(15, 4, 'Date' , 0, 1, 'L');
-$pdf->SetXY(30, $CY);
-$pdf->Cell(4, 4, ':' , 0, 1, 'L');
-$pdf->SetXY(35, $CY);
-$pdf->Cell(65, 4, '' , 'B', 1, 'L');
+$pdf->SetXY(45, $Y);
+$pdf->Cell(60, 4, 'Total' , 'BR', 1, 'R');
 
 $pdf->SetXY(105, $Y);
-$pdf->Cell(95, 60, '' , 1, 1, 'C'); //Certify B
+$pdf->Cell(30, 4, '' , 'BR', 1, 'C');
 
-$CY2 = 190;
-$pdf->SetXY(105, $CY2);
-$pdf->SetFont('Arial', 'B', 8);
-$pdf->Cell(15, 10, 'B.' , 1, 1, 'L');
-$pdf->SetFont('Arial', '', 8);
-$CY2 += 4;
-$pdf->SetXY(122, $CY2);
-$pdf->MultiCell(65, 4, '     Certified: Allotment available and obligated for the purpose/adjustment necessary as indicated above.', 0, 'L'); // full width usage
+$pdf->SetXY(135, $Y);
+$pdf->Cell(30, 4, '' , 'RB', 1, 'C');
 
-$CY2 = $pdf->GetY($CY2) +4;
+// Amount Text
+$pdf->SetXY(165, $Y);
+$pdf->Cell(27, 4, number_format($total_amount, 2), 'B', 0, 'R');
 
-$pdf->SetXY(105, $CY2);
-$pdf->Cell(15, 4, 'Signature' , 0, 1, 'L');
-$pdf->SetXY(125, $CY2);
-$pdf->Cell(4, 4, ':' , 0, 1, 'L');
-$pdf->SetXY(130, $CY2);
-$pdf->Cell(65, 4, '' , 'B', 1, 'L');
+// LAST CELL Text
+$pdf->SetXY(192, $Y);
+$pdf->Cell(8, 4, '', 'RB', 0, 'R');
 
-$CY2 = $pdf->GetY($CY2) +4;
 
-$pdf->SetXY(105, $CY2);
-$pdf->Cell(15, 4, 'Printed Name' , 0, 1, 'L');
-$pdf->SetXY(125, $CY2);
-$pdf->Cell(4, 4, ':' , 0, 1, 'L');
-$pdf->SetXY(130, $CY2);
-$pdf->SetFont('Arial', 'B', 8);
-$pdf->Cell(65, 4, $certified_b , 'B', 1, 'C');
-$pdf->SetFont('Arial', '', 8);
 
-$CY2 = $pdf->GetY($CY2) +4;
 
-$pdf->SetXY(105, $CY2);
-$pdf->Cell(15, 4, 'Position' , 0, 1, 'L');
-$pdf->SetXY(125, $CY2);
-$pdf->Cell(4, 4, ':' , 0, 1, 'L');
-$pdf->SetXY(130, $CY2);
-$pdf->SetFont('Arial', 'B', 8);
-$pdf->Cell(65, 4, $position_b . ', ' . $section_a , 'B', 1, 'C');
-$pdf->SetFont('Arial', '', 8);
 
-$CY2 = $pdf->GetY($CY2);
-$pdf->SetXY(105, $CY2);
-$pdf->SetXY(130, $CY2);
-$pdf->Cell(65, 4, 'Head, Budget Division/Unit/Authorized' , 0, 1, 'C');
+// // // $Y = 171.5;
+// $Y = $pdf->GetY($Y);
 
-$CY2 = $pdf->GetY($CY2);
-$pdf->SetXY(105, $CY2);
-$pdf->SetXY(130, $CY2);
-$pdf->Cell(65, 4, 'Representative' , 0, 1, 'C');
+// //CERTIFY BORDERING
 
-$CY2 = $pdf->GetY($CY2) +4;
+// $pdf->SetXY(10, $Y);
+// $pdf->SetFont('Times', 'B', 10);
+// $pdf->Cell(15, 10, 'A.' , 1, 1, 'L');
+// $pdf->SetFont('Times', '', 10);
+// $Y += 4;
+// $pdf->SetXY(27, $Y);
+// $pdf->MultiCell(75, 4, '     Certified: Charges to appropriate/allotment are necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal.', 0, 'L'); // full width usage
 
-$pdf->SetXY(105, $CY2);
-$pdf->Cell(15, 4, 'Date' , 0, 1, 'L');
-$pdf->SetXY(30, $CY2);
-$pdf->Cell(4, 4, ':' , 0, 1, 'L');
-$pdf->SetXY(130, $CY2);
-$pdf->Cell(65, 4, '' , 'B', 1, 'L');
+// $Y = $pdf->GetY($Y) +4;
 
-//STATUS OF OBGLIGATION
-$Y = $pdf->GetY($CY2)+4;
+// $pdf->SetXY(10, $Y);
+// $pdf->Cell(15, 4, 'Signature' , 0, 1, 'L');
+// $pdf->SetXY(30, $Y);
+// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
+// $pdf->SetXY(35, $Y);
+// $pdf->Cell(65, 4, '' , 'B', 1, 'L');
+
+// $Y = $pdf->GetY($Y) +4;
+
+// $pdf->SetXY(10, $Y);
+// $pdf->Cell(15, 4, 'Printed Name' , 0, 1, 'L');
+// $pdf->SetXY(30, $Y);
+// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
+// $pdf->SetXY(35, $Y);
+// $pdf->SetFont('Times', 'B', 10);
+// $pdf->Cell(65, 4, $certified_a , 'B', 1, 'C');
+// $pdf->SetFont('Times', '', 10);
+// $Y = $pdf->GetY($Y) +4;
+
+// $pdf->SetXY(10, $Y);
+// $pdf->Cell(15, 4, 'Position' , 0, 1, 'L');
+// $pdf->SetXY(30, $Y);
+// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
+// $pdf->SetXY(35, $Y);
+// $pdf->SetFont('Times', 'B', 10);
+// $pdf->Cell(65, 4, $position_a . ', ' . $division_a , 'B', 1, 'C');
+// $pdf->SetFont('Times', '', 10);
+// $Y = $pdf->GetY($Y);
+// $pdf->SetXY(10, $Y);
+// $pdf->SetXY(35, $Y);
+// $pdf->Cell(65, 4, 'Head, Requesting Office/Authorized' , 0, 1, 'C');
+
+// $Y = $pdf->GetY($Y);
+// $pdf->SetXY(10, $Y);
+// $pdf->SetXY(35, $Y);
+// $pdf->Cell(65, 4, 'Representative' , 0, 1, 'C');
+
+// $Y = $pdf->GetY($Y) +4;
+
+// $pdf->SetXY(10, $Y);
+// $pdf->Cell(15, 4, 'Date' , 0, 1, 'L');
+// $pdf->SetXY(30, $Y);
+// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
+// $pdf->SetXY(35, $Y);
+// $pdf->Cell(65, 4, '' , 'B', 1, 'L');
+
+
+// $Y = $pdf->GetY($Y);
+// $pdf->SetXY(105, $Y);
+// $pdf->SetFont('Times', 'B', 10);
+// $pdf->Cell(15, 10, 'B.' , 1, 1, 'L');
+// $pdf->SetFont('Times', '', 10);
+// $Y += 4;
+// $pdf->SetXY(122, $Y);
+// $pdf->MultiCell(65, 4, '     Certified: Allotment available and obligated for the purpose/adjustment necessary as indicated above.', 0, 'L'); // full width usage
+
+// $Y = $pdf->GetY($Y) +4;
+
+// $pdf->SetXY(105, $Y);
+// $pdf->Cell(15, 4, 'Signature' , 0, 1, 'L');
+// $pdf->SetXY(125, $Y);
+// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
+// $pdf->SetXY(130, $Y);
+// $pdf->Cell(65, 4, '' , 'B', 1, 'L');
+
+// $Y = $pdf->GetY($Y) +4;
+
+// $pdf->SetXY(105, $Y);
+// $pdf->Cell(15, 4, 'Printed Name' , 0, 1, 'L');
+// $pdf->SetXY(125, $Y);
+// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
+// $pdf->SetXY(130, $Y);
+// $pdf->SetFont('Times', 'B', 10);
+// $pdf->Cell(65, 4, $certified_b , 'B', 1, 'C');
+// $pdf->SetFont('Times', '', 10);
+
+// $Y = $pdf->GetY($Y) +4;
+
+// $pdf->SetXY(105, $Y);
+// $pdf->Cell(15, 4, 'Position' , 0, 1, 'L');
+// $pdf->SetXY(125, $Y);
+// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
+// $pdf->SetXY(130, $Y);
+// $pdf->SetFont('Times', 'B', 10);
+// $pdf->Cell(65, 4, $position_b . ', ' . $section_a , 'B', 1, 'C');
+// $pdf->SetFont('Times', '', 10);
+
+// $Y = $pdf->GetY($Y);
+// $pdf->SetXY(105, $Y);
+// $pdf->SetXY(130, $Y);
+// $pdf->Cell(65, 4, 'Head, Budget Division/Unit/Authorized' , 0, 1, 'C');
+
+// $Y = $pdf->GetY($Y);
+// $pdf->SetXY(105, $Y);
+// $pdf->SetXY(130, $Y);
+// $pdf->Cell(65, 4, 'Representative' , 0, 1, 'C');
+
+// $Y = $pdf->GetY($Y) +4;
+
+// $pdf->SetXY(105, $Y);
+// $pdf->Cell(15, 4, 'Date' , 0, 1, 'L');
+// $pdf->SetXY(30, $Y);
+// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
+// $pdf->SetXY(130, $Y);
+// $pdf->Cell(65, 4, '' , 'B', 1, 'L');
+
+//CERT BOX A AND B
+$Y = $pdf->GetY()+4;
 $pdf->SetXY(10, $Y);
-$pdf->SetFont('Arial', 'B', 8);
-$pdf->Cell(15, 5, 'C.' , 1, 1, 'L');
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', 'B', 10);
+$pdf->Cell(15, 6, 'A.' , 1, 1, 'L');
 
 $pdf->SetXY(25, $Y);
-$pdf->SetFont('Arial', 'B', 8);
+$pdf->SetFont('Times', 'B', 9);
+$pdf->Cell(15, 6, 'Certified:' , 1, 1, 'L');
+
+$pdf->SetXY(40, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(65, 6, 'Charges to appropriation/allotment are' , 1, 1, 'L');
+
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', 'B', 9);
+$pdf->Cell(15, 6, 'B.' , 1, 1, 'L');
+
+$pdf->SetXY(120, $Y);
+$pdf->SetFont('Times', 'B', 9);
+$pdf->Cell(15, 6, 'Certified:' , 1, 1, 'L');
+
+$pdf->SetXY(135, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(65, 6, 'Allotment available and obligated for' , 1, 1, 'L');
+//2nd row
+$Y = $pdf->GetY();
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', 'B', 10);
+$pdf->Cell(15, 5, '' , 1, 1, 'L');
+
+$pdf->SetXY(25, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(80, 5, 'necessary, lawful and under my direct' , 1, 1, 'L');
+
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', 'B', 9);
+$pdf->Cell(15, 5, '' , 1, 1, 'L');
+
+$pdf->SetXY(120, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(80, 5, 'the purpose/adjustment necessary as indicated' , 1, 1, 'L');
+
+//3rd row
+$Y = $pdf->GetY();
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', 'B', 10);
+$pdf->Cell(15, 5, '' , 1, 1, 'L');
+
+$pdf->SetXY(25, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(80, 5, 'supervision;and supporting documents valid, proper' , 1, 1, 'L');
+
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', 'B', 9);
+$pdf->Cell(15, 5, '' , 1, 1, 'L');
+
+$pdf->SetXY(120, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(80, 5, 'above' , 1, 1, 'L');
+
+//4th row
+$Y = $pdf->GetY();
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', '', 10);
+$pdf->Cell(190, 5, '' , 1, 1, 'L');
+
+//signature row
+$Y = $pdf->GetY();
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(20, 5, 'Signature' , 1, 1, 'L');
+$pdf->SetXY(35, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, ':' , 1, 1, 'L');
+$pdf->SetXY(40, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(58, 5, '' , 1, 1, 'L');
+
+$pdf->SetXY(98, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 1, 1, 'L');
+
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(20, 5, 'Signature' , 1, 1, 'L');
+$pdf->SetXY(125, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, ':' , 1, 1, 'L');
+$pdf->SetXY(128, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(58, 5, '' , 1, 1, 'L');
+
+
+
+//STATUS OF OBGLIGATION
+$Y = $pdf->GetY($Y)+8;
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', 'B', 10);
+$pdf->Cell(15, 5, 'C.' , 1, 1, 'L');
+$pdf->SetFont('Times', '', 10);
+
+$pdf->SetXY(25, $Y);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(175, 5, 'STATUS OF OBLIGATION' , 1, 1, 'C');
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 10);
 
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
-$pdf->SetFont('Arial', 'B', 8);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(75, 3, 'Reference' , 1, 1, 'C');
 
 $pdf->SetXY(85, $Y);
 $pdf->Cell(115, 3, 'Amount' , 1, 1, 'C');
-$pdf->SetFont('Arial', '', 8);
+$pdf->SetFont('Times', '', 10);
 //ROW 1
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
