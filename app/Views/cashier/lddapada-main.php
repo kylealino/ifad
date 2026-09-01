@@ -174,7 +174,7 @@ echo view('templates/myheader.php');
                         <div class="col-sm-12">
                             <div class="row mb-2">
                                 <div class="col-sm-4">
-                                    <span>is CI?</span>
+                                    <span>Internal Creditor?</span>
                                 </div>
                                 <div class="col-sm-8">
                                     <div class="form-check form-switch">

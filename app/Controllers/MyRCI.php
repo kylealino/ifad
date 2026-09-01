@@ -21,8 +21,15 @@ class MyRCI extends BaseController
     
         switch ($meaction) {
             case 'MAIN': 
-                return $this->loadMainView();
-                break;
+                $accessQuery = $this->db->query("
+                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '15001' AND `is_active` = '1'
+                ");
+                if ($accessQuery->getNumRows() > 0) {
+                    return $this->loadMainView();
+                    break;
+                }else {
+                    return view('errors/html/access-restricted');
+                }
             case 'MAIN-SAVE': 
                 $this->myrci->rci_save();
                 return redirect()->to('myrci?meaction=MAIN');
@@ -124,6 +131,7 @@ class MyRCI extends BaseController
             ) x
 
             ON c.recid = x.project_id
+            ORDER BY a.recid DESC
         
         ");
         $lddapadadata = $lddapadaquery->getResultArray();

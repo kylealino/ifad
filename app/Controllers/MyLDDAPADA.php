@@ -21,8 +21,15 @@ class MyLDDAPADA extends BaseController
     
         switch ($meaction) {
             case 'MAIN': 
-                return $this->loadMainView();
-                break;
+                $accessQuery = $this->db->query("
+                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '14001' AND `is_active` = '1'
+                ");
+                if ($accessQuery->getNumRows() > 0) {
+                    return $this->loadMainView();
+                    break;
+                }else {
+                    return view('errors/html/access-restricted');
+                }
     
             case 'MAIN-SAVE': 
                 $this->mylddapada->lddapada_save();

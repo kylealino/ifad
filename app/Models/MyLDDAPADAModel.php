@@ -30,6 +30,7 @@ class MyLDDAPADAModel extends Model
 		$dvdtdata = $this->request->getPostGet('dvdtdata');
 		$dvno_list = $this->request->getPostGet('dvno_list');
 
+
 		if (empty($lddapada_date)) {
 			echo "
 			<script>
@@ -78,16 +79,17 @@ class MyLDDAPADAModel extends Model
 		$rw = $query->getRowArray();
 		$funding_source = $rw['funding_source'];
 
+		if ($is_ci == '0') {
+			$ckno =  $this->get_ctr_ada('CTRL_NO01');//TRANSACTION NO
+		}
+
+		if ($is_ci == '1') {
+			$ckno =  $this->get_ctr_ci('9926','CTRL_NO01');//TRANSACTION NO
+		}
+
 		if (empty($recid)) {
 			$cseqn =  $this->get_ctr_lddapada($fund_cluster_code,$funding_source,'CTRL_NO01');//TRANSACTION NO
 
-			if ($is_ci == '0') {
-				$ckno =  $this->get_ctr_ada('CTRL_NO01');//TRANSACTION NO
-			}
-
-			if ($is_ci == '1') {
-				$ckno =  $this->get_ctr_ci('9926','CTRL_NO01');//TRANSACTION NO
-			}
 			//INSERTING HD DATA
 			//disbursement SERIALNO
 			$query = $this->db->query("
@@ -189,18 +191,22 @@ class MyLDDAPADAModel extends Model
 			$status = "LDDAP-ADA Saved Successfully!";
 			$color = "success";
 		}else{
+
 			$query = $this->db->query("
 				UPDATE tbl_lddapada_hd
 				SET
+					`ckno` = ?,
 					`lddapadano` = ?,
 					`mds_branch` = ?,
 					`mds_accountno` = ?,
 					`lddapada_date` = ?,
 					`fund_cluster_code` = ?,
 					`funding_source` = ?,
-					`ada_approver` = ?
+					`ada_approver` = ?,
+					`is_ci` = ?
 				WHERE recid = ?
 			", [
+				$ckno,
 				$lddapadano,
 				$mds_branch,
 				$mds_accountno,
@@ -208,6 +214,7 @@ class MyLDDAPADAModel extends Model
 				$fund_cluster_code,
 				$funding_source,
 				$ada_approver,
+				$is_ci,
 				$recid
 			]);
 

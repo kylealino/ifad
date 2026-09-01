@@ -17,7 +17,8 @@ $query = $this->db->query("
 SELECT
     a.`ckno`,
     a.`ada_approver`,
-    (select position from myua_user where full_name = a.`ada_approver`) AS `position`
+    (select position from myua_user where full_name = a.`ada_approver`) AS `position`,
+    a.`fund_cluster_code`
 FROM
     `tbl_lddapada_hd` a
 WHERE 
@@ -28,13 +29,14 @@ $data = $query->getRowArray();
 $ckno = $data['ckno'];
 $ada_approver = $data['ada_approver'];
 $position = $data['position'];
+$fund_cluster_code = $data['fund_cluster_code'];
 
 
 $pdf = new FPDF('P', 'mm', 'A4');
 $pdf->AliasNbPages();
 $pdf->AddPage();
 $pdf->SetTitle('LDDAP-ADA Print');
-$pdf->SetFont('Arial', 'B', 16);
+$pdf->SetFont('Times', 'B', 16);
 
 $pdf->SetXY(0, 8);
 
@@ -45,7 +47,7 @@ $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 4, '' , 'LTR', 1, 'L');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 7);
+$pdf->SetFont('Times', '', 7);
 $pdf->Cell(20, 4, 'Department:' , 'L', 1, 'L');
 $pdf->SetXY(30, $Y);
 $pdf->Cell(100, 4, 'Department of Science and Technology' , 0, 1, 'L');
@@ -70,7 +72,7 @@ $pdf->Cell(100, 4, '' , 0, 1, 'L');
 $pdf->SetXY(130, $Y);
 $pdf->Cell(25, 4, 'Fund Cluster:' , 0, 1, 'R');
 $pdf->SetXY(155, $Y);
-$pdf->Cell(45, 4, '07' , 'R', 1, 'L');
+$pdf->Cell(45, 4, $fund_cluster_code , 'R', 1, 'L');
 
 $Y = $pdf->GetY();
 $pdf->Cell(20, 4, '' , 'L', 1, 'L');
@@ -110,7 +112,7 @@ $pdf->Cell(45, 4, '' , 'R', 1, 'L');
 
 $Y = $pdf->GetY();
 $pdf->Cell(190, 4, 'I. LIST OF DUE AND DEMANDABLE ACCOUNTS PAYABLE (LDDAP)' , 1, 1, 'C');
-$pdf->SetFont('Arial', 'B', 4.5);
+$pdf->SetFont('Times', 'B', 4.5);
 $Y = $pdf->GetY();
 $pdf->Cell(40, 2.5, '' , 'L', 1, 'C');
 $pdf->SetXY(50, $Y);
@@ -189,7 +191,7 @@ $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 2.5, '' , 'LRB', 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', 'B', 6);
+$pdf->SetFont('Times', 'B', 7);
 // your row cells
 $pdf->Cell(40, 4, 'I. Current Year A/Ps', 'L', 0, 'L');
 $pdf->Cell(25, 4, '', 'L', 0, 'C');
@@ -204,7 +206,7 @@ $X = $pdf->GetX();
 
 // move back to top Y
 $pdf->SetXY($X, $Y);
-$pdf->SetFont('Arial', '', 4);
+$pdf->SetFont('Times', '', 4);
 // MultiCell for 2-line text with only top & bottom border
 $pdf->MultiCell(15, 2, "FOR MDS-GSB\nUSE ONLY", 'LR', 'C');
 
@@ -236,7 +238,7 @@ ORDER BY
 
 $data = $query->getResultArray();
 
-$pdf->SetFont('Arial', '', 6.5);
+$pdf->SetFont('Times', '', 7);
 
 $subtotal_gross_cy = 0;
 $subtotal_deduction_cy = 0;
@@ -420,7 +422,7 @@ while ($pdf->GetY() < $targetY) {
     $pdf->SetY($startY + $rowHeight);
 }
 
-$pdf->SetFont('Arial', 'B', 6.5);
+$pdf->SetFont('Times', 'B', 7);
 $Y = $pdf->GetY();
 $X = 10;
 $pdf->SetXY(10, $Y);
@@ -441,7 +443,7 @@ $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 4, '' , 'LRB', 1, 'C');
 
 $Y = $pdf->GetY($Y);
-$pdf->SetFont('Arial', 'B', 6.5);
+$pdf->SetFont('Times', 'B', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(40, 4, "II. Prior Year's A/Ps", 'L', 0, 'L');
 $pdf->Cell(25, 4, '', 'L', 0, 'C');
@@ -480,7 +482,7 @@ ORDER BY
 
 $data = $query->getResultArray();
 
-$pdf->SetFont('Arial', '', 6.5);
+$pdf->SetFont('Times', '', 7);
 $subtotal_gross_py = 0;
 $subtotal_deduction_py = 0;
 $subtotal_net_py = 0;
@@ -664,7 +666,7 @@ while ($pdf->GetY() < $targetYY) {
 }
 //SUB TOTAL PRIOR YEAR ----------------------
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', 'B', 6.5);
+$pdf->SetFont('Times', 'B', 7);
 $X = 10;
 $pdf->SetXY(10, $Y);
 $pdf->Cell(40, 4, 'Sub-total' , 'LR', 1, 'L');
@@ -689,7 +691,7 @@ $grandtotal_deduction_py = $subtotal_deduction_cy + $subtotal_deduction_py;
 $grandtotal_net_py = $subtotal_net_cy + $subtotal_net_py;
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', 'B', 6.5);
+$pdf->SetFont('Times', 'B', 9);
 $X = 10;
 $pdf->SetXY(10, $Y);
 $pdf->Cell(110, 8, 'Total' , 1, 1, 'L');
@@ -703,17 +705,17 @@ $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 8, '' , 1, 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 4, '' , 'LR', 1, 'L');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 2, '' , 'LR', 1, 'L');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(65, 3, 'I hereby warrant that the above List of Due and Demandable' , 'L', 1, 'L');
 $pdf->SetXY(75, $Y);
@@ -748,7 +750,7 @@ $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 3, '' , 'LR', 1, 'L');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(65, 3, 'Certified Correct:' , 'L', 1, 'L');
 $pdf->SetXY(75, $Y);
@@ -759,7 +761,7 @@ $pdf->SetXY(120, $Y);
 $pdf->Cell(80, 3, 'Approved:' , 'R', 1, 'L');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(65, 9, '' , 'LB', 1, 'L');
 $pdf->SetXY(75, $Y);
@@ -772,7 +774,7 @@ $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 9, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', 'B', 6);
+$pdf->SetFont('Times', 'B', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(65, 4, 'BONJOBIE F. CAJANO, CPA, CTT' , 'L', 1, 'C');
 $pdf->SetXY(75, $Y);
@@ -785,7 +787,7 @@ $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 4, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(65, 4, 'Accountant III' , 'L', 1, 'C');
 $pdf->SetXY(75, $Y);
@@ -806,19 +808,19 @@ $Y = $pdf->GetY();
 $pdf->Cell(190, 4, 'II. ADVICE TO DEBIT ACCOUNT (ADA)' , 1, 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', 'B', 6);
+$pdf->SetFont('Times', 'B', 7);
 $pdf->Cell(190, 4, 'To: MDS-GSB of the Agency' , 'LR', 1, 'L');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(42, 4, 'Please debit MDS Sub-Account Number:' , 'L', 1, 'L');
 $pdf->SetXY(52, $Y);
-$pdf->SetFont('Arial', 'B', 6);
+$pdf->SetFont('Times', 'B', 7);
 $pdf->Cell(148, 4, '2182-9006-16' , 'R', 1, 'L');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->Cell(190, 4, 'Please credit the accounts of the above listed creditors to cover payment of accounts payable' , 'LR', 1, 'L');
 
 $Y = $pdf->GetY();
@@ -838,7 +840,7 @@ $amount_words .= ' Pesos & ' . $centavos . '/100';
 
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', 'B', 6);
+$pdf->SetFont('Times', 'B', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(65, 6, 'TOTAL AMOUNT:' , 'L', 1, 'L');
 $pdf->SetXY(75, $Y);
@@ -848,13 +850,13 @@ $pdf->Cell(15, 6, '' , 0, 1, 'C');
 $pdf->SetXY(120, $Y);
 $pdf->Cell(25, 6, 'Pesos:' , '', 1, 'R');
 $pdf->SetXY(145, $Y);
-$pdf->SetFont('Arial', 'B', 12);
+$pdf->SetFont('Times', 'B', 12);
 $pdf->Cell(40, 6, number_format($grandtotal_net_py,2) , 'B', 1, 'C');
 $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 6, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', 'B', 8);
+$pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 6, $amount_words , 'LR', 1, 'L');
 
@@ -863,12 +865,12 @@ $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 6, '' , 'LR', 1, 'L');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 3, 'Agency Authorized Signatories' , 'RL', 1, 'L');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(65, 9, '' , 'LB', 1, 'L');
 $pdf->SetXY(75, $Y);
@@ -884,7 +886,7 @@ $ada_approver_converted = iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $ada_approver);
 $position_converted = iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $position);
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', 'B', 6);
+$pdf->SetFont('Times', 'B', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(65, 4, $ada_approver_converted , 'L', 1, 'C');
 $pdf->SetXY(75, $Y);
@@ -897,7 +899,7 @@ $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 4, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(65, 4, $position_converted , 'L', 1, 'C');
 $pdf->SetXY(75, $Y);
@@ -910,28 +912,28 @@ $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 4, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 15, '(Erasures shall invalidate this document)' , 'RBL', 1, 'C');
 
 $Y = $pdf->GetY()+3;
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 3, 'Approver of LDDAP - one (1) approver' , 0, 1, 'L');
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 3, 'Approver of ADA - two (2) approver' , 0, 1, 'L');
 $Y = $pdf->GetY();
-$pdf->SetFont('Arial', '', 6);
+$pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
 $pdf->Cell(190, 3, 'Certifier of LDDAP - one (1) certifier' , 0, 1, 'L');
 
 $Y = 267;
-$pdf->SetFont('Arial', 'B', 13);
+$pdf->SetFont('Times', 'B', 13);
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 3, 'CK#'.$ckno , 0, 1, 'L');
-$pdf->SetFont('Arial', '', 9);
+$pdf->SetFont('Times', '', 9);
 $Y = $pdf->GetY()+2;
 $pdf->SetXY(170, $Y);
 $pdf->Cell(40, 3, $formattedDate , 0, 1, 'L');

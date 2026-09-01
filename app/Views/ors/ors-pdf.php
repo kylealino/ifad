@@ -135,9 +135,11 @@ $pdf->SetFont('Times', '', 10);
 $pdf->Cell(20, 5, 'Fund Cluster:' , 0, 1, 'L');
 $pdf->SetXY(150, $Y);
 $pdf->SetFont('Times', 'B', 10);
-$pdf->Cell(50, 5, '01' , 'R', 1, 'L');
-$pdf->SetXY(150, $Y);
-$pdf->Cell(40, 5, '' , 'B', 1, 'L');
+$pdf->Cell(40, 5, '01' , 'B', 1, 'C');
+$pdf->SetXY(190, $Y);
+$pdf->SetFont('Times', 'B', 10);
+$pdf->Cell(10, 5, '' , 'R', 1, 'C');
+
 $Y += 5;
 $pdf->SetXY(130, $Y);
 $pdf->Cell(20, 4, '' , 'L', 1, 'C');
@@ -650,9 +652,28 @@ foreach ($data as $row) {
     // Save current Y position
     $startY = $DMOOE;
 
-    if ($startY > 250) {
+    if ($startY > 220) {
+        $pdf->SetXY(10, $DMOOE);
+        $pdf->Cell(37, 0, '', 'T', 0);
+        $pdf->Cell(58, 0, '', 'T', 0);
+        $pdf->Cell(30, 0, '', 'T', 0);
+        $pdf->Cell(30, 0, '', 'T', 0);
+        $pdf->Cell(27, 0, '', 'T', 0);
+        $pdf->Cell(8, 0, '', 'T', 0);
         $pdf->AddPage();
         $DMOOE = 20;
+        
+        $pdf->SetXY(10, $DMOOE);
+        $pdf->Cell(37, 7, 'Responsibility Center', 1, 0, 'C');
+
+        $pdf->Cell(58, 7, 'Particulars', 1, 0, 'C');
+
+        $pdf->Cell(30, 7, 'MFO/PAP', 1, 0, 'C');
+
+        $pdf->Cell(30, 7, 'UACS Object Code', 1, 0, 'C');
+
+        $pdf->Cell(35, 7, 'Amount', 1, 1, 'C');
+        $DMOOE += 7;
         $startY = $DMOOE;
     }
     // ==========================================
@@ -1011,279 +1032,312 @@ foreach ($data as $row) {
     $IDCO += $rowHeight;
 }
 
+$currentY = $IDCO;
 
-$Y = $pdf->GetY()+8;
+// Fill empty rows only on first page
+if ($pdf->PageNo() == 1) {
+
+    while ($currentY < 185) {
+
+        $pdf->SetXY(10, $currentY);
+        $pdf->Cell(37, 5, '', 'L', 0, 'C');
+        $pdf->Cell(58, 5, '', 'L', 0, 'C');
+        $pdf->Cell(30, 5, '', 'L', 0, 'L');
+        $pdf->Cell(30, 5, '', 'L', 0, 'C');
+        $pdf->Cell(27, 5, '', 'L', 0, 'R');
+        $pdf->Cell(8, 5, '', 'R', 1, 'R');
+
+        $currentY += 5;
+    }
+
+    $currentYY = $currentY;
+}else{
+    $currentYY = $currentY;
+}
+
+$Y = $currentYY;
+
+// ==============================
+// TOP BORDER
+// ==============================
+
 $pdf->SetXY(10, $Y);
-$pdf->Cell(37, 4, '' , 'LR', 1, 'C');
+$pdf->Cell(37, 4, '' , 'LR', 0);
 
 $pdf->SetXY(45, $Y);
-$pdf->Cell(60, 4, '' , 'R', 1, 'R');
+$pdf->Cell(60, 4, '', 'R', 0);
 
 $pdf->SetXY(105, $Y);
-$pdf->Cell(30, 4, '' , 'R', 1, 'C');
+$pdf->Cell(30, 4, '', 'R', 0);
 
 $pdf->SetXY(135, $Y);
-$pdf->Cell(30, 4, '' , 'R', 1, 'C');
+$pdf->Cell(30, 4, '', 'R', 0);
 
-// Amount Text
 $pdf->SetXY(165, $Y);
-$pdf->Cell(27, 4, '', 'T', 0, 'R');
+$pdf->Cell(27, 4, '', 'T', 0);
 
-// LAST CELL Text
 $pdf->SetXY(192, $Y);
-$pdf->Cell(8, 4, '', 'TR', 0, 'R');
+$pdf->Cell(8, 4, '', 'TR', 0);
 
-$Y = $pdf->GetY()+4;
+
+// ==============================
+// TOTAL ROW
+// ==============================
+
+$Y += 4;
+
 $pdf->SetXY(10, $Y);
-$pdf->Cell(37, 4, '' , 'LBR', 1, 'C');
+$pdf->Cell(37, 4, '', 'LBR', 0);
 
 $pdf->SetXY(45, $Y);
-$pdf->Cell(60, 4, 'Total' , 'BR', 1, 'R');
+$pdf->SetFont('Times', 'B', 10);
+$pdf->Cell(60, 4, 'Total', 'BR', 0, 'R');
 
 $pdf->SetXY(105, $Y);
-$pdf->Cell(30, 4, '' , 'BR', 1, 'C');
+$pdf->SetFont('Times', '', 10);
+$pdf->Cell(30, 4, '', 'BR', 0);
 
 $pdf->SetXY(135, $Y);
-$pdf->Cell(30, 4, '' , 'RB', 1, 'C');
+$pdf->Cell(30, 4, '', 'BR', 0);
 
-// Amount Text
 $pdf->SetXY(165, $Y);
+$pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(27, 4, number_format($total_amount, 2), 'B', 0, 'R');
 
-// LAST CELL Text
 $pdf->SetXY(192, $Y);
-$pdf->Cell(8, 4, '', 'RB', 0, 'R');
+$pdf->SetFont('Times', '', 10);
+$pdf->Cell(8, 4, '', 'BR', 0);
 
-
-
-
-
-// // // $Y = 171.5;
-// $Y = $pdf->GetY($Y);
-
-// //CERTIFY BORDERING
-
-// $pdf->SetXY(10, $Y);
-// $pdf->SetFont('Times', 'B', 10);
-// $pdf->Cell(15, 10, 'A.' , 1, 1, 'L');
-// $pdf->SetFont('Times', '', 10);
-// $Y += 4;
-// $pdf->SetXY(27, $Y);
-// $pdf->MultiCell(75, 4, '     Certified: Charges to appropriate/allotment are necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal.', 0, 'L'); // full width usage
-
-// $Y = $pdf->GetY($Y) +4;
-
-// $pdf->SetXY(10, $Y);
-// $pdf->Cell(15, 4, 'Signature' , 0, 1, 'L');
-// $pdf->SetXY(30, $Y);
-// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
-// $pdf->SetXY(35, $Y);
-// $pdf->Cell(65, 4, '' , 'B', 1, 'L');
-
-// $Y = $pdf->GetY($Y) +4;
-
-// $pdf->SetXY(10, $Y);
-// $pdf->Cell(15, 4, 'Printed Name' , 0, 1, 'L');
-// $pdf->SetXY(30, $Y);
-// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
-// $pdf->SetXY(35, $Y);
-// $pdf->SetFont('Times', 'B', 10);
-// $pdf->Cell(65, 4, $certified_a , 'B', 1, 'C');
-// $pdf->SetFont('Times', '', 10);
-// $Y = $pdf->GetY($Y) +4;
-
-// $pdf->SetXY(10, $Y);
-// $pdf->Cell(15, 4, 'Position' , 0, 1, 'L');
-// $pdf->SetXY(30, $Y);
-// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
-// $pdf->SetXY(35, $Y);
-// $pdf->SetFont('Times', 'B', 10);
-// $pdf->Cell(65, 4, $position_a . ', ' . $division_a , 'B', 1, 'C');
-// $pdf->SetFont('Times', '', 10);
-// $Y = $pdf->GetY($Y);
-// $pdf->SetXY(10, $Y);
-// $pdf->SetXY(35, $Y);
-// $pdf->Cell(65, 4, 'Head, Requesting Office/Authorized' , 0, 1, 'C');
-
-// $Y = $pdf->GetY($Y);
-// $pdf->SetXY(10, $Y);
-// $pdf->SetXY(35, $Y);
-// $pdf->Cell(65, 4, 'Representative' , 0, 1, 'C');
-
-// $Y = $pdf->GetY($Y) +4;
-
-// $pdf->SetXY(10, $Y);
-// $pdf->Cell(15, 4, 'Date' , 0, 1, 'L');
-// $pdf->SetXY(30, $Y);
-// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
-// $pdf->SetXY(35, $Y);
-// $pdf->Cell(65, 4, '' , 'B', 1, 'L');
-
-
-// $Y = $pdf->GetY($Y);
-// $pdf->SetXY(105, $Y);
-// $pdf->SetFont('Times', 'B', 10);
-// $pdf->Cell(15, 10, 'B.' , 1, 1, 'L');
-// $pdf->SetFont('Times', '', 10);
-// $Y += 4;
-// $pdf->SetXY(122, $Y);
-// $pdf->MultiCell(65, 4, '     Certified: Allotment available and obligated for the purpose/adjustment necessary as indicated above.', 0, 'L'); // full width usage
-
-// $Y = $pdf->GetY($Y) +4;
-
-// $pdf->SetXY(105, $Y);
-// $pdf->Cell(15, 4, 'Signature' , 0, 1, 'L');
-// $pdf->SetXY(125, $Y);
-// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
-// $pdf->SetXY(130, $Y);
-// $pdf->Cell(65, 4, '' , 'B', 1, 'L');
-
-// $Y = $pdf->GetY($Y) +4;
-
-// $pdf->SetXY(105, $Y);
-// $pdf->Cell(15, 4, 'Printed Name' , 0, 1, 'L');
-// $pdf->SetXY(125, $Y);
-// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
-// $pdf->SetXY(130, $Y);
-// $pdf->SetFont('Times', 'B', 10);
-// $pdf->Cell(65, 4, $certified_b , 'B', 1, 'C');
-// $pdf->SetFont('Times', '', 10);
-
-// $Y = $pdf->GetY($Y) +4;
-
-// $pdf->SetXY(105, $Y);
-// $pdf->Cell(15, 4, 'Position' , 0, 1, 'L');
-// $pdf->SetXY(125, $Y);
-// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
-// $pdf->SetXY(130, $Y);
-// $pdf->SetFont('Times', 'B', 10);
-// $pdf->Cell(65, 4, $position_b . ', ' . $section_a , 'B', 1, 'C');
-// $pdf->SetFont('Times', '', 10);
-
-// $Y = $pdf->GetY($Y);
-// $pdf->SetXY(105, $Y);
-// $pdf->SetXY(130, $Y);
-// $pdf->Cell(65, 4, 'Head, Budget Division/Unit/Authorized' , 0, 1, 'C');
-
-// $Y = $pdf->GetY($Y);
-// $pdf->SetXY(105, $Y);
-// $pdf->SetXY(130, $Y);
-// $pdf->Cell(65, 4, 'Representative' , 0, 1, 'C');
-
-// $Y = $pdf->GetY($Y) +4;
-
-// $pdf->SetXY(105, $Y);
-// $pdf->Cell(15, 4, 'Date' , 0, 1, 'L');
-// $pdf->SetXY(30, $Y);
-// $pdf->Cell(4, 4, ':' , 0, 1, 'L');
-// $pdf->SetXY(130, $Y);
-// $pdf->Cell(65, 4, '' , 'B', 1, 'L');
 
 //CERT BOX A AND B
 $Y = $pdf->GetY()+4;
 $pdf->SetXY(10, $Y);
 $pdf->SetFont('Times', 'B', 10);
-$pdf->Cell(15, 6, 'A.' , 1, 1, 'L');
+$pdf->Cell(7.5, 6, 'A.' , 'LRB', 1, 'L');
 
 $pdf->SetXY(25, $Y);
 $pdf->SetFont('Times', 'B', 9);
-$pdf->Cell(15, 6, 'Certified:' , 1, 1, 'L');
+$pdf->Cell(15, 6, 'Certified:' , 0, 1, 'L');
 
 $pdf->SetXY(40, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(65, 6, 'Charges to appropriation/allotment are' , 1, 1, 'L');
+$pdf->Cell(65, 6, 'Charges to appropriation/allotment are' , 0, 1, 'L');
 
 $pdf->SetXY(105, $Y);
 $pdf->SetFont('Times', 'B', 9);
-$pdf->Cell(15, 6, 'B.' , 1, 1, 'L');
+$pdf->Cell(7.5, 6, 'B.' , 1, 1, 'L');
 
 $pdf->SetXY(120, $Y);
 $pdf->SetFont('Times', 'B', 9);
-$pdf->Cell(15, 6, 'Certified:' , 1, 1, 'L');
+$pdf->Cell(15, 6, 'Certified:' , 0, 1, 'L');
 
 $pdf->SetXY(135, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(65, 6, 'Allotment available and obligated for' , 1, 1, 'L');
+$pdf->Cell(65, 6, 'Allotment available and obligated for' , 'R', 1, 'L');
 //2nd row
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
 $pdf->SetFont('Times', 'B', 10);
-$pdf->Cell(15, 5, '' , 1, 1, 'L');
+$pdf->Cell(15, 5, '' , 'L', 1, 'L');
 
 $pdf->SetXY(25, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(80, 5, 'necessary, lawful and under my direct' , 1, 1, 'L');
+$pdf->Cell(80, 5, 'necessary, lawful and under my direct' , 0, 1, 'L');
 
 $pdf->SetXY(105, $Y);
 $pdf->SetFont('Times', 'B', 9);
-$pdf->Cell(15, 5, '' , 1, 1, 'L');
+$pdf->Cell(15, 5, '' , 'L', 1, 'L');
 
 $pdf->SetXY(120, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(80, 5, 'the purpose/adjustment necessary as indicated' , 1, 1, 'L');
+$pdf->Cell(80, 5, 'the purpose/adjustment necessary as indicated' , 'R', 1, 'L');
 
 //3rd row
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
 $pdf->SetFont('Times', 'B', 10);
-$pdf->Cell(15, 5, '' , 1, 1, 'L');
+$pdf->Cell(15, 5, '' , 'L', 1, 'L');
 
 $pdf->SetXY(25, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(80, 5, 'supervision;and supporting documents valid, proper' , 1, 1, 'L');
+$pdf->Cell(80, 5, 'supervision;and supporting documents valid, proper' , 0, 1, 'L');
 
 $pdf->SetXY(105, $Y);
 $pdf->SetFont('Times', 'B', 9);
-$pdf->Cell(15, 5, '' , 1, 1, 'L');
+$pdf->Cell(15, 5, '' , 'L', 1, 'L');
 
 $pdf->SetXY(120, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(80, 5, 'above' , 1, 1, 'L');
+$pdf->Cell(80, 5, 'above' , 'R', 1, 'L');
 
 //4th row
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
 $pdf->SetFont('Times', '', 10);
-$pdf->Cell(190, 5, '' , 1, 1, 'L');
+$pdf->Cell(95, 5, '' , 'LR', 1, 'L');
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', '', 10);
+$pdf->Cell(95, 5, '' , 'LR', 1, 'L');
 
 //signature row
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(20, 5, 'Signature' , 1, 1, 'L');
+$pdf->Cell(25, 5, 'Signature' , 'L', 1, 'L');
 $pdf->SetXY(35, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(3, 5, ':' , 1, 1, 'L');
+$pdf->Cell(3, 5, ':' , 0, 1, 'L');
 $pdf->SetXY(40, $Y);
-$pdf->SetFont('Times', '', 9);
-$pdf->Cell(58, 5, '' , 1, 1, 'L');
-
+$pdf->SetFont('Times', 'B', 11);
+$pdf->Cell(58, 5, '' , 'B', 1, 'C');
 $pdf->SetXY(98, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(7, 5, '' , 1, 1, 'L');
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
 
 $pdf->SetXY(105, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(20, 5, 'Signature' , 1, 1, 'L');
-$pdf->SetXY(125, $Y);
+$pdf->Cell(25, 5, 'Signature' , 'L', 1, 'L');
+$pdf->SetXY(130, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(3, 5, ':' , 1, 1, 'L');
-$pdf->SetXY(128, $Y);
+$pdf->Cell(3, 5, ':' , 0, 1, 'L');
+$pdf->SetXY(135, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(58, 5, '' , 1, 1, 'L');
+$pdf->Cell(58, 5, '' , 'B', 1, 'L');
+$pdf->SetXY(193, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
 
+//2nd row
+$Y = $pdf->GetY();
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(25, 5, 'Printed Name' , 'L', 1, 'L');
+$pdf->SetXY(35, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, ':' , 0, 1, 'L');
+$pdf->SetXY(40, $Y);
+$pdf->SetFont('Times', 'B', 10);
+$pdf->Cell(58, 5, $certified_a , 'B', 1, 'C');
+$pdf->SetXY(98, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
 
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(25, 5, 'Printed Name' , 'L', 1, 'L');
+$pdf->SetXY(130, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, ':' , 0, 1, 'L');
+$pdf->SetXY(135, $Y);
+$pdf->SetFont('Times', 'B', 10);
+$pdf->Cell(58, 5, $certified_b , 'B', 1, 'C');
+$pdf->SetXY(193, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
+
+//position
+$Y = $pdf->GetY();
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(25, 5, 'Position' , 'L', 1, 'L');
+$pdf->SetXY(35, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, ':' , 0, 1, 'L');
+$pdf->SetXY(40, $Y);
+$pdf->SetFont('Times', '', 8);
+$pdf->Cell(58, 5, $position_a . ', ' . $division_a , 'B', 1, 'C');
+$pdf->SetXY(98, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
+
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(25, 5, 'Position' , 'L', 1, 'L');
+$pdf->SetXY(130, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, ':' , 0, 1, 'L');
+$pdf->SetXY(135, $Y);
+$pdf->SetFont('Times', '', 8);
+$pdf->Cell(58, 5, $position_b , 'B', 1, 'C');
+$pdf->SetXY(193, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
+
+//HEAD
+$Y = $pdf->GetY();
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(25, 5, 'Position' , 'L', 1, 'L');
+$pdf->SetXY(35, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, '' , 0, 1, 'L');
+$pdf->SetXY(40, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(58, 5, 'Head, Requesting Office/Authorized Rep.' , 0, 1, 'C');
+$pdf->SetXY(98, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
+
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(25, 5, '' , 'L', 1, 'L');
+$pdf->SetXY(130, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, '' , 0, 1, 'L');
+$pdf->SetXY(135, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(58, 5, 'Head, Budget Division/Unit/Authorized Rep.' , 0, 1, 'C');
+$pdf->SetXY(193, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
+
+//DATE
+$Y = $pdf->GetY();
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(25, 5, 'Date' , 'L', 1, 'L');
+$pdf->SetXY(35, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, ':' , 0, 1, 'L');
+$pdf->SetXY(40, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(58, 5, '' , 'B', 1, 'L');
+$pdf->SetXY(98, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
+
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(25, 5, 'Date' , 'L', 1, 'L');
+$pdf->SetXY(130, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(3, 5, ':' , 0, 1, 'L');
+$pdf->SetXY(135, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(58, 5, '' , 'B', 1, 'L');
+$pdf->SetXY(193, $Y);
+$pdf->SetFont('Times', '', 9);
+$pdf->Cell(7, 5, '' , 'R', 1, 'L');
+
+//last row
+$Y = $pdf->GetY();
+$pdf->SetXY(10, $Y);
+$pdf->SetFont('Times', '', 10);
+$pdf->Cell(95, 3, '' , 'LRB', 1, 'L');
+$pdf->SetXY(105, $Y);
+$pdf->SetFont('Times', '', 10);
+$pdf->Cell(95, 3, '' , 'LRB', 1, 'L');
 
 //STATUS OF OBGLIGATION
-$Y = $pdf->GetY($Y)+8;
+$Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
 $pdf->SetFont('Times', 'B', 10);
-$pdf->Cell(15, 5, 'C.' , 1, 1, 'L');
+$pdf->Cell(7.5, 5, 'C.' , 1, 1, 'L');
 $pdf->SetFont('Times', '', 10);
 
-$pdf->SetXY(25, $Y);
+$pdf->SetXY(17.5, $Y);
 $pdf->SetFont('Times', 'B', 10);
-$pdf->Cell(175, 5, 'STATUS OF OBLIGATION' , 1, 1, 'C');
+$pdf->Cell(182.5, 5, 'STATUS OF OBLIGATION' , 1, 1, 'C');
 $pdf->SetFont('Times', '', 10);
 
 $Y = $pdf->GetY();
