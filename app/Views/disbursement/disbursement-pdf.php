@@ -125,8 +125,8 @@ SELECT
     `payee_address`,
     `certified_a`,
     `position_a`,
-    `certified_b`,
-    `position_b`,
+    `certified_c`,
+    `position_c`,
     `is_pending`,
     `is_approved_certa`,
     `is_disapproved_certa`,
@@ -162,8 +162,8 @@ $payee_address = $data['payee_address'];
 
 $certified_a = $data['certified_a'];
 $position_a = $data['position_a'];
-$certified_b = $data['certified_b'];
-$position_b = $data['position_b'];
+$certified_c = $data['certified_c'];
+$position_c = $data['position_c'];
 
 $is_pending = $data['is_pending'];
 $is_approved_certa = $data['is_approved_certa'];
@@ -257,10 +257,10 @@ $pdf->Cell(150, 12, '' , 'RLB', 1, 'L');
 $pdf->SetFont('Times', 'B', 8);
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, 'Fund Cluster:' , 'TRL', 1, 'L');
-$pdf->SetFont('Times', '', 8);
+$pdf->SetFont('Times', '', 11);
 $Y = $pdf->GetY();
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 4, $fund_cluster_code , 'RL', 1, 'L');
+$pdf->Cell(40, 4, $fund_cluster_code , 'RL', 1, 'C');
 
 $Y = $pdf->GetY();
 $pdf->SetXY(160, $Y);
@@ -283,10 +283,10 @@ $pdf->SetXY(160, $Y);
 $pdf->Cell(10, 4, 'DV.No.: ' , 'L', 1, 'L');
 $pdf->SetXY(170, $Y);
 $pdf->Cell(30, 4, '' , 'R', 1, 'L');
-$pdf->SetFont('Times', 'B', 10);
+$pdf->SetFont('Times', 'B', 11);
 $Y = $pdf->GetY();
 $pdf->SetXY(160, $Y);
-$pdf->Cell(40, 4, $dvno , 'BRL', 1, 'L');
+$pdf->Cell(40, 4, $dvno , 'BRL', 1, 'C');
 
 $pdf->SetFont('Times', 'B', 8);
 
@@ -408,8 +408,8 @@ $pdf->Cell(30, 66, '' , 'TRL', 1, 'C');
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 66, '' , 'TRL', 1, 'C');
 
-$pdf->SetXY(10, $Y);
-$pdf->MultiCell(90, 40, $particulars, 0, 'C');
+$pdf->SetXY(10, $Y + 20); // Move it lower (adjust 15 to your needs)
+$pdf->MultiCell(90, 6, $particulars, 0, 'C'); // Reduce cell height from 20 to 6
 
 $query = $this->db->query("
     SELECT 
@@ -814,7 +814,7 @@ $pdf->Cell(15, 4, 'Name', 'BLR', 0, 'C');
 
 $pdf->SetXY(25, $Y);
 $pdf->SetFont('Times', 'B', 10);
-$pdf->Cell(76, 4, 'BONJOBIE F. CAJANO, CPA, CTT', 0, 0, 'C');
+$pdf->Cell(76, 4, $certified_c, 0, 0, 'C');
 
 $pdf->SetXY(101, $Y);
 $pdf->SetFont('Times', '', 8);
@@ -834,7 +834,7 @@ $pdf->Cell(15, 8, 'Position', 'BLR', 0, 'C');
 
 $pdf->SetXY(25, $Y);
 $pdf->SetFont('Times', '', 9);
-$pdf->Cell(76, 4, 'Accountant III', 1, 0, 'C');
+$pdf->Cell(76, 4, $position_c, 1, 0, 'C');
 
 // RIGHT
 $pdf->SetXY(101, $Y);

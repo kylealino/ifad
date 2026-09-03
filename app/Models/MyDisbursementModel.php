@@ -26,6 +26,8 @@ class MyDisbursementModel extends Model
 		$payee_address = $this->request->getPostGet('payee_address');
 		$certified_a = $this->request->getPostGet('certified_a');
 		$position_a = $this->request->getPostGet('position_a');
+		$certified_c = $this->request->getPostGet('certified_c');
+		$position_c = $this->request->getPostGet('position_c');
 		$dvno = $this->request->getPostGet('dvno');
 		$fund_cluster_code = $this->request->getPostGet('fund_cluster_code');
 		$budgetdtdata = $this->request->getPostGet('budgetdtdata');
@@ -43,11 +45,26 @@ class MyDisbursementModel extends Model
 		$gross_amount = $this->request->getPostGet('gross_amount');
 		$total_deduction = $this->request->getPostGet('total_deduction');
 		$net_amount = $this->request->getPostGet('net_amount');
+		$other_deductions = $this->request->getPostGet('other_deductions');
+		$income_tax = $this->request->getPostGet('income_tax');
+		$deduction_name = $this->request->getPostGet('deduction_name');
+		$sss = $this->request->getPostGet('sss');
+		$hdmf = $this->request->getPostGet('hdmf');
+		$pagibig_mp2 = $this->request->getPostGet('pagibig_mp2');
+		$pagibig_loan = $this->request->getPostGet('pagibig_loan');
+		$hmo = $this->request->getPostGet('hmo');
+		$wtax = $this->request->getPostGet('wtax');
 
 		// var_dump(
-		// 	$gross_amount,
-		// 	$total_deduction,
-		// 	$net_amount
+		// 	// $other_deductions,
+		// 	// $income_tax,
+		// 	// $deduction_name,
+		// 	// $sss,
+		// 	// $hdmf,
+		// 	// $pagibig_mp2,
+		// 	// $pagibig_loan,
+		// 	// $hmo,
+		// 	// $wtax,
 		// );
 		// die();
 
@@ -150,11 +167,23 @@ class MyDisbursementModel extends Model
 					`payee_address`,
 					`certified_a`,
 					`position_a`,
+					`certified_c`,
+					`position_c`,
 					`dvno`,
 					`fund_cluster_code`,
 					`is_vatable`,
 					`vat_percent`,
 					`ewt_percent`,
+					`pt_percent`,
+					`other_deductions`,
+					`income_tax`,
+					`deduction_name`,
+					`sss`,
+					`hdmf`,
+					`pagibig_mp2`,
+					`pagibig_loan`,
+					`hmo`,
+					`wtax`,
 					`pt_percent`,
 					`category`,
 					`added_by`,
@@ -163,7 +192,7 @@ class MyDisbursementModel extends Model
 					`total_deduction`,
 					`net_amount`
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
 				[
 					$serialno,
 					$particulars,
@@ -173,12 +202,23 @@ class MyDisbursementModel extends Model
 					$payee_address,
 					$certified_a,
 					$position_a,
+					$certified_c,
+					$position_c,
 					$dvno,
 					$fund_cluster_code,
 					$is_vatable,
 					$vat_percent,
 					$ewt_percent,
 					$pt_percent,
+					$other_deductions,
+					$income_tax,
+					$deduction_name,
+					$sss,
+					$hdmf,
+					$pagibig_mp2,
+					$pagibig_loan,
+					$hmo,
+					$wtax,
 					$category,
 					$this->cuser,
 					$disbursement_date,
@@ -380,12 +420,23 @@ class MyDisbursementModel extends Model
 					`payee_address` = ?,
 					`certified_a` = ?,
 					`position_a` = ?,
+					`certified_c` = ?,
+					`position_c` = ?,
 					`dvno` = ?,
 					`fund_cluster_code` = ?,
 					`is_vatable` = ?,
 					`vat_percent` = ?,
 					`ewt_percent` = ?,
 					`pt_percent` = ?,
+					`other_deductions` = ?,
+					`income_tax` = ?,
+					`deduction_name` = ?,
+					`sss` = ?,
+					`hdmf` = ?,
+					`pagibig_mp2` = ?,
+					`pagibig_loan` = ?,
+					`hmo` = ?,
+					`wtax` = ?,
 					`category` = ?,
 					`disbursement_date` = ?,
 					`gross_amount` = ?,
@@ -401,12 +452,23 @@ class MyDisbursementModel extends Model
 				$payee_address,
 				$certified_a,
 				$position_a,
+				$certified_c,
+				$position_c,
 				$dvno,
 				$fund_cluster_code,
 				$is_vatable,
 				$vat_percent,
 				$ewt_percent,
 				$pt_percent,
+				$other_deductions,
+				$income_tax,
+				$deduction_name,
+				$sss,
+				$hdmf,
+				$pagibig_mp2,
+				$pagibig_loan,
+				$hmo,
+				$wtax,
 				$category,
 				$disbursement_date,
 				$gross_amount,

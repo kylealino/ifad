@@ -26,10 +26,6 @@ class MyPayeeModel extends Model
 		$payee_address = $this->request->getPostGet('payee_address');
 		$disb_method = $this->request->getPostGet('disb_method');
 		$currency = $this->request->getPostGet('currency');
-		$is_vatable = $this->request->getPostGet('is_vatable');
-		$vat_percent = $this->request->getPostGet('vat_percent');
-		$ewt_percent = $this->request->getPostGet('ewt_percent');
-		$pt_percent = $this->request->getPostGet('pt_percent');
 
 		// var_dump(
 		// 	$is_vatable,
@@ -79,12 +75,8 @@ class MyPayeeModel extends Model
 					`payee_address`, 
 					`disb_method`, 
 					`currency`,
-					`is_vatable`,
-					`vat_percent`,
-					`ewt_percent`,
-					`pt_percent`,
 					`added_by`
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				  [
 					$payee_name,
 					$payee_account_num,
@@ -94,10 +86,6 @@ class MyPayeeModel extends Model
 					$payee_address,
 					$disb_method,
 					$currency,
-					$is_vatable,
-					$vat_percent,
-					$ewt_percent,
-					$pt_percent,
 					$this->cuser
 				]
 			);
@@ -128,11 +116,7 @@ class MyPayeeModel extends Model
 				`contact_no` = ?,
 				`payee_address` = ?,
 				`disb_method` = ?,
-				`currency` = ?,
-				`is_vatable` = ?,
-				`vat_percent` = ?,
-				`ewt_percent` = ?,
-				`pt_percent` = ?
+				`currency` = ?
 				WHERE `recid` = ?
 				",
 				[
@@ -144,10 +128,6 @@ class MyPayeeModel extends Model
 					$payee_address,
 					$disb_method,
 					$currency,
-					$is_vatable,
-					$vat_percent,
-					$ewt_percent,
-					$pt_percent,
 					$recid
 				]
 			);

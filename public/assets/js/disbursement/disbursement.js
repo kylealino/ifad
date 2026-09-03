@@ -450,6 +450,8 @@ function __mysys_disbursement_ent() {
 					var payee_address = document.getElementById("payee_address");
 					var certified_a = document.getElementById("certified_a");
 					var position_a = document.getElementById("position_a");
+					var certified_c = document.getElementById("certified_c");
+					var position_c = document.getElementById("position_c");
 					var dvno = document.getElementById("dvno");
 					var fund_cluster_code = document.getElementById("fund_cluster_code");
 					var disbursement_date = document.getElementById("disbursement_date");
@@ -462,6 +464,16 @@ function __mysys_disbursement_ent() {
 					var gross_amount = document.getElementById("gross_amount");
 					var total_deduction = document.getElementById("total_deduction");
 					var net_amount = document.getElementById("net_amount");
+
+					var other_deductions = document.getElementById("other_deductions");
+					var income_tax = document.getElementById("income_tax");
+					var deduction_name = document.getElementById("deduction_name");
+					var sss = document.getElementById("sss");
+					var hdmf = document.getElementById("hdmf");
+					var pagibig_mp2 = document.getElementById("pagibig_mp2");
+					var pagibig_loan = document.getElementById("pagibig_loan");
+					var hmo = document.getElementById("hmo");
+					var wtax = document.getElementById("wtax");
 
 					// Prepare PS data DIRECT --
 					var rowcount1 = jQuery('.budgetdata-list tr').length;
@@ -561,6 +573,8 @@ function __mysys_disbursement_ent() {
 						payee_address: payee_address.value,
 						certified_a: certified_a.value,
 						position_a: position_a.value,
+						certified_c: certified_c.value,
+						position_c: position_c.value,
 						dvno: dvno.value,
 						fund_cluster_code: fund_cluster_code.value,
 						budgetdtdata: budgetdtdata,
@@ -577,6 +591,15 @@ function __mysys_disbursement_ent() {
 						gross_amount: gross_amount.value,
 						total_deduction: total_deduction.value,
 						net_amount: net_amount.value,
+						other_deductions: other_deductions.value,
+						income_tax: income_tax.value,
+						deduction_name: deduction_name.value,
+						sss: sss.value,
+						hdmf: hdmf.value,
+						pagibig_mp2: pagibig_mp2.value,
+						pagibig_loan: pagibig_loan.value,
+						hmo: hmo.value,
+						wtax: wtax.value,
 						is_vatable: is_vatable,
 						meaction: 'MAIN-SAVE'
 					}
@@ -976,14 +999,14 @@ function __mysys_disbursement_ent() {
 
     });
 
-	$(document).on('change', '#certified_b', function() {
+	$(document).on('change', '#certified_c', function() {
         var selected = $(this).find('option:selected');
 
         // Extract data from selected option
         var position = selected.data('position') || '';
         
         // Set the values into inputs
-        $('#position_b').val(position);
+        $('#position_c').val(position);
 
     });
 

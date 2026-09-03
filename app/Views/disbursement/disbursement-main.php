@@ -14,8 +14,10 @@ $payee_office = '';
 $payee_address = '';
 $certified_a = '';
 $certified_b = '';
+$certified_c = '';
 $position_a = '';
 $position_b = '';
+$position_c = '';
 $serialno = '';
 $dvno = '';
 $fund_cluster_code = '';
@@ -30,13 +32,24 @@ $MDL_jsscript = "";
 $status_color= "";
 $status_msg = "";
 $status_color_b= "";
-$status_msg_b = "";
+$status_msg_c = "";
 
 $is_vatable = "";
 $vat_percent = "";
 $ewt_percent = "";
 $pt_percent = "";
+$other_deductions = "";
+$income_tax = "";
 $category = "";
+
+$deduction_name = "";
+$sss = "";
+$hdmf = "";
+$pagibig_mp2 = "";
+$pagibig_loan = "";
+$hmo = "";
+$wtax = "";
+
 
 if((!empty($recid) || !is_null($recid)) && (empty($ors_id))) { 
     $query = $this->db->query("
@@ -48,9 +61,9 @@ if((!empty($recid) || !is_null($recid)) && (empty($ors_id))) {
         `payee_office`,
         `payee_address`,
         `certified_a`,
-        `certified_b`,
+        `certified_c`,
         `position_a`,
-        `position_b`,
+        `position_c`,
         `serialno`,
         `dvno`,
         `fund_cluster_code`,
@@ -67,6 +80,15 @@ if((!empty($recid) || !is_null($recid)) && (empty($ors_id))) {
         `vat_percent`,
         `ewt_percent`,
         `pt_percent`,
+        `other_deductions`,
+        `income_tax`,
+        `deduction_name`,
+        `sss`,
+        `hdmf`,
+        `pagibig_mp2`,
+        `pagibig_loan`,
+        `hmo`,
+        `wtax`,
         `category`
     FROM
         `tbl_disbursement_hd`
@@ -83,8 +105,8 @@ if((!empty($recid) || !is_null($recid)) && (empty($ors_id))) {
     $payee_address = $data['payee_address'];
     $certified_a = $data['certified_a'];
     $position_a = $data['position_a'];
-    $certified_b = $data['certified_b'];
-    $position_b = $data['position_b'];
+    $certified_c = $data['certified_c'];
+    $position_c = $data['position_c'];
     $serialno = $data['serialno'];
     $dvno = $data['dvno'];
     $fund_cluster_code = $data['fund_cluster_code'];
@@ -101,6 +123,15 @@ if((!empty($recid) || !is_null($recid)) && (empty($ors_id))) {
     $vat_percent = $data['vat_percent'];
     $ewt_percent = $data['ewt_percent'];
     $pt_percent = $data['pt_percent'];
+    $other_deductions = $data['other_deductions'];
+    $income_tax = $data['income_tax'];
+    $deduction_name = $data['deduction_name'];
+    $sss = $data['sss'];
+    $hdmf = $data['hdmf'];
+    $pagibig_mp2 = $data['pagibig_mp2'];
+    $pagibig_loan = $data['pagibig_loan'];
+    $hmo = $data['hmo'];
+    $wtax = $data['wtax'];
     $category = $data['category'];
 
     if ($action == 'certifya_appr_pending') {
@@ -254,23 +285,23 @@ if ($action == 'certifya_appr_pending') {
     $status_color = 'text-warning';
     $status_msg = 'For Approval';
     $status_color_b = 'text-warning';
-    $status_msg_b = 'For Approval';
+    $status_msg_c = 'For Approval';
 }elseif ($action == 'certifyb_appr_pending'){
     if ($is_approved_certa == '1' && $is_disapproved_certa == '0'&& $is_approved_certb == '0' && $is_disapproved_certb == '0') {
         $status_color = 'text-success';
         $status_msg = 'Approved by ' . $certa_approver;
         $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
+        $status_msg_c = 'For Approval';
     }elseif($is_approved_certa == '1' && $is_disapproved_certa == '0'&& $is_approved_certb == '0' && $is_disapproved_certb == '1'){
         $status_color = 'text-success';
         $status_msg = 'Approved by ' . $certa_approver;
         $status_color_b = 'text-danger';
-        $status_msg_b = 'Disapproved';
+        $status_msg_c = 'Disapproved';
     }else{
         $status_color = 'text-warning';
         $status_msg = 'For Approval';
         $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
+        $status_msg_c = 'For Approval';
     }
 
 }elseif ($action == 'transaction_viewing') {
@@ -278,26 +309,26 @@ if ($action == 'certifya_appr_pending') {
         $status_color = 'text-success';
         $status_msg = 'Approved by ' . $certa_approver;
         $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
+        $status_msg_c = 'For Approval';
     }elseif ($is_approved_certa == '1' && $is_approved_certb == '1') {
         $status_color_b = 'text-success';
-        $status_msg_b = 'Approved by ' . $certb_approver;
+        $status_msg_c = 'Approved by ' . $certb_approver;
         $status_color = 'text-success';
         $status_msg = 'Approved by ' . $certa_approver;
     }elseif($is_approved_certa == '1' && $is_disapproved_certb == '1'){
         $status_color = 'text-success';
         $status_msg = 'Approved by ' . $certa_approver;
         $status_color_b = 'text-danger';
-        $status_msg_b = 'Disapproved';
+        $status_msg_c = 'Disapproved';
     }else{
         $status_color = 'text-warning';
         $status_msg = 'For Approval';
         $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
+        $status_msg_c = 'For Approval';
     }
 }else{
     $status_color_b = 'text-info';
-    $status_msg_b = '';
+    $status_msg_c = '';
 }
 
 
@@ -353,6 +384,26 @@ echo view('templates/myheader.php');
                 <div class="row">
                     <div class="col-sm-6">
                         <div class="row">
+                            <div class="col-sm-12">
+                                <div class="row mb-2">
+                                    <div class="col-sm-4">
+                                        <span class="fw-bold">Serial No.:</span>
+                                    </div>
+                                    <div class="col-sm-8">
+                                        <input type="text" id="serialno" name="serialno" value="<?=$serialno;?>" placeholder="Select serial no." class="form-control form-control-sm"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-12">
+                                <div class="row mb-2">
+                                    <div class="col-sm-4">
+                                        <span class="fw-bold">DV No.:</span>
+                                    </div>
+                                    <div class="col-sm-8">
+                                        <input type="text" id="dvno" name="dvno" value="<?=$dvno;?>" placeholder="Enter DV no."class="form-control form-control-sm"/>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="col-sm-12">
                                 <div class="row mb-2">
                                     <div class="col-sm-4">
@@ -455,32 +506,13 @@ echo view('templates/myheader.php');
                     </div>
                     <div class="col-sm-6">
                         <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">Serial No.:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="text" id="serialno" name="serialno" value="<?=$serialno;?>" class="form-control form-control-sm"/>
-                            </div>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">DV No.:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="text" id="dvno" name="dvno" value="<?=$dvno;?>" class="form-control form-control-sm"/>
-                            </div>
-                        </div>
-
-                        <hr>
-
-                        <div class="row mb-2">
                             <div class="col-sm-12">
                                 <div class="row mb-2">
                                     <div class="col-sm-4">
                                         <span>Category:</span>
                                     </div>
                                     <div class="col-sm-8">
-                                        <select name="" id="category" class="form-select form-select-sm">
+                                        <select name="category" id="category" class="form-select form-select-sm">
                                         <?php if(!empty($recid)):?>
                                             <option value="<?=$category;?>"><?=$category;?></option>
                                         <?php elseif(!empty($ors_id)):?>
@@ -491,71 +523,197 @@ echo view('templates/myheader.php');
                                             <option value="Goods">Goods</option>
                                             <option value="Services">Services</option>
                                             <option value="Manual">Manual</option>
+                                            <option value="Payroll">Payroll</option>
+                                            <option value="Income Tax">Income Tax</option>
                                         </select>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span>is Vatable?</span>
+
+                        <!-- ============================================ -->
+                        <!-- TAX FIELDS (Goods, Services, Manual)         -->
+                        <!-- ============================================ -->
+                        <div class="tax-fields" style="display:none;">
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span>is Vatable?</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                            type="checkbox" 
+                                            id="is_vatable" 
+                                            name="is_vatable" 
+                                            value="1"
+                                            <?= (isset($is_vatable) && $is_vatable == 1) ? 'checked' : '' ?>>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-sm-8">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" 
-                                        type="checkbox" 
-                                        id="is_vatable" 
-                                        name="is_vatable" 
-                                        value="1"
-                                        <?= (isset($is_vatable) && $is_vatable == 1) ? 'checked' : '' ?>>
+
+                            <!-- VAT FIELD -->
+                            <div class="row mb-2 vat-field">
+                                <div class="col-sm-4">
+                                    <span>VAT (%):</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="vat_percent" name="vat_percent"
+                                        value="<?= $vat_percent ?? '' ?>"
+                                        placeholder="e.g. 12"
+                                        class="form-control form-control-sm">
+                                    <small class="text-muted">Standard VAT: 12%</small>
+                                </div>
+                            </div>
+
+                            <!-- EWT FIELD -->
+                            <div class="row mb-2 ewt-field">
+                                <div class="col-sm-4">
+                                    <span>EWT (%):</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="ewt_percent" name="ewt_percent"
+                                        value="<?= $ewt_percent ?? '' ?>"
+                                        placeholder="e.g. 1, 2, 5"
+                                        class="form-control form-control-sm">
+                                    <small class="text-muted">Depends on ATC (e.g. 1%, 2%, 5%)</small>
+                                </div>
+                            </div>
+
+                            <!-- PT FIELD -->
+                            <div class="row mb-2 pt-field">
+                                <div class="col-sm-4">
+                                    <span>PT (%):</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="pt_percent" name="pt_percent"
+                                        value="<?= $pt_percent ?? '' ?>"
+                                        placeholder="e.g. 5"
+                                        class="form-control form-control-sm">
+                                    <small class="text-muted">Percentage Tax (if non-vatable, usually 5%)</small>
+                                </div>
+                            </div>
+
+                            <!-- OTHER DEDUCTIONS -->
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span>Other Deductions:</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="text" id="deduction_name" name="deduction_name" placeholder="Type of deduction"
+                                        value="<?= $deduction_name ?? '' ?>"
+                                        class="form-control form-control-sm">
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-4 text-end">
+                                    <span></span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="other_deductions" name="other_deductions"
+                                        value="<?= $other_deductions ?? '' ?>"
+                                        class="form-control form-control-sm">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- VAT FIELD -->
-                        <div class="row mb-2 vat-field">
-                            <div class="col-sm-4">
-                                <span>VAT (%):</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="number" step="0.01" id="vat_percent" name="vat_percent"
-                                    value="<?= $vat_percent ?? '' ?>"
-                                    placeholder="e.g. 12"
-                                    class="form-control form-control-sm">
-                                <small class="text-muted">Standard VAT: 12%</small>
-                            </div>
-                        </div>
-
-                        <!-- EWT FIELD -->
-                        <div class="row mb-2 ewt-field">
-                            <div class="col-sm-4">
-                                <span>EWT (%):</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="number" step="0.01" id="ewt_percent" name="ewt_percent"
-                                    value="<?= $ewt_percent ?? '' ?>"
-                                    placeholder="e.g. 1, 2, 5"
-                                    class="form-control form-control-sm">
-                                <small class="text-muted">Depends on ATC (e.g. 1%, 2%, 5%)</small>
+                        <!-- ============================================ -->
+                        <!-- INCOME TAX FIELD (Income Tax category only)  -->
+                        <!-- ============================================ -->
+                        <div class="income-tax-field" style="display:none;">
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span>Income Tax:</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="income_tax" name="income_tax"
+                                        value="<?= $income_tax ?? '' ?>"
+                                        class="form-control form-control-sm">
+                                </div>
                             </div>
                         </div>
 
-                        <!-- PT FIELD -->
-                        <div class="row mb-2 pt-field">
-                            <div class="col-sm-4">
-                                <span>PT (%):</span>
+                        <!-- ============================================ -->
+                        <!-- PAYROLL FIELDS (Payroll category only)       -->
+                        <!-- ============================================ -->
+                        <div class="payroll-fields" style="display:none;">
+                            <!-- SSS -->
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span>SSS:</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="sss" name="sss"
+                                        value="<?= $sss ?? '' ?>"
+                                        class="form-control form-control-sm">
+                                </div>
                             </div>
-                            <div class="col-sm-8">
-                                <input type="number" step="0.01" id="pt_percent" name="pt_percent"
-                                    value="<?= $pt_percent ?? '' ?>"
-                                    placeholder="e.g. 5"
-                                    class="form-control form-control-sm">
-                                <small class="text-muted">Percentage Tax (if non-vatable, usually 5%)</small>
+
+                            <!-- HDMF -->
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span>HDMF:</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="hdmf" name="hdmf"
+                                        value="<?= $hdmf ?? '' ?>"
+                                        class="form-control form-control-sm">
+                                </div>
+                            </div>
+
+                            <!-- PAGIBIG MP2 -->
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span>PAGIBIG MP2:</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="pagibig_mp2" name="pagibig_mp2"
+                                        value="<?= $pagibig_mp2 ?? '' ?>"
+                                        class="form-control form-control-sm">
+                                </div>
+                            </div>
+
+                            <!-- PAGIBIG LOAN -->
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span>PAGIBIG LOAN:</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="pagibig_loan" name="pagibig_loan"
+                                        value="<?= $pagibig_loan ?? '' ?>"
+                                        class="form-control form-control-sm">
+                                </div>
+                            </div>
+
+                            <!-- HMO -->
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span>HMO:</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="hmo" name="hmo"
+                                        value="<?= $hmo ?? '' ?>"
+                                        class="form-control form-control-sm">
+                                </div>
+                            </div>
+
+                            <!-- WTAX -->
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span>WTAX:</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="number" step="0.01" id="wtax" name="wtax"
+                                        value="<?= $wtax ?? '' ?>"
+                                        class="form-control form-control-sm">
+                                </div>
                             </div>
                         </div>
 
+                        <!-- ============================================ -->
+                        <!-- GROSS AND NET AMOUNT (Always visible)        -->
+                        <!-- ============================================ -->
                         <hr>
-                        
+
                         <div class="row mb-2">
                             <div class="col-sm-4">
                                 <span class="fw-semibold">Gross Amount:</span>
@@ -570,9 +728,7 @@ echo view('templates/myheader.php');
                             </div>
                         </div>
 
-
                         <input type="hidden" id="total_deduction" name="total_deduction">
-
 
                         <div class="row mb-2">
                             <div class="col-sm-4">
@@ -1825,7 +1981,64 @@ echo view('templates/myheader.php');
                             </div>
                         </div>
                     </div>
-
+                    <div class="col-sm-6">
+                        <div class="row mb-2">
+                            <div class="col-sm-4">
+                                <span class="fw-bold">Certified C:</span>
+                            </div>
+                            <div class="col-sm-8">
+                                <?php if(!empty($recid)):?>
+                                    <select name="certified_c" id="certified_c" class="form-control select2 form-select-sm show-tick">
+                                        <option selected value="<?=$certified_c;?>"><?=$certified_c;?></option>
+                                        <?php foreach($certifycdata as $data): ?>
+                                            <option 
+                                                value="<?= $data['full_name'] ?>"
+                                                data-position="<?= $data['position'] ?>"
+                                            >
+                                                <?= $data['full_name'] ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                <?php else:?>
+                                    <select name="certified_c" id="certified_c" class="form-control select2 form-select-sm show-tick">
+                                        <option selected value="">Choose...</option>
+                                        <?php foreach($certifycdata as $data): ?>
+                                            <option 
+                                                value="<?= $data['full_name'] ?>"
+                                                data-position="<?= $data['position'] ?>"
+                                            >
+                                                <?= $data['full_name'] ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                <?php endif;?>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <div class="row mb-2">
+                                    <div class="col-sm-4">
+                                        <span class="fw-bold">Position:</span>
+                                    </div>
+                                    <div class="col-sm-8">
+                                        <input type="text" id="position_c" name="position_c" value="<?=$position_c;?>" class="form-control form-control-sm" disabled/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-12">
+                            <div class="row mb-2">
+                                <?php if(!empty($action)):?>
+                                    <div class="col-sm-4">
+                                        <span class="fw-bold">Status:</span>
+                                    </div>
+                                    <div class="col-sm-8 <?=$status_color_b;?> fs-3 fw-bold">
+                                        <span><i class="ti ti-flag"></i> <?=$status_msg_c;?></span>
+                                    </div>
+                                <?php endif;?>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
 
@@ -2027,7 +2240,7 @@ echo view('templates/myheader.php');
 <script src="<?=base_url('assets/js/disbursement/disbursement.js?v=1');?>"></script>
 <script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
 
-<script>
+<!-- <script>
 $(function () {
 
     function computeGross() {
@@ -2051,11 +2264,16 @@ $(function () {
         let category = $("#category").val();
         let isVat = $("#is_vatable").is(":checked");
 
+        // Get Other Deductions and Income Tax values
+        let otherDeductions = parseFloat($("#other_deductions").val()) || 0;
+        let incomeTax = parseFloat($("#income_tax").val()) || 0;
+
         // DEFAULT
         if (!category) {
             resetTaxes();
-            $("#net_amount").val(gross.toFixed(2));
-            $("#total_deduction").val(0); // 👈 ADD
+            let net = gross - otherDeductions - incomeTax;
+            $("#net_amount").val(net.toFixed(2));
+            $("#total_deduction").val((otherDeductions + incomeTax).toFixed(2));
             return;
         }
 
@@ -2088,11 +2306,11 @@ $(function () {
                 $("#vat_percent").val('');
             }
 
-            let netPayable = gross - vat - ewt - pt;
-            totalDeduction = vat + ewt + pt; // 👈 FIX (removed duplicate let)
+            let netPayable = gross - vat - ewt - pt - otherDeductions - incomeTax;
+            totalDeduction = vat + ewt + pt + otherDeductions + incomeTax;
 
             $("#net_amount").val(netPayable.toFixed(2));
-            $("#total_deduction").val(totalDeduction.toFixed(2)); // 👈 ADD
+            $("#total_deduction").val(totalDeduction.toFixed(2));
             return;
         }
 
@@ -2134,12 +2352,12 @@ $(function () {
             pt = gross * 0.03;
         }
 
-        // FINAL
-        let netPayable = gross - vat - ewt - pt;
-        totalDeduction = vat + ewt + pt; // 👈 ADD
+        // FINAL - Subtract Other Deductions and Income Tax
+        let netPayable = gross - vat - ewt - pt - otherDeductions - incomeTax;
+        totalDeduction = vat + ewt + pt + otherDeductions + incomeTax;
 
         $("#net_amount").val(netPayable.toFixed(2));
-        $("#total_deduction").val(totalDeduction.toFixed(2)); // 👈 ADD
+        $("#total_deduction").val(totalDeduction.toFixed(2));
     }
 
     function toggleFields() {
@@ -2179,7 +2397,272 @@ $(function () {
         applyTaxRules();
     });
 
-    $(document).on("input", ".amount, #vat_percent, #ewt_percent, #pt_percent", function () {
+    // Added Other Deductions and Income Tax to input listeners
+    $(document).on("input", ".amount, #vat_percent, #ewt_percent, #pt_percent, #other_deductions, #income_tax", function () {
+        applyTaxRules();
+    });
+
+    // INIT
+    toggleFields();
+    applyTaxRules();
+});
+</script> -->
+
+<script>
+$(function () {
+
+    function computeGross() {
+        let total = 0;
+        $(".amount").each(function () {
+            total += parseFloat($(this).val()) || 0;
+        });
+        $("#gross_amount").val(total.toFixed(2));
+        return total;
+    }
+
+    function resetTaxes() {
+        $("#vat_percent").val('');
+        $("#ewt_percent").val('');
+        $("#pt_percent").val('');
+    }
+
+    function applyTaxRules() {
+
+        let gross = computeGross();
+        let category = $("#category").val();
+        let isVat = $("#is_vatable").is(":checked");
+
+        // Get Other Deductions and Income Tax values
+        let otherDeductions = parseFloat($("#other_deductions").val()) || 0;
+        let incomeTax = parseFloat($("#income_tax").val()) || 0;
+
+        // Get Payroll deductions
+        let sss = parseFloat($("#sss").val()) || 0;
+        let hdmf = parseFloat($("#hdmf").val()) || 0;
+        let pagibig_mp2 = parseFloat($("#pagibig_mp2").val()) || 0;
+        let pagibig_loan = parseFloat($("#pagibig_loan").val()) || 0;
+        let hmo = parseFloat($("#hmo").val()) || 0;
+        let wtax = parseFloat($("#wtax").val()) || 0;
+
+        // =========================
+        // PAYROLL MODE
+        // =========================
+        if (category === "Payroll") {
+            let totalPayrollDeductions = sss + hdmf + pagibig_mp2 + pagibig_loan + hmo + wtax;
+            let netPayable = gross - totalPayrollDeductions;
+            
+            // Reset tax fields
+            resetTaxes();
+            $("#vat_percent").val('');
+            $("#ewt_percent").val('');
+            $("#pt_percent").val('');
+            $("#other_deductions").val('');
+            $("#income_tax").val('');
+            
+            $("#net_amount").val(netPayable.toFixed(2));
+            $("#total_deduction").val(totalPayrollDeductions.toFixed(2));
+            return;
+        }
+
+        // =========================
+        // INCOME TAX MODE
+        // =========================
+        if (category === "Income Tax") {
+            // Reset other deduction fields
+            resetTaxes();
+            $("#other_deductions").val('');
+            $("#sss").val('');
+            $("#hdmf").val('');
+            $("#pagibig_mp2").val('');
+            $("#pagibig_loan").val('');
+            $("#hmo").val('');
+            $("#wtax").val('');
+            
+            let netPayable = gross - incomeTax;
+            
+            $("#net_amount").val(netPayable.toFixed(2));
+            $("#total_deduction").val(incomeTax.toFixed(2));
+            return;
+        }
+
+        // DEFAULT (no category)
+        if (!category) {
+            resetTaxes();
+            let net = gross - otherDeductions - incomeTax;
+            // Reset payroll fields
+            $("#sss").val('');
+            $("#hdmf").val('');
+            $("#pagibig_mp2").val('');
+            $("#pagibig_loan").val('');
+            $("#hmo").val('');
+            $("#wtax").val('');
+            $("#net_amount").val(net.toFixed(2));
+            $("#total_deduction").val((otherDeductions + incomeTax).toFixed(2));
+            return;
+        }
+
+        // =========================
+        // GOODS, SERVICES, MANUAL MODE
+        // =========================
+        let net = 0;
+        let vat = 0;
+        let ewt = 0;
+        let pt = 0;
+        let totalDeduction = 0;
+
+        // Reset payroll fields
+        $("#sss").val('');
+        $("#hdmf").val('');
+        $("#pagibig_mp2").val('');
+        $("#pagibig_loan").val('');
+        $("#hmo").val('');
+        $("#wtax").val('');
+
+        // MANUAL MODE (CPA RULE)
+        if (category === "Manual") {
+
+            let vatPercent = parseFloat($("#vat_percent").val()) || 0;
+            let ewtPercent = parseFloat($("#ewt_percent").val()) || 0;
+            let ptPercent  = parseFloat($("#pt_percent").val()) || 0;
+
+            if (isVat) {
+                net = gross / 1.12;
+                vat = net * (vatPercent / 100);
+                ewt = net * (ewtPercent / 100);
+
+                $("#pt_percent").val('');
+            } else {
+                net = gross;
+                pt = gross * (ptPercent / 100);
+                ewt = gross * (ewtPercent / 100);
+
+                $("#vat_percent").val('');
+            }
+
+            let netPayable = gross - vat - ewt - pt - otherDeductions - incomeTax;
+            totalDeduction = vat + ewt + pt + otherDeductions + incomeTax;
+
+            $("#net_amount").val(netPayable.toFixed(2));
+            $("#total_deduction").val(totalDeduction.toFixed(2));
+            return;
+        }
+
+        // AUTO MODE (GOODS/SERVICES)
+        if (isVat) {
+
+            net = gross / 1.12;
+
+            $("#vat_percent").val(5);
+            vat = net * 0.05;
+
+            if (category === "Goods") {
+                $("#ewt_percent").val(1);
+                ewt = net * 0.01;
+            } else if (category === "Services") {
+                $("#ewt_percent").val(2);
+                ewt = net * 0.02;
+            }
+
+            $("#pt_percent").val('');
+
+        } else {
+
+            net = gross;
+
+            $("#vat_percent").val('');
+
+            if (category === "Goods") {
+                $("#ewt_percent").val(1);
+                ewt = gross * 0.01;
+            } else if (category === "Services") {
+                $("#ewt_percent").val(2);
+                ewt = gross * 0.02;
+            }
+
+            $("#pt_percent").val(3);
+            pt = gross * 0.03;
+        }
+
+        // FINAL - Subtract Other Deductions and Income Tax
+        let netPayable = gross - vat - ewt - pt - otherDeductions - incomeTax;
+        totalDeduction = vat + ewt + pt + otherDeductions + incomeTax;
+
+        $("#net_amount").val(netPayable.toFixed(2));
+        $("#total_deduction").val(totalDeduction.toFixed(2));
+    }
+
+    function toggleFields() {
+        let category = $("#category").val();
+        
+        // Hide all conditional fields first
+        $(".tax-fields").hide();
+        $(".other-deductions-field").hide();
+        $(".income-tax-field").hide();
+        $(".payroll-fields").hide();
+        
+        // Show fields based on category
+        if (category === "Goods" || category === "Services" || category === "Manual") {
+            $(".tax-fields").show();
+            $(".other-deductions-field").show();
+            
+            // Handle VAT toggle within tax fields
+            if ($("#is_vatable").is(":checked")) {
+                $(".vat-field").show();
+                $(".ewt-field").show();
+                $(".pt-field").hide();
+            } else {
+                $(".vat-field").hide();
+                $(".ewt-field").show();
+                $(".pt-field").show();
+            }
+        } else if (category === "Income Tax") {
+            $(".income-tax-field").show();
+        } else if (category === "Payroll") {
+            $(".payroll-fields").show();
+        } else {
+            // No category selected - show nothing or default
+            $(".tax-fields").hide();
+            $(".other-deductions-field").hide();
+            $(".income-tax-field").hide();
+            $(".payroll-fields").hide();
+        }
+    }
+
+    // VALIDATION
+    $("#is_vatable").on("change", function () {
+
+        let category = $("#category").val();
+
+        if (!category) {
+            $(this).prop("checked", false);
+
+            toastr.warning("Select category first before enabling VAT.", "Validation", {
+                progressBar: true,
+                closeButton: true,
+                timeOut: 2000
+            });
+
+            return;
+        }
+
+        if (category === "Goods" || category === "Services" || category === "Manual") {
+            toggleFields();
+            applyTaxRules();
+        }
+    });
+
+    $("#category").on("change", function () {
+        // Reset checkbox when switching to non-tax categories
+        let category = $(this).val();
+        if (category === "Payroll" || category === "Income Tax") {
+            $("#is_vatable").prop("checked", false);
+        }
+        toggleFields();
+        applyTaxRules();
+    });
+
+    // Input listeners for all fields
+    $(document).on("input", ".amount, #vat_percent, #ewt_percent, #pt_percent, #other_deductions, #income_tax, #sss, #hdmf, #pagibig_mp2, #pagibig_loan, #hmo, #wtax", function () {
         applyTaxRules();
     });
 

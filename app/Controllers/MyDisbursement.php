@@ -178,6 +178,9 @@ class MyDisbursement extends BaseController
         $certifybquery = $this->db->query("SELECT * FROM myua_user WHERE cert_tag = '2' ORDER BY recid DESC");
         $certifybdata = $certifybquery->getResultArray();
 
+        $certifycquery = $this->db->query("SELECT * FROM myua_user WHERE cert_tag = '3' ORDER BY recid DESC");
+        $certifycdata = $certifycquery->getResultArray();
+
 
         return view('disbursement/disbursement-main', [
             'payeedata' => $payeedata,
@@ -186,6 +189,7 @@ class MyDisbursement extends BaseController
             'disbursementhddata' => $disbursementhddata,
             'certifyadata' => $certifyadata,
             'certifybdata' => $certifybdata,
+            'certifycdata' => $certifycdata,
         ]);
     }
     

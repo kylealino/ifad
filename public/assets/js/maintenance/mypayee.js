@@ -27,11 +27,6 @@ function __mysys_payee_ent() {
 					var payee_address = document.getElementById("payee_address");
 					var disb_method = document.getElementById("disb_method");
 					var currency = document.getElementById("currency");
-
-					let is_vatable = document.getElementById("is_vatable").checked ? 1 : 0;
-					var vat_percent = document.getElementById("vat_percent");
-					var ewt_percent = document.getElementById("ewt_percent");
-					var pt_percent = document.getElementById("pt_percent");
 					
 					var mparam = { 
 						recid: recid.value,
@@ -43,10 +38,6 @@ function __mysys_payee_ent() {
 						payee_address: payee_address.value,
 						disb_method: disb_method.value,
 						currency: currency.value,
-						vat_percent: vat_percent.value,
-						ewt_percent: ewt_percent.value,
-						pt_percent: pt_percent.value,
-						is_vatable: is_vatable,
 						meaction: 'MAIN-SAVE'
 					}
 
