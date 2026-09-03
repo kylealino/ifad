@@ -184,7 +184,6 @@ class MyDisbursementModel extends Model
 					`pagibig_loan`,
 					`hmo`,
 					`wtax`,
-					`pt_percent`,
 					`category`,
 					`added_by`,
 					`disbursement_date`,
