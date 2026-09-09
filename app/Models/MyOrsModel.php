@@ -35,7 +35,24 @@ class MyOrsModel extends Model
 		$budgetcodtdata = $this->request->getPostGet('budgetcodtdata');
 		$budgetindirectcodtdata = $this->request->getPostGet('budgetindirectcodtdata');
 		$ors_date = $this->request->getPostGet('ors_date');
-		
+		$fund_cluster_code = $this->request->getPostGet('fund_cluster_code');
+		$category = $this->request->getPostGet('category');
+		$is_vatable = $this->request->getPostGet('is_vatable');
+		$vat_percent = $this->request->getPostGet('vat_percent');
+		$ewt_percent = $this->request->getPostGet('ewt_percent');
+		$pt_percent = $this->request->getPostGet('pt_percent');
+		$gross_amount = $this->request->getPostGet('gross_amount');
+		$total_deduction = $this->request->getPostGet('total_deduction');
+		$net_amount = $this->request->getPostGet('net_amount');
+		$other_deductions = $this->request->getPostGet('other_deductions');
+		$income_tax = $this->request->getPostGet('income_tax');
+		$deduction_name = $this->request->getPostGet('deduction_name');
+		$sss = $this->request->getPostGet('sss');
+		$hdmf = $this->request->getPostGet('hdmf');
+		$pagibig_mp2 = $this->request->getPostGet('pagibig_mp2');
+		$pagibig_loan = $this->request->getPostGet('pagibig_loan');
+		$hmo = $this->request->getPostGet('hmo');
+		$wtax = $this->request->getPostGet('wtax');
 		// var_dump($ors_date);
 		// die();
 		
@@ -133,9 +150,27 @@ class MyOrsModel extends Model
 					`certified_b`,
 					`position_b`,
 					`added_by`,
-					`ors_date`
+					`ors_date`,
+					`fund_cluster_code`,
+					`is_vatable`,
+					`vat_percent`,
+					`ewt_percent`,
+					`pt_percent`,
+					`other_deductions`,
+					`income_tax`,
+					`deduction_name`,
+					`sss`,
+					`hdmf`,
+					`pagibig_mp2`,
+					`pagibig_loan`,
+					`hmo`,
+					`wtax`,
+					`category`,
+					`gross_amount`,
+					`total_deduction`,
+					`net_amount`
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
 				[
 					$serialno,
 					$particulars,
@@ -148,7 +183,25 @@ class MyOrsModel extends Model
 					$certified_b,
 					$position_b,
 					$this->cuser,
-					$ors_date
+					$ors_date,
+					$fund_cluster_code,
+					$is_vatable,
+					$vat_percent,
+					$ewt_percent,
+					$pt_percent,
+					$other_deductions,
+					$income_tax,
+					$deduction_name,
+					$sss,
+					$hdmf,
+					$pagibig_mp2,
+					$pagibig_loan,
+					$hmo,
+					$wtax,
+					$category,
+					$gross_amount,
+					$total_deduction,
+					$net_amount
 				]
 			);
 
@@ -433,7 +486,25 @@ class MyOrsModel extends Model
 					`position_a` = ?,
 					`certified_b` = ?,
 					`position_b` = ?,
-					`ors_date` = ?
+					`ors_date` = ?,
+					`fund_cluster_code` = ?,
+					`is_vatable` = ?,
+					`vat_percent` = ?,
+					`ewt_percent` = ?,
+					`pt_percent` = ?,
+					`other_deductions` = ?,
+					`income_tax` = ?,
+					`deduction_name` = ?,
+					`sss` = ?,
+					`hdmf` = ?,
+					`pagibig_mp2` = ?,
+					`pagibig_loan` = ?,
+					`hmo` = ?,
+					`wtax` = ?,
+					`category` = ?,
+					`gross_amount` = ?,
+					`total_deduction` = ?,
+					`net_amount` = ?
 				WHERE recid = ?
 			", [
 				$particulars,
@@ -447,6 +518,24 @@ class MyOrsModel extends Model
 				$certified_b,
 				$position_b,
 				$ors_date,
+				$fund_cluster_code,
+				$is_vatable,
+				$vat_percent,
+				$ewt_percent,
+				$pt_percent,
+				$other_deductions,
+				$income_tax,
+				$deduction_name,
+				$sss,
+				$hdmf,
+				$pagibig_mp2,
+				$pagibig_loan,
+				$hmo,
+				$wtax,
+				$category,
+				$gross_amount,
+				$total_deduction,
+				$net_amount,
 				$recid
 			]);
 

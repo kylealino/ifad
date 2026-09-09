@@ -498,6 +498,25 @@ function __mysys_ors_ent() {
 					var position_b = document.getElementById("position_b");
 					var ors_date = document.getElementById("ors_date");
 
+					let is_vatable = document.getElementById("is_vatable").checked ? 1 : 0;
+					var vat_percent = document.getElementById("vat_percent");
+					var ewt_percent = document.getElementById("ewt_percent");
+					var pt_percent = document.getElementById("pt_percent");
+					var category = document.getElementById("category");
+					var gross_amount = document.getElementById("gross_amount");
+					var total_deduction = document.getElementById("total_deduction");
+					var net_amount = document.getElementById("net_amount");
+
+					var other_deductions = document.getElementById("other_deductions");
+					var income_tax = document.getElementById("income_tax");
+					var deduction_name = document.getElementById("deduction_name");
+					var sss = document.getElementById("sss");
+					var hdmf = document.getElementById("hdmf");
+					var pagibig_mp2 = document.getElementById("pagibig_mp2");
+					var pagibig_loan = document.getElementById("pagibig_loan");
+					var hmo = document.getElementById("hmo");
+					var wtax = document.getElementById("wtax");
+					var fund_cluster_code = document.getElementById("fund_cluster_code");
 
 					// Prepare PS data DIRECT --
 					var rowcount1 = jQuery('.budgetdata-list tr').length;
@@ -632,6 +651,24 @@ function __mysys_ors_ent() {
 						budgetcodtdata: budgetcodtdata,
 						budgetindirectcodtdata: budgetindirectcodtdata,
 						ors_date: ors_date.value,
+						category: category.value,
+						vat_percent: vat_percent.value,
+						ewt_percent: ewt_percent.value,
+						pt_percent: pt_percent.value,
+						gross_amount: gross_amount.value,
+						total_deduction: total_deduction.value,
+						net_amount: net_amount.value,
+						other_deductions: other_deductions.value,
+						income_tax: income_tax.value,
+						deduction_name: deduction_name.value,
+						sss: sss.value,
+						hdmf: hdmf.value,
+						pagibig_mp2: pagibig_mp2.value,
+						pagibig_loan: pagibig_loan.value,
+						hmo: hmo.value,
+						wtax: wtax.value,
+						fund_cluster_code: fund_cluster_code.value,
+						is_vatable: is_vatable,
 						meaction: 'MAIN-SAVE'
 					}
 

@@ -29,6 +29,7 @@ class MyLDDAPADAModel extends Model
 		$is_ci = $this->request->getPostGet('is_ci');
 		$dvdtdata = $this->request->getPostGet('dvdtdata');
 		$dvno_list = $this->request->getPostGet('dvno_list');
+		$ckno = $this->request->getPostGet('ckno');
 
 
 		if (empty($lddapada_date)) {
@@ -79,16 +80,20 @@ class MyLDDAPADAModel extends Model
 		$rw = $query->getRowArray();
 		$funding_source = $rw['funding_source'];
 
-		if ($is_ci == '0') {
-			$ckno =  $this->get_ctr_ada('CTRL_NO01');//TRANSACTION NO
-		}
+		// if ($is_ci == '0') {
+		// 	$ckno =  $this->get_ctr_ada('CTRL_NO01');//TRANSACTION NO
+		// }
 
-		if ($is_ci == '1') {
-			$ckno =  $this->get_ctr_ci('9926','CTRL_NO01');//TRANSACTION NO
-		}
+		// if ($is_ci == '1') {
+		// 	$ckno =  $this->get_ctr_ci('9926','CTRL_NO01');//TRANSACTION NO
+		// }
+
+		$ckno = $ckno;
 
 		if (empty($recid)) {
-			$cseqn =  $this->get_ctr_lddapada($fund_cluster_code,$funding_source,'CTRL_NO01');//TRANSACTION NO
+			// $cseqn =  $this->get_ctr_lddapada($fund_cluster_code,$funding_source,'CTRL_NO01');//TRANSACTION NO
+
+			$cseqn = $lddapadano;
 
 			//INSERTING HD DATA
 			//disbursement SERIALNO

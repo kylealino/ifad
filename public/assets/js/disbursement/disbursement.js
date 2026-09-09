@@ -742,8 +742,6 @@ function __mysys_disbursement_ent() {
 	this.__approve_certa = function() {
 		const approveBtn = document.getElementById('btn_approve');
 		const confirmApproveBtn = document.getElementById('confirmApproveBtn');
-		var serialno = document.getElementById("serialno");
-		var funding_source = document.getElementById("funding_source");
 
 		console.log('button approve is clicked...');
 	
@@ -766,8 +764,6 @@ function __mysys_disbursement_ent() {
 				recid: recid.value,
 				approver: approver.value,
 				remarks: remarks.value,
-				serialno: serialno.value,
-				funding_source: funding_source.value,
 				meaction: 'MAIN-APPROVE-A'
 			};
 	
@@ -955,6 +951,16 @@ function __mysys_disbursement_ent() {
 	
 	$(document).ready(function () {
         $('#datatablesSimple').DataTable({
+            pageLength: 5,
+            lengthChange: false,
+            language: {
+            search: "Search:"
+            }
+        });
+    });
+
+	$(document).ready(function () {
+        $('#datatableshistory').DataTable({
             pageLength: 5,
             lengthChange: false,
             language: {

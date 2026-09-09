@@ -1,0 +1,970 @@
+<?php
+namespace App\Models;
+use CodeIgniter\Model;
+
+class MyDisbursementModel extends Model
+{
+
+    protected $db;
+
+    public function __construct(){
+        parent::__construct();
+        $this->session = session();
+        $this->request = \Config\Services::request();
+		$this->db = \Config\Database::connect();
+		$this->cuser = $this->session->get('__xsys_myuserzicas__');
+        
+    }
+
+	public function disbursement_save() { 
+		$recid = $this->request->getPostGet('recid');
+		$serialno = $this->request->getPostGet('serialno');
+		$particulars = $this->request->getPostGet('particulars');
+		$funding_source = $this->request->getPostGet('funding_source');
+		$payee_name = $this->request->getPostGet('payee_name');
+		$payee_office = $this->request->getPostGet('payee_office');
+		$payee_address = $this->request->getPostGet('payee_address');
+		$certified_a = $this->request->getPostGet('certified_a');
+		$position_a = $this->request->getPostGet('position_a');
+		$certified_c = $this->request->getPostGet('certified_c');
+		$position_c = $this->request->getPostGet('position_c');
+		$dvno = $this->request->getPostGet('dvno');
+		$fund_cluster_code = $this->request->getPostGet('fund_cluster_code');
+		$budgetdtdata = $this->request->getPostGet('budgetdtdata');
+		$budgetdtindirectdata = $this->request->getPostGet('budgetdtindirectdata');
+		$budgetmooedtdata = $this->request->getPostGet('budgetmooedtdata');
+		$budgetmooeindirectdtdata = $this->request->getPostGet('budgetmooeindirectdtdata');
+		$budgetcodtdata = $this->request->getPostGet('budgetcodtdata');
+		$budgetindirectcodtdata = $this->request->getPostGet('budgetindirectcodtdata');
+		$disbursement_date = $this->request->getPostGet('disbursement_date');
+		$category = $this->request->getPostGet('category');
+		$is_vatable = $this->request->getPostGet('is_vatable');
+		$vat_percent = $this->request->getPostGet('vat_percent');
+		$ewt_percent = $this->request->getPostGet('ewt_percent');
+		$pt_percent = $this->request->getPostGet('pt_percent');
+		$gross_amount = $this->request->getPostGet('gross_amount');
+		$total_deduction = $this->request->getPostGet('total_deduction');
+		$net_amount = $this->request->getPostGet('net_amount');
+		$other_deductions = $this->request->getPostGet('other_deductions');
+		$income_tax = $this->request->getPostGet('income_tax');
+		$deduction_name = $this->request->getPostGet('deduction_name');
+		$sss = $this->request->getPostGet('sss');
+		$hdmf = $this->request->getPostGet('hdmf');
+		$pagibig_mp2 = $this->request->getPostGet('pagibig_mp2');
+		$pagibig_loan = $this->request->getPostGet('pagibig_loan');
+		$hmo = $this->request->getPostGet('hmo');
+		$wtax = $this->request->getPostGet('wtax');
+
+		// var_dump(
+		// 	// $other_deductions,
+		// 	// $income_tax,
+		// 	// $deduction_name,
+		// 	// $sss,
+		// 	// $hdmf,
+		// 	// $pagibig_mp2,
+		// 	// $pagibig_loan,
+		// 	// $hmo,
+		// 	// $wtax,
+		// );
+		// die();
+
+		// var_dump(
+		// 	// $serialno,
+		// 	// $particulars,
+		// 	// $funding_source,
+		// 	// $payee_name,
+		// 	// $payee_office,
+		// 	// $payee_address,
+		// 	// $certified_a,
+		// 	// $position_a,
+		// 	// $disbursement_date
+
+		// 	$budgetdtdata,
+		// 	$budgetdtindirectdata,
+		// 	$budgetmooedtdata,
+		// 	$budgetmooeindirectdtdata,
+		// 	$budgetcodtdata,
+		// 	$budgetindirectcodtdata
+		// );
+
+		// die();
+
+		// var_dump($disbursement_date);
+		// die();
+		
+		// $cseqn =  $this->get_ctr_disbursement('01',$funding_source,'CTRL_NO01');//TRANSACTION NO
+		// $trx = empty($serialno) ? $cseqn : $serialno;
+
+		// var_dump(
+		// 	$certified_a,
+		// 	$position_a,
+		// 	$certified_b,
+		// 	$position_b
+		// );
+		// die();
+		// var_dump(
+		// 	$program_title,
+		// 	$particulars,
+		// 	$funding_source,
+		// 	$payee_name,
+		// 	$payee_office,
+		// 	$payee_address,
+		// 	$budgetdtdata
+		// );
+		// die();
+
+		// var_dump($budgetdtdata);
+		// die();
+
+		if (empty($funding_source)) {
+			echo "
+			<script>
+			toastr.error('Funding source is required!', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			</script>
+			";
+			die();
+		}
+		if (empty($payee_name)) {
+			echo "
+			<script>
+			toastr.error('Payee name is required!', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			</script>
+			";
+			die();
+		}
+		
+		if (empty($budgetdtdata) && empty($budgetdtindirectdata) && empty($budgetmooedtdata) && empty($budgetmooeindirectdtdata) && empty($budgetcodtdata) && empty($budgetindirectcodtdata)) {
+			echo "
+			<script>
+			toastr.error('No particulars found!', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			</script>
+			";
+			die();
+		}
+
+		if (empty($recid)) {
+			//INSERTING HD DATA
+			//disbursement SERIALNO
+			$query = $this->db->query("
+				INSERT INTO tbl_disbursement_hd (
+					`serialno`,
+					`particulars`,
+					`funding_source`,
+					`payee_name`,
+					`payee_office`,
+					`payee_address`,
+					`certified_a`,
+					`position_a`,
+					`certified_c`,
+					`position_c`,
+					`dvno`,
+					`fund_cluster_code`,
+					`is_vatable`,
+					`vat_percent`,
+					`ewt_percent`,
+					`pt_percent`,
+					`other_deductions`,
+					`income_tax`,
+					`deduction_name`,
+					`sss`,
+					`hdmf`,
+					`pagibig_mp2`,
+					`pagibig_loan`,
+					`hmo`,
+					`wtax`,
+					`category`,
+					`added_by`,
+					`disbursement_date`,
+					`gross_amount`,
+					`total_deduction`,
+					`net_amount`
+				)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+				[
+					$serialno,
+					$particulars,
+					$funding_source,
+					$payee_name,
+					$payee_office,
+					$payee_address,
+					$certified_a,
+					$position_a,
+					$certified_c,
+					$position_c,
+					$dvno,
+					$fund_cluster_code,
+					$is_vatable,
+					$vat_percent,
+					$ewt_percent,
+					$pt_percent,
+					$other_deductions,
+					$income_tax,
+					$deduction_name,
+					$sss,
+					$hdmf,
+					$pagibig_mp2,
+					$pagibig_loan,
+					$hmo,
+					$wtax,
+					$category,
+					$this->cuser,
+					$disbursement_date,
+					$gross_amount,
+					$total_deduction,
+					$net_amount
+				]
+			);
+
+			$project_id = $this->db->insertID();
+
+			//INSERTING PS DT DATA
+			if (!empty($budgetdtdata)) {
+				for($aa = 0; $aa < count($budgetdtdata); $aa++){
+					$medata = explode("x|x",$budgetdtdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_direct_ps_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?,?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+					);
+					
+				}
+			}
+
+			if (!empty($budgetdtindirectdata)) {
+				for($aa = 0; $aa < count($budgetdtindirectdata); $aa++){
+					$medata = explode("x|x",$budgetdtindirectdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_indirect_ps_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+					);
+					
+				}
+			}
+
+			//INSERTING MOOE DT DATA
+			if (!empty($budgetmooedtdata)) {
+				//this is for normal saving and updating
+				for($aa = 0; $aa < count($budgetmooedtdata); $aa++){
+					$medata = explode("x|x",$budgetmooedtdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_direct_mooe_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+
+					);
+				}
+			}
+
+			//INSERTING INDIRECT MOOE DT DATA
+			if (!empty($budgetmooeindirectdtdata)) {
+				//this is for normal saving and updating
+				for($aa = 0; $aa < count($budgetmooeindirectdtdata); $aa++){
+					$medata = explode("x|x",$budgetmooeindirectdtdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_indirect_mooe_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+
+					);
+				}
+			}
+
+			//INSERTING CO DT DATA
+			if (!empty($budgetcodtdata)) {
+				//this is for normal saving and updating
+				for($aa = 0; $aa < count($budgetcodtdata); $aa++){
+					$medata = explode("x|x",$budgetcodtdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_direct_co_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+
+					);
+				}
+			}
+
+			if (!empty($budgetindirectcodtdata)) {
+				//this is for normal saving and updating
+				for($aa = 0; $aa < count($budgetindirectcodtdata); $aa++){
+					$medata = explode("x|x",$budgetindirectcodtdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_indirect_co_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+
+					);
+				}
+			}
+
+			$status = "Disbursement Saved Successfully!";
+			$color = "success";
+		}else{
+			$query = $this->db->query("
+				UPDATE tbl_disbursement_hd
+				SET
+					`particulars` = ?,
+					`serialno` = ?,
+					`funding_source` = ?,
+					`payee_name` = ?,
+					`payee_office` = ?,
+					`payee_address` = ?,
+					`certified_a` = ?,
+					`position_a` = ?,
+					`certified_c` = ?,
+					`position_c` = ?,
+					`dvno` = ?,
+					`fund_cluster_code` = ?,
+					`is_vatable` = ?,
+					`vat_percent` = ?,
+					`ewt_percent` = ?,
+					`pt_percent` = ?,
+					`other_deductions` = ?,
+					`income_tax` = ?,
+					`deduction_name` = ?,
+					`sss` = ?,
+					`hdmf` = ?,
+					`pagibig_mp2` = ?,
+					`pagibig_loan` = ?,
+					`hmo` = ?,
+					`wtax` = ?,
+					`category` = ?,
+					`disbursement_date` = ?,
+					`gross_amount` = ?,
+					`total_deduction` = ?,
+					`net_amount` = ?
+				WHERE recid = ?
+			", [
+				$particulars,
+				$serialno,
+				$funding_source,
+				$payee_name,
+				$payee_office,
+				$payee_address,
+				$certified_a,
+				$position_a,
+				$certified_c,
+				$position_c,
+				$dvno,
+				$fund_cluster_code,
+				$is_vatable,
+				$vat_percent,
+				$ewt_percent,
+				$pt_percent,
+				$other_deductions,
+				$income_tax,
+				$deduction_name,
+				$sss,
+				$hdmf,
+				$pagibig_mp2,
+				$pagibig_loan,
+				$hmo,
+				$wtax,
+				$category,
+				$disbursement_date,
+				$gross_amount,
+				$total_deduction,
+				$net_amount,
+				$recid
+			]);
+
+			$project_id = $recid;
+
+			if (!empty($budgetdtdata)) {
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_ps_dt WHERE `project_id` = '$project_id'");
+				for($aa = 0; $aa < count($budgetdtdata); $aa++){
+					$medata = explode("x|x",$budgetdtdata[$aa]); 
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_direct_ps_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+					);
+					
+				}
+			}else{
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_ps_dt WHERE `project_id` = '$project_id'");
+			}
+
+			if (!empty($budgetdtindirectdata)) {
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_ps_dt WHERE `project_id` = '$project_id'");
+				for($aa = 0; $aa < count($budgetdtindirectdata); $aa++){
+					$medata = explode("x|x",$budgetdtindirectdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_indirect_ps_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+					);
+					
+				}
+			}else{
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_ps_dt WHERE `project_id` = '$project_id'");
+			}
+
+			if (!empty($budgetmooedtdata)) {
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_mooe_dt WHERE `project_id` = '$project_id'");
+				for($aa = 0; $aa < count($budgetmooedtdata); $aa++){
+					$medata = explode("x|x",$budgetmooedtdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_direct_mooe_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+
+					);
+					
+				}
+			}else{
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_mooe_dt WHERE `project_id` = '$project_id'");
+			}
+
+			if (!empty($budgetmooeindirectdtdata)) {
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_mooe_dt WHERE `project_id` = '$project_id'");
+				for($aa = 0; $aa < count($budgetmooeindirectdtdata); $aa++){
+					$medata = explode("x|x",$budgetmooeindirectdtdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_indirect_mooe_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+
+					);
+					
+				}
+			}else{
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_mooe_dt WHERE `project_id` = '$project_id'");
+			}
+
+			if (!empty($budgetcodtdata)) {
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_co_dt WHERE `project_id` = '$project_id'");
+				for($aa = 0; $aa < count($budgetcodtdata); $aa++){
+					$medata = explode("x|x",$budgetcodtdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_direct_co_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+
+					);
+					
+				}
+			}else{
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_co_dt WHERE `project_id` = '$project_id'");
+			}
+
+			if (!empty($budgetindirectcodtdata)) {
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_co_dt WHERE `project_id` = '$project_id'");
+				for($aa = 0; $aa < count($budgetindirectcodtdata); $aa++){
+					$medata = explode("x|x",$budgetindirectcodtdata[$aa]);
+					$responsibility_code = $medata[0]; 
+					$mfopaps_code = $medata[1];
+					$amount = $medata[2]; 
+
+					$query = $this->db->query("
+						INSERT INTO tbl_disbursement_indirect_co_dt (
+							`project_id`,
+							`responsibility_code`,
+							`mfopaps_code`,
+							`amount`,
+							`added_by`
+						)
+						VALUES (?, ?, ?, ?, ?)", 
+						[
+							$project_id,
+							$responsibility_code,
+							$mfopaps_code,
+							$amount,
+							$this->cuser
+						]
+
+					);
+					
+				}
+			}else{
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_co_dt WHERE `project_id` = '$project_id'");
+			}
+
+			$status = "Disbursement Updated Successfully!";
+			$color = "info";
+		}
+
+		if ($query) {
+			// Echo JavaScript to show the toast and then redirect
+			echo "
+			<script>
+				document.getElementById('submitBtn').disabled = true;
+				toastr.$color('{$status}!', 'Well Done!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				setTimeout(function() {
+						window.location.href = 'mydisbursement?meaction=MAIN'; // Redirect to MAIN view
+					}, 2500); // 2-second delay for user to see the toast
+			</script>
+			";
+			exit; // Stop further PHP execution after the toast
+		} else {
+			// If there's an error, show an alert message
+			echo "<script type='text/javascript'>
+					alert('An error occurred while executing the query.');
+				  </script>";
+			exit;
+		}
+		
+	}
+	
+	//CERTIFIED A APPROVAL/DISAPPROVAL
+	public function disbursement_certifya_approve() { 
+		$recid = $this->request->getPostGet('recid');
+		$approver = $this->request->getPostGet('approver');
+		$remarks = $this->request->getPostGet('remarks');
+
+		// $cseqn =  $this->get_ctr_disbursement('01',$funding_source,'CTRL_NO01');//TRANSACTION NO
+		// $trx = empty($serialno) ? $cseqn : $serialno;
+
+		// $accessquery = $this->db->query("
+		// 	SELECT `recid` FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2005' AND `is_active` = '1'
+		// ");
+		// if ($accessquery->getNumRows() == 0) {
+		// 	echo "
+		// 	<script>
+		// 	toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
+		// 			progressBar: true,
+		// 			closeButton: true,
+		// 			timeOut:2000,
+		// 		});
+		// 	</script>
+		// 	";
+		// 	die();
+		// }
+
+		$query = $this->db->query("
+			UPDATE tbl_disbursement_hd 
+			SET 
+				`is_pending` = '0', 
+				`is_approved_certa` = '1',
+				`is_disapproved_certa` = '0',
+				`certa_approver` = '$approver', 
+				`certa_remarks` = '$remarks'
+			WHERE `recid` = '$recid'
+		");
+		$status = "Disbursement Approved!";
+		
+		if ($query) {
+			// Echo JavaScript to show the toast and then redirect
+			echo "
+			<script>
+				toastr.success('{$status}!', 'Well Done!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				setTimeout(function() {
+						window.location.href = 'mydisbursement?meaction=MAIN'; // Redirect to MAIN view
+					}, 2500); // 2-second delay for user to see the toast
+			</script>
+			";
+			exit; // Stop further PHP execution after the toast
+		} else {
+			// If there's an error, show an alert message
+			echo "<script type='text/javascript'>
+					alert('An error occurred while executing the query.');
+				  </script>";
+			exit;
+		}
+	}
+
+	public function disbursement_certifya_disapprove() { 
+		$recid = $this->request->getPostGet('recid');
+		$approver = $this->request->getPostGet('approver');
+		$remarks = $this->request->getPostGet('remarks');
+
+		// $accessquery = $this->db->query("
+		// 	SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2005' AND `is_active` = '1'
+		// ");
+		// if ($accessquery->getNumRows() == 0) {
+		// 	echo "
+		// 	<script>
+		// 	toastr.error('Disapprove Access Denied! Please Contact the Administrator.', 'Oops!', {
+		// 			progressBar: true,
+		// 			closeButton: true,
+		// 			timeOut:2000,
+		// 		});
+		// 	</script>
+		// 	";
+		// 	die();
+		// }
+
+		$query = $this->db->query("
+			UPDATE tbl_disbursement_hd SET `is_pending` = '0', `is_approved_certa` = '0',`is_disapproved_certa` = '1',`certa_approver` = '$approver', `certa_remarks` = '$remarks' WHERE `recid` = '$recid'
+		");
+		$status = "Disbursement Disapproved!";
+		
+		if ($query) {
+			// Echo JavaScript to show the toast and then redirect
+			echo "
+			<script>
+				toastr.success('{$status}!', 'Well Done!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				setTimeout(function() {
+						window.location.href = 'mydisbursement?meaction=MAIN'; // Redirect to MAIN view
+					}, 2500); // 2-second delay for user to see the toast
+			</script>
+			";
+			exit; // Stop further PHP execution after the toast
+		} else {
+			// If there's an error, show an alert message
+			echo "<script type='text/javascript'>
+					alert('An error occurred while executing the query.');
+				  </script>";
+			exit;
+		}
+	}
+
+	// CERTIFIED B APPROVAL/DISAPPROVAL
+	public function disbursement_certifyb_approve() { 
+		$recid = $this->request->getPostGet('recid');
+		$approver = $this->request->getPostGet('approver');
+		$remarks = $this->request->getPostGet('remarks');
+
+		$accessquery = $this->db->query("
+			SELECT `recid` FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2006' AND `is_active` = '1'
+		");
+		if ($accessquery->getNumRows() == 0) {
+			echo "
+			<script>
+			toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			</script>
+			";
+			die();
+		}
+
+		$query = $this->db->query("
+			UPDATE tbl_disbursement_hd SET `is_pending` = '0', `is_approved_certb` = '1', `is_disapproved_certb` = '0',`certb_approver` = '$approver', `certb_remarks` = '$remarks' WHERE `recid` = '$recid'
+		");
+		$status = "disbursement approved!";
+		
+		if ($query) {
+			// Echo JavaScript to show the toast and then redirect
+			echo "
+			<script>
+				toastr.success('{$status}!', 'Well Done!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				setTimeout(function() {
+						window.location.href = 'mydisbursementapproval?meaction=MAIN'; // Redirect to MAIN view
+					}, 2500); // 2-second delay for user to see the toast
+			</script>
+			";
+			exit; // Stop further PHP execution after the toast
+		} else {
+			// If there's an error, show an alert message
+			echo "<script type='text/javascript'>
+					alert('An error occurred while executing the query.');
+				  </script>";
+			exit;
+		}
+	}
+
+	public function disbursement_certifyb_disapprove() { 
+		$recid = $this->request->getPostGet('recid');
+		$approver = $this->request->getPostGet('approver');
+		$remarks = $this->request->getPostGet('remarks');
+
+		$accessquery = $this->db->query("
+			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2006' AND `is_active` = '1'
+		");
+		if ($accessquery->getNumRows() == 0) {
+			echo "
+			<script>
+			toastr.error('Disapprove Access Denied! Please Contact the Administrator.', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			</script>
+			";
+			die();
+		}
+
+		$query = $this->db->query("
+			UPDATE tbl_disbursement_hd SET `is_pending` = '0', `is_approved_certb` = '0',`is_disapproved_certb` = '1',`certb_approver` = '$approver', `certb_remarks` = '$remarks' WHERE `recid` = '$recid'
+		");
+		$status = "disbursement disapproved!";
+		
+		if ($query) {
+			// Echo JavaScript to show the toast and then redirect
+			echo "
+			<script>
+				toastr.success('{$status}!', 'Well Done!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				setTimeout(function() {
+						window.location.href = 'mydisbursementapproval?meaction=MAIN'; // Redirect to MAIN view
+					}, 2500); // 2-second delay for user to see the toast
+			</script>
+			";
+			exit; // Stop further PHP execution after the toast
+		} else {
+			// If there's an error, show an alert message
+			echo "<script type='text/javascript'>
+					alert('An error occurred while executing the query.');
+				  </script>";
+			exit;
+		}
+	}
+
+	public function get_ctr_disbursement($fund_cluster,$funding_source,$mfld='') { 
+		$accessquery = $this->db->query("
+		CREATE TABLE if not exists `myctr_disbursement` (
+		  `CTR_YEAR` varchar(4) DEFAULT '0000',
+		  `CTR_MONTH` varchar(2) DEFAULT '00',
+		  `CTR_DAY` varchar(2) DEFAULT '00',
+		  `CTRL_NO01` varchar(15) DEFAULT '000',
+		  `CTRL_NO02` varchar(15) DEFAULT '00000000',
+		  `CTRL_NO03` varchar(15) DEFAULT '00000000',
+		  `CTRL_NO04` varchar(15) DEFAULT '00000000',
+		  `CTRL_NO05` varchar(15) DEFAULT '00000000',
+		  `CTRL_NO06` varchar(15) DEFAULT '00000000',
+		  `CTRL_NO07` varchar(15) DEFAULT '00000000',
+		  `CTRL_NO08` varchar(15) DEFAULT '00000000',
+		  `CTRL_NO09` varchar(15) DEFAULT '00000000',
+		  `CTRL_NO10` varchar(15) DEFAULT '00000000',
+		  `CTRL_NO11` varchar(15) DEFAULT '00000000',
+		  `SS_CTR` varchar(15) DEFAULT '000000',
+		  UNIQUE KEY `ctr01` (`CTR_YEAR`,`CTR_MONTH`,`CTR_DAY`)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+		");
+
+		$xfield = (empty($mfld) ? 'CTRL_NO01' : $mfld);
+		
+		$q = $this->db->query("select date(now()) XSYSDATE");
+		$rdate = $q->getRowArray();
+		$xsysdate = $rdate['XSYSDATE'];
+		$xsysdate_exp = explode('-', $xsysdate);
+		$xsysyear =  $xsysdate_exp[0];
+		$xsysmonth = $xsysdate_exp[1];
+		$xsysday = $xsysdate_exp[2];
+		
+		$qctr = $this->db->query("select {$xfield} from myctr_disbursement WHERE CTR_YEAR = '$xsysyear' AND CTR_MONTH = '$xsysmonth' AND CTR_DAY = '$xsysday'  limit 1");
+		if($qctr->getNumRows() == 0) {
+			$xnumb = '001';
+			$query = $this->db->query( "insert into myctr_disbursement (CTR_YEAR,CTR_MONTH,CTR_DAY,{$xfield}) values('$xsysyear','$xsysmonth','$xsysday','$xnumb')");
+			$qctr->freeResult();
+		} else {
+			$qctr->freeResult();
+			$qctr = $this->db->query( "select {$xfield} MYFIELD from myctr_disbursement WHERE CTR_YEAR = '$xsysyear' AND CTR_MONTH = '$xsysmonth' AND CTR_DAY = '$xsysday' limit 1");
+			$rctr = $qctr->getRowArray();
+			if(trim($rctr['MYFIELD'],' ') == '') { 
+				$xnumb = '001';
+			} else {
+				$xnumb = $rctr['MYFIELD'];
+				$qctr = $this->db->query("select ('{$xnumb}' + 1) XNUMB");
+				$rctr = $qctr->getRowArray();
+				$xnumb = trim($rctr['XNUMB'],' ');
+				$xnumb = str_pad($xnumb + 0,3,"0",STR_PAD_LEFT);
+				$query = $this->db->query("update myctr_disbursement set {$xfield} = '{$xnumb}'");
+			}
+		}
+		return  $fund_cluster . '-' . $funding_source . '-' . $xsysyear . '-' . $xsysmonth . '-' . $xnumb;//.$supp
+	} 
+
+	
+} //end main class
+?>

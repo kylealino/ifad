@@ -64,6 +64,10 @@ class MyOrs extends BaseController
             case 'PRINT-ORS': 
                 return view('ors/ors-pdf');
                 break;
+
+            case 'PRINT-DISBURSEMENT': 
+                return view('ors/ors-disbursement-pdf');
+                break;
             
         }
     }

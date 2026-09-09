@@ -10,7 +10,7 @@ $this->cuser = $this->session->get('__xsys_myuserzicas__');
 require APPPATH . 'ThirdParty/fpdf/fpdf.php';
 $currentDate = date("Y-m-d");
 $formattedDate = date("F j, Y", strtotime($currentDate));
-
+$total_payroll = 0;
 function numberToWords($number) {
 
     $hyphen      = '-';
@@ -145,6 +145,15 @@ SELECT
     `vat_percent`,
     `ewt_percent`,
     `pt_percent`,
+    `income_tax`,
+    `deduction_name`,
+    `other_deductions`,
+    `sss`,
+    `hdmf`,
+    `pagibig_mp2`,
+    `pagibig_loan`,
+    `hmo`,
+    `wtax`,
     `category`
 FROM
     `tbl_disbursement_hd`
@@ -188,6 +197,15 @@ $is_vatable = $data['is_vatable'];
 $vat_percent = $data['vat_percent'];
 $ewt_percent = $data['ewt_percent'];
 $pt_percent = $data['pt_percent'];
+$income_tax = $data['income_tax'];
+$deduction_name = $data['deduction_name'];
+$other_deductions = $data['other_deductions'];
+$sss = $data['sss'];
+$hdmf = $data['hdmf'];
+$pagibig_mp2 = $data['pagibig_mp2'];
+$pagibig_loan = $data['pagibig_loan'];
+$hmo = $data['hmo'];
+$wtax = $data['wtax'];
 $category = $data['category'];
 
 //certify a division
@@ -529,6 +547,11 @@ if (empty($category)) {
         $net = $gross - $ewt_amount - $pt_amount;
     }
 
+}elseif($category == "Income Tax"){
+    $net = $gross - $income_tax;   
+}elseif($category == "Payroll"){
+    $total_payroll = $sss + $hdmf + $pagibig_mp2 + $pagibig_loan + $hmo + $wtax;
+    $net = $gross - $total_payroll; 
 } else {
 
     // ✅ GOODS / SERVICES (AUTO DEFAULTS)
@@ -567,7 +590,8 @@ if (empty($category)) {
     }
 }
 
-if ($is_vatable == 1) {
+
+if ($is_vatable == 1 && ($category == 'Goods' || $category == 'Manual' || $category == 'Services')) {
 
     // VAT
     $Y = 120;
@@ -587,7 +611,7 @@ if ($is_vatable == 1) {
 
     $pdf->SetXY(160, $Y);
     $pdf->Cell(40, 4, number_format($vat_amount + $ewt_amount,2), 'B', 1, 'R');
-}else {
+}elseif($is_vatable == 0 && ($category == 'Goods' || $category == 'Manual' || $category == 'Services')) {
 
     // EWT
     $Y = 120;
@@ -607,7 +631,30 @@ if ($is_vatable == 1) {
 
     $pdf->SetXY(160, $Y);
     $pdf->Cell(40, 4, number_format($ewt_amount + $pt_amount,2), 'B', 1, 'R');
+}elseif($category == 'Income Tax'){
+    // PT
+    $Y = 124;
+    $pdf->SetXY(10, $Y);
+    $pdf->Cell(75, 4, 'LESS NET BEFORE TAX:', 0, 1, 'R');
+
+    $pdf->SetXY(85, $Y);
+    $pdf->Cell(15, 4, number_format($income_tax,2), 0, 1, 'L');
+
+    $pdf->SetXY(160, $Y);
+    $pdf->Cell(40, 4, number_format($income_tax,2), 'B', 1, 'R');
+}elseif($category == 'Payroll'){
+        // PT
+    $Y = 124;
+    $pdf->SetXY(10, $Y);
+    $pdf->Cell(75, 4, 'SALARY DEDUCTIONS:', 0, 1, 'R');
+
+    $pdf->SetXY(85, $Y);
+    $pdf->Cell(15, 4, number_format($total_payroll,2), 0, 1, 'L');
+
+    $pdf->SetXY(160, $Y);
+    $pdf->Cell(40, 4, number_format($total_payroll,2), 'B', 1, 'R');
 }
+
 
 $Y = 128;
 $pdf->SetXY(10, $Y);
@@ -616,6 +663,19 @@ $pdf->Cell(75, 4, 'NET', 0, 1, 'R');
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, number_format($net,2), 0, 1, 'R');
 
+if ($deduction_name) {
+    $Y = 138;
+    $pdf->SetFont('Times', '', 9);
+    $pdf->SetXY(10, $Y);
+    $pdf->Cell(75, 4, $deduction_name, 0, 1, 'R');
+
+    $pdf->SetXY(160, $Y);
+    $pdf->Cell(40, 4, number_format($other_deductions,2), 0, 1, 'R');
+}
+
+if ($deduction_name) {
+    $net = $net - $other_deductions;
+}
 
 $Y = 144;
 
@@ -820,9 +880,19 @@ $pdf->SetXY(101, $Y);
 $pdf->SetFont('Times', '', 8);
 $pdf->Cell(15, 4, 'Name', 'BRL', 0, 'C');
 
+$certified_d = '';
+$position_d = '';
+if ($net >= 100000) {
+    $certified_d = 'Atty. LUCIEDEN G. RAZ';
+    $position_d = 'Director III';
+}else{
+    $certified_d = 'ALEXIS M. ORTIZ';
+    $position_d = 'Chief Administrative Officer';
+}
+
 $pdf->SetXY(116, $Y);
 $pdf->SetFont('Times', 'B',10);
-$pdf->Cell(84, 4, 'Atty. LUCIEDEN G. RAZ', 'R', 1, 'C');
+$pdf->Cell(84, 4, $certified_d, 'R', 1, 'C');
 
 // ================= POSITION =================
 $Y = $pdf->GetY();
@@ -842,7 +912,7 @@ $pdf->SetFont('Times', '', 8);
 $pdf->Cell(15, 8, 'Position', 1, 0, 'C');
 
 $pdf->SetXY(116, $Y);
-$pdf->Cell(84, 4, 'Director III /OIC - Officer of the Director', 1, 1, 'C');
+$pdf->Cell(84, 4, $position_d, 1, 1, 'C');
 
 
 

@@ -445,6 +445,7 @@ function __mysys_lddapada_ent() {
 					var lddapadano = document.getElementById("lddapadano");
 					var mds_branch = document.getElementById("mds_branch");
 					var mds_accountno = document.getElementById("mds_accountno");
+					var ckno = document.getElementById("ckno");
 					var lddapada_date = document.getElementById("lddapada_date");
 					var fund_cluster_code = document.getElementById("fund_cluster_code");
 					var funding_source = document.getElementById("funding_source");
@@ -485,6 +486,7 @@ function __mysys_lddapada_ent() {
 						lddapadano: lddapadano.value,
 						mds_branch: mds_branch.value,
 						mds_accountno: mds_accountno.value,
+						ckno: ckno.value,
 						lddapada_date: lddapada_date.value,
 						fund_cluster_code: fund_cluster_code.value,
 						funding_source: funding_source.value,

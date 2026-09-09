@@ -8,6 +8,7 @@ $recid = $this->request->getPostGet('recid');
 $lddapadano = '';
 $mds_branch = '';
 $mds_accountno = '';
+$ckno ='';
 $fund_cluster_code = '';
 $funding_source = '';
 $is_ci = '';
@@ -24,6 +25,7 @@ if((!empty($recid) || !is_null($recid)) ) {
             `lddapadano`,
             `mds_branch`,
             `mds_accountno`,
+            `ckno`,
             `lddapada_date`,
             `fund_cluster_code`,
             `funding_source`,
@@ -40,6 +42,7 @@ if((!empty($recid) || !is_null($recid)) ) {
     $lddapadano        = $data['lddapadano'];
     $mds_branch        = $data['mds_branch'];
     $mds_accountno     = $data['mds_accountno'];
+    $ckno     = $data['ckno'];
     $lddapada_date     = $data['lddapada_date'];
     $fund_cluster_code = $data['fund_cluster_code'];
     $funding_source = $data['funding_source'];
@@ -135,8 +138,16 @@ echo view('templates/myheader.php');
                                         name="lddapadano" 
                                         id="lddapadano"
                                         class="form-control form-control-sm lddapadano"
-                                        value="<?= $lddapadano;?>" disabled
+                                        value="<?= $lddapadano;?>"
                                         >
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-4">
+                                    <span class="fw-bold">Check No.:</span>
+                                </div>
+                                <div class="col-sm-8">
+                                    <input type="text" id="ckno" name="ckno" value="<?=$ckno;?>" class="form-control form-control-sm"/>
                                 </div>
                             </div>
                             <input type="hidden" id="funding_source" name="funding_source" value="<?=$funding_source;?>" class="form-control form-control-sm"/>

@@ -31,6 +31,7 @@ $certified_b = $data['certified_b'];
 $position_b = $data['position_b'];
 $serialno = $data['serialno'];
 $ors_date = $data['ors_date'];
+$fund_cluster_code = $data['fund_cluster_code'];
 
 //certify a division
 $query = $this->db->query("
@@ -135,7 +136,7 @@ $pdf->SetFont('Times', '', 10);
 $pdf->Cell(20, 5, 'Fund Cluster:' , 0, 1, 'L');
 $pdf->SetXY(150, $Y);
 $pdf->SetFont('Times', 'B', 10);
-$pdf->Cell(40, 5, '01' , 'B', 1, 'C');
+$pdf->Cell(40, 5, $fund_cluster_code , 'B', 1, 'C');
 $pdf->SetXY(190, $Y);
 $pdf->SetFont('Times', 'B', 10);
 $pdf->Cell(10, 5, '' , 'R', 1, 'C');

@@ -452,6 +452,15 @@ $this->cuser = $this->session->get('__xsys_myuserzicas__');
                 <span class="hide-menu">RCI</span>
               </a>
             </li> 
+            <li class="sidebar-item">
+                <a class="sidebar-link sidebar-link" href="<?=site_url();?>support?meaction=MAIN" aria-expanded="false">
+                    <span class="rounded-3">
+                        <i class="ti ti-message-circle"></i>
+                    </span>
+                    <span class="hide-menu">Support Chat</span>
+                    <span class="badge bg-danger rounded-pill ms-2" id="unreadBadge" style="display:none;">0</span>
+                </a>
+            </li>
           </ul>
         </nav>
 

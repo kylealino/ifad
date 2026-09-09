@@ -5,6 +5,8 @@ $this->mydisbursement = model('App\Models\MyDisbursementModel');
 $action = $this->request->getPostGet('action');
 $recid = $this->request->getPostGet('recid');
 $ors_id = $this->request->getPostGet('ors_id');
+$this->session = session();
+$this->cuser = $this->session->get('__xsys_myuserzicas__');
 
 $disbursement_date = '';
 $particulars = '';
@@ -134,49 +136,7 @@ if((!empty($recid) || !is_null($recid)) && (empty($ors_id))) {
     $wtax = $data['wtax'];
     $category = $data['category'];
 
-    if ($action == 'certifya_appr_pending') {
-        $MDL_jsscript = "
-        <script>
-            __mysys_disbursement_ent.__approve_certa();
-            __mysys_disbursement_ent.__disapprove_certa();
-        </script>
-       ";	
-    }elseif ($action == 'is_disapproved_certa') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__disapprove_certa();
-        </script>
-       ";	
-    }elseif ($action == 'is_approved_certa') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__approve_certa();
-        </script>
-       ";	
-    }elseif ($action == 'certifyb_appr_pending') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__approve_certb();
-           __mysys_disbursement_ent.__disapprove_certb();
-        </script>
-       ";
-    }elseif ($action == 'is_disapproved_certb') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__disapprove_certb();
-        </script>
-       ";	
-    }elseif ($action == 'is_approved_certb') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__approve_certb();
-        </script>
-       ";	
-    }else{
-        $MDL_jsscript = "
 
-       ";	
-    }
 
 }
 
@@ -195,7 +155,7 @@ if(!empty($ors_id) || !is_null($ors_id)) {
         `position_b`,
         `serialno`,
         '' AS `dvno`,
-        '' AS `fund_cluster_code`,
+        `fund_cluster_code`,
         `is_pending`,
         `is_approved_certa`,
         `is_disapproved_certa`,
@@ -204,7 +164,21 @@ if(!empty($ors_id) || !is_null($ors_id)) {
         `certa_remarks`,
         `certb_remarks`,
         `certa_approver`,
-        `certb_approver`
+        `certb_approver`,
+        `is_vatable`,
+        `vat_percent`,
+        `ewt_percent`,
+        `pt_percent`,
+        `other_deductions`,
+        `income_tax`,
+        `deduction_name`,
+        `sss`,
+        `hdmf`,
+        `pagibig_mp2`,
+        `pagibig_loan`,
+        `hmo`,
+        `wtax`,
+        `category`
     FROM
         `tbl_ors_hd`
     WHERE 
@@ -234,102 +208,26 @@ if(!empty($ors_id) || !is_null($ors_id)) {
     $certb_remarks = $data['certb_remarks'];
     $certa_approver = $data['certa_approver'];
     $certb_approver = $data['certb_approver'];
+    $is_vatable = $data['is_vatable'];
+    $vat_percent = $data['vat_percent'];
+    $ewt_percent = $data['ewt_percent'];
+    $pt_percent = $data['pt_percent'];
+    $other_deductions = $data['other_deductions'];
+    $income_tax = $data['income_tax'];
+    $deduction_name = $data['deduction_name'];
+    $sss = $data['sss'];
+    $hdmf = $data['hdmf'];
+    $pagibig_mp2 = $data['pagibig_mp2'];
+    $pagibig_loan = $data['pagibig_loan'];
+    $hmo = $data['hmo'];
+    $wtax = $data['wtax'];
+    $category = $data['category'];
 
-    if ($action == 'certifya_appr_pending') {
-        $MDL_jsscript = "
-        <script>
-            __mysys_disbursement_ent.__approve_certa();
-            __mysys_disbursement_ent.__disapprove_certa();
-        </script>
-       ";	
-    }elseif ($action == 'is_disapproved_certa') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__disapprove_certa();
-        </script>
-       ";	
-    }elseif ($action == 'is_approved_certa') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__approve_certa();
-        </script>
-       ";	
-    }elseif ($action == 'certifyb_appr_pending') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__approve_certb();
-           __mysys_disbursement_ent.__disapprove_certb();
-        </script>
-       ";
-    }elseif ($action == 'is_disapproved_certb') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__disapprove_certb();
-        </script>
-       ";	
-    }elseif ($action == 'is_approved_certb') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_disbursement_ent.__approve_certb();
-        </script>
-       ";	
-    }else{
-        $MDL_jsscript = "
-
-       ";	
-    }
+ 
 
 }
 
-if ($action == 'certifya_appr_pending') {
-    $status_color = 'text-warning';
-    $status_msg = 'For Approval';
-    $status_color_b = 'text-warning';
-    $status_msg_c = 'For Approval';
-}elseif ($action == 'certifyb_appr_pending'){
-    if ($is_approved_certa == '1' && $is_disapproved_certa == '0'&& $is_approved_certb == '0' && $is_disapproved_certb == '0') {
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-warning';
-        $status_msg_c = 'For Approval';
-    }elseif($is_approved_certa == '1' && $is_disapproved_certa == '0'&& $is_approved_certb == '0' && $is_disapproved_certb == '1'){
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-danger';
-        $status_msg_c = 'Disapproved';
-    }else{
-        $status_color = 'text-warning';
-        $status_msg = 'For Approval';
-        $status_color_b = 'text-warning';
-        $status_msg_c = 'For Approval';
-    }
 
-}elseif ($action == 'transaction_viewing') {
-    if ($is_approved_certa == '1' && $is_approved_certb == '0' && $is_disapproved_certb == '0') {
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-warning';
-        $status_msg_c = 'For Approval';
-    }elseif ($is_approved_certa == '1' && $is_approved_certb == '1') {
-        $status_color_b = 'text-success';
-        $status_msg_c = 'Approved by ' . $certb_approver;
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-    }elseif($is_approved_certa == '1' && $is_disapproved_certb == '1'){
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-danger';
-        $status_msg_c = 'Disapproved';
-    }else{
-        $status_color = 'text-warning';
-        $status_msg = 'For Approval';
-        $status_color_b = 'text-warning';
-        $status_msg_c = 'For Approval';
-    }
-}else{
-    $status_color_b = 'text-info';
-    $status_msg_c = '';
-}
 
 
 echo view('templates/myheader.php');
@@ -365,12 +263,33 @@ echo view('templates/myheader.php');
                         <span class="pt-1">Entry</span>
                     </h6>
                 </div>
-                <div class="col-sm-6 text-end">
-                    <?php if($action == 'certifya_appr_pending' || $action == 'certifyb_appr_pending'):?>
+                <div class="col-sm-6 text-end px-4">
+                    <?php if($this->cuser == 'AS-BONJ' && $is_approved_certa == 0 && $is_disapproved_certa == 0):?>
                         <button type="button" id="btn_approve" name="btn_approve" class="btn_approve btn btn-sm btn-success">
                             Approve
                         </button>
                         <button type="button" id="btn_disapprove" name="btn_disapprove" class="btn_disapprove btn btn-sm btn-danger">
+                            Dispprove
+                        </button>
+                    <?php elseif($this->cuser == 'AS-BONJ' && $is_approved_certa == '1'):?>
+                        <button type="button" id="btn_disapprove" name="btn_disapprove" style="visibility: hidden;" class="btn_disapprove btn btn-sm btn-danger px-4">
+                            View Disapproval
+                        </button>
+                        <button type="button" id="btn_approve" name="btn_approve" class="btn_approve btn btn-sm btn-success">
+                            View Approval
+                        </button>
+                    <?php elseif($this->cuser == 'AS-BONJ' && $is_disapproved_certa == '1'):?>
+                        <button type="button" id="btn_approve" name="btn_approve" style="visibility: hidden;" class="btn_approve btn btn-sm btn-success">
+                            View Approval
+                        </button>
+                        <button type="button" id="btn_disapprove" name="btn_disapprove" class="btn_disapprove btn btn-sm btn-danger px-4">
+                            View Disapproval
+                        </button>
+                    <?php else:?>
+                        <button type="button" id="btn_approve" name="btn_approve" style="visibility: hidden;" class="btn_approve btn btn-sm btn-success">
+                            Approve
+                        </button>
+                        <button type="button" id="btn_disapprove" name="btn_disapprove" style="visibility: hidden;" class="btn_disapprove btn btn-sm btn-danger">
                             Dispprove
                         </button>
                     <?php endif;?>
@@ -449,6 +368,8 @@ echo view('templates/myheader.php');
                                     <div class="col-sm-8">
                                         <select name="" id="fund_cluster_code" class="form-select form-select-sm">
                                         <?php if(!empty($recid)):?>
+                                            <option value="<?=$fund_cluster_code;?>"><?=$fund_cluster_code;?></option>
+                                        <?php elseif(!empty($ors_id)):?>
                                             <option value="<?=$fund_cluster_code;?>"><?=$fund_cluster_code;?></option>
                                         <?php else:?>
                                             <option value="">Choose...</option>
@@ -728,7 +649,21 @@ echo view('templates/myheader.php');
                             </div>
                         </div>
 
-                        <input type="hidden" id="total_deduction" name="total_deduction">
+                        <div class="row mb-2">
+                            <div class="col-sm-4">
+                                <span class="fw-semibold">Total Deductions:</span>
+                            </div>
+                            <div class="col-sm-8">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">₱</span>
+                                    <input type="text" id="total_deduction"
+                                        class="form-control text-end fw-bold text-danger"
+                                        readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- <input type="hidden" id="total_deduction" name="total_deduction"> -->
 
                         <div class="row mb-2">
                             <div class="col-sm-4">
@@ -764,6 +699,13 @@ echo view('templates/myheader.php');
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link rounded-pill px-3 fs-3 fw-semibold" data-bs-toggle="tab" href="#co-pill" role="tab">
                                 III. Capital Outlay
+                                </a>
+                            </li>
+                                <!-- Add a flex spacer to push the last item to the right -->
+                            <li class="nav-item flex-grow-1"></li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link rounded-pill px-3 fs-3 fw-semibold border-start" data-bs-toggle="tab" href="#history-pill" role="tab">
+                                <i class="ti ti-history me-1"></i> Transaction History
                                 </a>
                             </li>
                         </ul>
@@ -1902,6 +1844,107 @@ echo view('templates/myheader.php');
                                 </div>
 
                             </div>
+
+                            <!-- History CONTENT -->
+                            <div class="tab-pane p-3" id="history-pill" role="tabpanel">
+                                <div class="row">
+                                    <div class="table-responsive pe-2 ps-0">
+                                        <div class="col-md-12 mb-2">
+                                            <table id="" class="table table-bordered table-striped table-hover">
+                                                <thead>
+                                                    <tr>  <!-- ADD THIS LINE -->
+                                                        <th class="text-center align-middle">Action Type</th>
+                                                        <th class="text-center align-middle">Approval Status</th>
+                                                        <th class="text-center align-middle">Action By</th>
+                                                        <th class="text-center align-middle">Role</th>
+                                                        <th class="text-center align-middle">Remarks</th>
+                                                        <th class="text-center align-middle">Date Created</th>
+                                                    </tr>  <!-- ADD THIS LINE -->
+                                                </thead>
+                                                <tbody>
+                                                    <?php if(!empty($recid)):
+                                                        $query = $this->db->query("
+                                                            SELECT 
+                                                                `transaction_id`, 
+                                                                `serialno`, 
+                                                                `action_type`,
+                                                                `action_status`, 
+                                                                `action_by`, 
+                                                                `action_by_role`, 
+                                                                `remarks`, 
+                                                                `field_changes`, 
+                                                                `ip_address`, 
+                                                                `user_agent`, 
+                                                                `date_created` 
+                                                            FROM `tbl_disbursement_history`
+                                                            WHERE `serialno` = '$serialno'
+                                                            ORDER BY `date_created` DESC
+                                                        ");
+                                                        $result = $query->getResultArray();
+                                                        foreach ($result as $data):
+                                                            $transaction_id = $data['transaction_id'];
+                                                            $serialno = $data['serialno'];
+                                                            $action_type = $data['action_type'];
+                                                            $action_status = $data['action_status'];
+                                                            $action_by = $data['action_by'];
+                                                            $action_by_role = $data['action_by_role'];
+                                                            $remarks = $data['remarks'];
+                                                            $date_created = $data['date_created'];
+                                                            
+                                                            // Determine badge color for action status
+                                                            $status_color = 'secondary';
+                                                            if (strtoupper($action_status) == 'APPROVED' || strtoupper($action_status) == 'APPROVED_CERTA') {
+                                                                $status_color = 'success';
+                                                            } elseif (strtoupper($action_status) == 'PENDING') {
+                                                                $status_color = 'warning';
+                                                            } elseif (strtoupper($action_status) == 'REJECTED' || strtoupper($action_status) == 'DISAPPROVED') {
+                                                                $status_color = 'danger';
+                                                            }
+                                                            
+                                                            // Determine badge color for action type
+                                                            $type_color = 'secondary';
+                                                            if (strtoupper($action_type) == 'CREATE' || strtoupper($action_type) == 'CREATED') {
+                                                                $type_color = 'success';
+                                                            } elseif (strtoupper($action_type) == 'UPDATE' || strtoupper($action_type) == 'UPDATED') {
+                                                                $type_color = 'warning';
+                                                            } elseif (strtoupper($action_type) == 'DELETE' || strtoupper($action_type) == 'DELETED') {
+                                                                $type_color = 'danger';
+                                                            }
+                                                    ?>
+                                                    <tr>
+                                                        <td class="align-middle text-center" nowrap>
+                                                            <?=$action_type;?>
+                                                        </td>
+                                                        <td class="align-middle text-center" nowrap>
+                                                            <?=$action_status;?>
+                                                        </td>
+                                                        <td class="align-middle text-center" nowrap>
+                                                            <?=htmlspecialchars($action_by);?>
+                                                        </td>
+                                                        <td class="align-middle text-center" nowrap>
+                                                            <?=htmlspecialchars($action_by_role);?>
+                                                        </td>
+                                                        <td class="align-middle text-center" nowrap>
+                                                            <?=htmlspecialchars($remarks);?>
+                                                        </td>
+                                                        <td class="align-middle text-center" nowrap>
+                                                            <?=date('Y-m-d H:i:s', strtotime($date_created));?>
+                                                        </td>
+                                                    </tr>
+                                                    <?php endforeach; endif;?>
+                                                    <?php if(empty($result) || count($result) == 0): ?>
+                                                    <tr>
+                                                        <td colspan="6" class="text-center text-muted py-3">
+                                                            No transaction history found.
+                                                        </td>
+                                                    </tr>
+                                                    <?php endif; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </dwiv>
                 </div>
@@ -1987,31 +2030,9 @@ echo view('templates/myheader.php');
                                 <span class="fw-bold">Certified C:</span>
                             </div>
                             <div class="col-sm-8">
-                                <?php if(!empty($recid)):?>
-                                    <select name="certified_c" id="certified_c" class="form-control select2 form-select-sm show-tick">
-                                        <option selected value="<?=$certified_c;?>"><?=$certified_c;?></option>
-                                        <?php foreach($certifycdata as $data): ?>
-                                            <option 
-                                                value="<?= $data['full_name'] ?>"
-                                                data-position="<?= $data['position'] ?>"
-                                            >
-                                                <?= $data['full_name'] ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                <?php else:?>
-                                    <select name="certified_c" id="certified_c" class="form-control select2 form-select-sm show-tick">
-                                        <option selected value="">Choose...</option>
-                                        <?php foreach($certifycdata as $data): ?>
-                                            <option 
-                                                value="<?= $data['full_name'] ?>"
-                                                data-position="<?= $data['position'] ?>"
-                                            >
-                                                <?= $data['full_name'] ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                <?php endif;?>
+                                <select name="certified_c" id="certified_c" class="form-control select2 form-select-sm show-tick">
+                                    <option selected value="BONJOBIE F. CAJANO, CPA, CTT">BONJOBIE F. CAJANO, CPA, CTT</option>
+                                </select>
                             </div>
                         </div>
                         <div class="row mb-2">
@@ -2021,7 +2042,7 @@ echo view('templates/myheader.php');
                                         <span class="fw-bold">Position:</span>
                                     </div>
                                     <div class="col-sm-8">
-                                        <input type="text" id="position_c" name="position_c" value="<?=$position_c;?>" class="form-control form-control-sm" disabled/>
+                                        <input type="text" id="position_c" name="position_c" value="Accountant III" class="form-control form-control-sm" disabled/>
                                     </div>
                                 </div>
                             </div>
@@ -2050,7 +2071,6 @@ echo view('templates/myheader.php');
                     </div>
                 </div>
             </form>
-
 
         </div>
     </div>
@@ -2118,6 +2138,7 @@ echo view('templates/myheader.php');
     </div>
 </div>
 
+
 <!-- APPROVAL -->
 <div class="modal fade" id="confirmApproveModal" tabindex="-1" aria-labelledby="confirmApproveModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -2134,8 +2155,8 @@ echo view('templates/myheader.php');
                             <span>Approver:</span>
                         </div>
                         <div class="col-sm-8">
-                            <?php if($action == 'certifya_appr_approved' && !empty($recid)):?>
-                                <input type="text" id="approved_by" name="approved_by" value="<?=$approver;?>" class="form-control form-control-sm" readonly/>
+                            <?php if($is_approved_certa == '1' && !empty($recid)):?>
+                                <input type="text" id="approved_by" name="approved_by" value="<?=$certa_approver;?>" class="form-control form-control-sm" readonly/>
                             <?php else:?>
                                 <input type="text" id="approved_by" name="approved_by" value="<?=$this->cuser;?>" class="form-control form-control-sm" readonly/>
                             <?php endif;?>
@@ -2146,7 +2167,7 @@ echo view('templates/myheader.php');
                             <span>Remarks:</span>       
                         </div>
                         <div class="col-sm-8">
-                        <?php if($action == 'certifya_appr_approved' && !empty($recid)):?>
+                        <?php if($is_approved_certa == '1' && !empty($recid)):?>
                             <textarea name="approved_remarks" id="approved_remarks" placeholder="" rows="3" class="form-control form-control-sm" disabled><?=$certa_remarks;?></textarea>
                         <?php else:?>
                             <textarea name="approved_remarks" id="approved_remarks" placeholder="" rows="3" class="form-control form-control-sm"></textarea>
@@ -2158,7 +2179,7 @@ echo view('templates/myheader.php');
             
         </div>
         <div class="modal-footer">
-            <?php if($action == 'certifya_appr_approved' && !empty($recid)):?>
+            <?php if($is_approved_certa == '1' && !empty($recid)):?>
                 <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Back</button>
             <?php else:?>
                 <button type="button" class="btn btn-success btn-sm px-3" id="confirmApproveBtn">Approve</button>
@@ -2184,8 +2205,8 @@ echo view('templates/myheader.php');
                             <span>Disapprover:</span>
                         </div>
                         <div class="col-sm-8">
-                            <?php if($action == 'certifya_appr_disapproved' && !empty($recid)):?>
-                                <input type="text" id="disapproved_by" name="disapproved_by" value="<?=$approver;?>" class="form-control form-control-sm" readonly/>
+                            <?php if($is_disapproved_certa == '1' && !empty($recid)):?>
+                                <input type="text" id="disapproved_by" name="disapproved_by" value="<?=$certa_approver;?>" class="form-control form-control-sm" readonly/>
                             <?php else:?>
                                 <input type="text" id="disapproved_by" name="disapproved_by" value="<?=$this->cuser;?>" class="form-control form-control-sm" readonly/>
                             <?php endif;?>
@@ -2196,8 +2217,8 @@ echo view('templates/myheader.php');
                             <span>Remarks:</span>       
                         </div>
                         <div class="col-sm-8">
-                            <?php if($action == 'certifya_appr_disapproved' && !empty($recid)):?>
-                                <textarea name="disapproved_remarks" id="disapproved_remarks" placeholder="" rows="3" class="form-control form-control-sm" disabled><?=$certb_remarks;?></textarea>
+                            <?php if($is_disapproved_certa == '1' && !empty($recid)):?>
+                                <textarea name="disapproved_remarks" id="disapproved_remarks" placeholder="" rows="3" class="form-control form-control-sm" disabled><?=$certa_remarks;?></textarea>
                             <?php else:?>
                                 <textarea name="disapproved_remarks" id="disapproved_remarks" placeholder="" rows="3" class="form-control form-control-sm"></textarea>
                             <?php endif;?>
@@ -2208,7 +2229,7 @@ echo view('templates/myheader.php');
             
         </div>
         <div class="modal-footer">
-            <?php if($action == 'certifya_appr_disapproved' && !empty($recid)):?>
+            <?php if($is_disapproved_certa == '1' && !empty($recid)):?>
                 <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Back</button>
             <?php else:?>
                 <button type="button" class="btn btn-danger btn-sm px-3" id="confirmDisapproveBtn">Disapprove</button>
@@ -2234,11 +2255,14 @@ echo view('templates/myheader.php');
     </div>
 </div>
 
+
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
 <script src="<?=base_url('assets/js/disbursement/disbursement.js?v=1');?>"></script>
 <script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
+
 
 <!-- <script>
 $(function () {
@@ -2817,6 +2841,8 @@ $(function () {
 ?>
 <script>
     __mysys_disbursement_ent.__disbursement_saving();
+    __mysys_disbursement_ent.__approve_certa();
+    __mysys_disbursement_ent.__disapprove_certa();
 </script>
 
 <?php

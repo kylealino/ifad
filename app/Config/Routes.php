@@ -98,3 +98,7 @@ $routes->post('mylddapada', 'MyLDDAPADA::index',['filter' => 'myauthuser']);
 //RCI - RCI module
 $routes->get('myrci', 'MyRCI::index',['filter' => 'myauthuser']);
 $routes->post('myrci', 'MyRCI::index',['filter' => 'myauthuser']);
+
+// SUPPORT - Support Chat System
+$routes->get('support', 'Support::index', ['filter' => 'myauthuser']);
+$routes->post('support', 'Support::index', ['filter' => 'myauthuser']);

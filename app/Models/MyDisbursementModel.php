@@ -16,6 +16,81 @@ class MyDisbursementModel extends Model
         
     }
 
+    // Helper method to log history - using correct column names
+    private function logHistory($transaction_id, $action_type, $action_status = null, $remarks = null, $field_changes = null, $serialno = null) {
+        $ip_address = $this->request->getIPAddress();
+        $user_agent = $this->request->getUserAgent()->getAgentString();
+        
+        // Get user role from myua_user table - using correct column names
+        $roleQuery = $this->db->query("
+            SELECT position as role_name 
+            FROM myua_user 
+            WHERE username = '{$this->cuser}'
+            LIMIT 1
+        ");
+        $role = $roleQuery->getRowArray();
+        $user_role = $role ? $role['role_name'] : 'Unknown';
+        
+        // Get serialno if not provided
+        if (empty($serialno)) {
+            $serialQuery = $this->db->query("SELECT serialno FROM tbl_disbursement_hd WHERE recid = '$transaction_id'");
+            $serialData = $serialQuery->getRowArray();
+            $serialno = $serialData ? $serialData['serialno'] : null;
+        }
+        
+        // Prepare field changes as JSON
+        $field_changes_json = $field_changes ? json_encode($field_changes) : null;
+        
+        $query = $this->db->query("
+            INSERT INTO tbl_disbursement_history (
+                transaction_id,
+                serialno,
+                action_type,
+                action_status,
+                action_by,
+                action_by_role,
+                remarks,
+                field_changes,
+                ip_address,
+                user_agent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ", [
+            $transaction_id,
+            $serialno,
+            $action_type,
+            $action_status,
+            $this->cuser,
+            $user_role,
+            $remarks,
+            $field_changes_json,
+            $ip_address,
+            $user_agent
+        ]);
+        
+        return $query;
+    }
+
+    // Method to get old data for comparison (for update tracking)
+    private function getOldData($recid) {
+        $query = $this->db->query("SELECT * FROM tbl_disbursement_hd WHERE recid = '$recid'");
+        return $query->getRowArray();
+    }
+
+    // GET TRANSACTION HISTORY - using correct column names
+    public function getTransactionHistory($transaction_id) {
+        $query = $this->db->query("
+            SELECT 
+                h.*,
+                u.full_name as user_full_name,
+                u.username as user_username
+            FROM tbl_disbursement_history h
+            LEFT JOIN myua_user u ON u.username = h.action_by
+            WHERE h.transaction_id = '$transaction_id'
+            ORDER BY h.date_created DESC
+        ");
+        return $query->getResultArray();
+    }
+
 	public function disbursement_save() { 
 		$recid = $this->request->getPostGet('recid');
 		$serialno = $this->request->getPostGet('serialno');
@@ -54,67 +129,6 @@ class MyDisbursementModel extends Model
 		$pagibig_loan = $this->request->getPostGet('pagibig_loan');
 		$hmo = $this->request->getPostGet('hmo');
 		$wtax = $this->request->getPostGet('wtax');
-
-		// var_dump(
-		// 	// $other_deductions,
-		// 	// $income_tax,
-		// 	// $deduction_name,
-		// 	// $sss,
-		// 	// $hdmf,
-		// 	// $pagibig_mp2,
-		// 	// $pagibig_loan,
-		// 	// $hmo,
-		// 	// $wtax,
-		// );
-		// die();
-
-		// var_dump(
-		// 	// $serialno,
-		// 	// $particulars,
-		// 	// $funding_source,
-		// 	// $payee_name,
-		// 	// $payee_office,
-		// 	// $payee_address,
-		// 	// $certified_a,
-		// 	// $position_a,
-		// 	// $disbursement_date
-
-		// 	$budgetdtdata,
-		// 	$budgetdtindirectdata,
-		// 	$budgetmooedtdata,
-		// 	$budgetmooeindirectdtdata,
-		// 	$budgetcodtdata,
-		// 	$budgetindirectcodtdata
-		// );
-
-		// die();
-
-		// var_dump($disbursement_date);
-		// die();
-		
-		// $cseqn =  $this->get_ctr_disbursement('01',$funding_source,'CTRL_NO01');//TRANSACTION NO
-		// $trx = empty($serialno) ? $cseqn : $serialno;
-
-		// var_dump(
-		// 	$certified_a,
-		// 	$position_a,
-		// 	$certified_b,
-		// 	$position_b
-		// );
-		// die();
-		// var_dump(
-		// 	$program_title,
-		// 	$particulars,
-		// 	$funding_source,
-		// 	$payee_name,
-		// 	$payee_office,
-		// 	$payee_address,
-		// 	$budgetdtdata
-		// );
-		// die();
-
-		// var_dump($budgetdtdata);
-		// die();
 
 		if (empty($funding_source)) {
 			echo "
@@ -156,7 +170,6 @@ class MyDisbursementModel extends Model
 
 		if (empty($recid)) {
 			//INSERTING HD DATA
-			//disbursement SERIALNO
 			$query = $this->db->query("
 				INSERT INTO tbl_disbursement_hd (
 					`serialno`,
@@ -288,7 +301,6 @@ class MyDisbursementModel extends Model
 
 			//INSERTING MOOE DT DATA
 			if (!empty($budgetmooedtdata)) {
-				//this is for normal saving and updating
 				for($aa = 0; $aa < count($budgetmooedtdata); $aa++){
 					$medata = explode("x|x",$budgetmooedtdata[$aa]);
 					$responsibility_code = $medata[0]; 
@@ -318,7 +330,6 @@ class MyDisbursementModel extends Model
 
 			//INSERTING INDIRECT MOOE DT DATA
 			if (!empty($budgetmooeindirectdtdata)) {
-				//this is for normal saving and updating
 				for($aa = 0; $aa < count($budgetmooeindirectdtdata); $aa++){
 					$medata = explode("x|x",$budgetmooeindirectdtdata[$aa]);
 					$responsibility_code = $medata[0]; 
@@ -348,7 +359,6 @@ class MyDisbursementModel extends Model
 
 			//INSERTING CO DT DATA
 			if (!empty($budgetcodtdata)) {
-				//this is for normal saving and updating
 				for($aa = 0; $aa < count($budgetcodtdata); $aa++){
 					$medata = explode("x|x",$budgetcodtdata[$aa]);
 					$responsibility_code = $medata[0]; 
@@ -377,7 +387,6 @@ class MyDisbursementModel extends Model
 			}
 
 			if (!empty($budgetindirectcodtdata)) {
-				//this is for normal saving and updating
 				for($aa = 0; $aa < count($budgetindirectcodtdata); $aa++){
 					$medata = explode("x|x",$budgetindirectcodtdata[$aa]);
 					$responsibility_code = $medata[0]; 
@@ -405,9 +414,33 @@ class MyDisbursementModel extends Model
 				}
 			}
 
+			//UPDATING OF DVNO in ORS
+			$query = $this->db->query("
+				UPDATE tbl_ors_hd
+				SET
+					`dvno` = ?
+				WHERE serialno = ?
+			", [
+				$dvno,
+				$serialno
+			]);
+
+			// LOG: Added new transaction
+			$this->logHistory(
+				$project_id,
+				'ADDED',
+				'PENDING',
+				'New disbursement transaction created',
+				null,
+				$serialno
+			);
+
 			$status = "Disbursement Saved Successfully!";
 			$color = "success";
 		}else{
+			// Get old data before update
+			$oldData = $this->getOldData($recid);
+			
 			$query = $this->db->query("
 				UPDATE tbl_disbursement_hd
 				SET
@@ -668,28 +701,67 @@ class MyDisbursementModel extends Model
 				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_co_dt WHERE `project_id` = '$project_id'");
 			}
 
+			// LOG: Updated transaction with field changes
+			$fieldChanges = [];
+			$fieldsToTrack = [
+				'particulars', 'funding_source', 'payee_name', 'payee_office', 
+				'payee_address', 'certified_a', 'position_a', 'certified_c', 
+				'position_c', 'dvno', 'fund_cluster_code', 'category',
+				'gross_amount', 'net_amount', 'disbursement_date'
+			];
+			
+			foreach ($fieldsToTrack as $field) {
+				$oldValue = $oldData[$field] ?? '';
+				$newValue = $$field; // Dynamic variable
+				if ($oldValue != $newValue) {
+					$fieldChanges[] = [
+						'field' => $field,
+						'old' => $oldValue,
+						'new' => $newValue
+					];
+				}
+			}
+
+			//UPDATING OF DVNO in ORS
+			$query = $this->db->query("
+				UPDATE tbl_ors_hd
+				SET
+					`dvno` = ?
+				WHERE serialno = ?
+			", [
+				$dvno,
+				$serialno
+			]);
+			
+			$this->logHistory(
+				$project_id,
+				'UPDATED',
+				'PENDING',
+				'Transaction details updated',
+				!empty($fieldChanges) ? $fieldChanges : null,
+				$serialno
+			);
+
 			$status = "Disbursement Updated Successfully!";
 			$color = "info";
 		}
 
 		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
 			echo "
 			<script>
 				document.getElementById('submitBtn').disabled = true;
-				toastr.$color('{$status}!', 'Well Done!', {
+				toastr.{$color}('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mydisbursement?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+						window.location.href = 'mydisbursement?meaction=MAIN';
+					}, 2500);
 			</script>
 			";
-			exit; // Stop further PHP execution after the toast
+			exit;
 		} else {
-			// If there's an error, show an alert message
 			echo "<script type='text/javascript'>
 					alert('An error occurred while executing the query.');
 				  </script>";
@@ -698,32 +770,11 @@ class MyDisbursementModel extends Model
 		
 	}
 	
-	//CERTIFIED A APPROVAL/DISAPPROVAL
+	//CERTIFIED A APPROVAL
 	public function disbursement_certifya_approve() { 
 		$recid = $this->request->getPostGet('recid');
 		$approver = $this->request->getPostGet('approver');
 		$remarks = $this->request->getPostGet('remarks');
-		$serialno = $this->request->getPostGet('serialno');
-		$funding_source = $this->request->getPostGet('funding_source');
-
-		// $cseqn =  $this->get_ctr_disbursement('01',$funding_source,'CTRL_NO01');//TRANSACTION NO
-		// $trx = empty($serialno) ? $cseqn : $serialno;
-
-		$accessquery = $this->db->query("
-			SELECT `recid` FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
-		}
 
 		$query = $this->db->query("
 			UPDATE tbl_disbursement_hd 
@@ -735,10 +786,18 @@ class MyDisbursementModel extends Model
 				`certa_remarks` = '$remarks'
 			WHERE `recid` = '$recid'
 		");
-		$status = "disbursement approved!";
 		
 		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
+			// LOG: Approved by Certified A
+			$this->logHistory(
+				$recid,
+				'APPROVED_CERTA',
+				'APPROVED',
+				$remarks,
+				['approver' => $approver]
+			);
+			
+			$status = "Disbursement Approved!";
 			echo "
 			<script>
 				toastr.success('{$status}!', 'Well Done!', {
@@ -747,13 +806,12 @@ class MyDisbursementModel extends Model
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mydisbursementapproval?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+						window.location.href = 'mydisbursement?meaction=MAIN';
+					}, 2500);
 			</script>
 			";
-			exit; // Stop further PHP execution after the toast
+			exit;
 		} else {
-			// If there's an error, show an alert message
 			echo "<script type='text/javascript'>
 					alert('An error occurred while executing the query.');
 				  </script>";
@@ -761,34 +819,34 @@ class MyDisbursementModel extends Model
 		}
 	}
 
+	//CERTIFIED A DISAPPROVAL
 	public function disbursement_certifya_disapprove() { 
 		$recid = $this->request->getPostGet('recid');
 		$approver = $this->request->getPostGet('approver');
 		$remarks = $this->request->getPostGet('remarks');
 
-		$accessquery = $this->db->query("
-			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Disapprove Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
-		}
-
 		$query = $this->db->query("
-			UPDATE tbl_disbursement_hd SET `is_pending` = '0', `is_approved_certa` = '0',`is_disapproved_certa` = '1',`certa_approver` = '$approver', `certa_remarks` = '$remarks' WHERE `recid` = '$recid'
+			UPDATE tbl_disbursement_hd 
+			SET 
+				`is_pending` = '0', 
+				`is_approved_certa` = '0',
+				`is_disapproved_certa` = '1',
+				`certa_approver` = '$approver', 
+				`certa_remarks` = '$remarks' 
+			WHERE `recid` = '$recid'
 		");
-		$status = "disbursement disapproved!";
 		
 		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
+			// LOG: Disapproved by Certified A
+			$this->logHistory(
+				$recid,
+				'DISAPPROVED_CERTA',
+				'DISAPPROVED',
+				$remarks,
+				['approver' => $approver]
+			);
+			
+			$status = "Disbursement Disapproved!";
 			echo "
 			<script>
 				toastr.success('{$status}!', 'Well Done!', {
@@ -797,13 +855,12 @@ class MyDisbursementModel extends Model
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mydisbursementapproval?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+						window.location.href = 'mydisbursement?meaction=MAIN';
+					}, 2500);
 			</script>
 			";
-			exit; // Stop further PHP execution after the toast
+			exit;
 		} else {
-			// If there's an error, show an alert message
 			echo "<script type='text/javascript'>
 					alert('An error occurred while executing the query.');
 				  </script>";
@@ -811,7 +868,7 @@ class MyDisbursementModel extends Model
 		}
 	}
 
-	// CERTIFIED B APPROVAL/DISAPPROVAL
+	// CERTIFIED B APPROVAL
 	public function disbursement_certifyb_approve() { 
 		$recid = $this->request->getPostGet('recid');
 		$approver = $this->request->getPostGet('approver');
@@ -834,12 +891,27 @@ class MyDisbursementModel extends Model
 		}
 
 		$query = $this->db->query("
-			UPDATE tbl_disbursement_hd SET `is_pending` = '0', `is_approved_certb` = '1', `is_disapproved_certb` = '0',`certb_approver` = '$approver', `certb_remarks` = '$remarks' WHERE `recid` = '$recid'
+			UPDATE tbl_disbursement_hd 
+			SET 
+				`is_pending` = '0', 
+				`is_approved_certb` = '1', 
+				`is_disapproved_certb` = '0',
+				`certb_approver` = '$approver', 
+				`certb_remarks` = '$remarks' 
+			WHERE `recid` = '$recid'
 		");
-		$status = "disbursement approved!";
 		
 		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
+			// LOG: Approved by Certified B
+			$this->logHistory(
+				$recid,
+				'APPROVED_CERTB',
+				'APPROVED',
+				$remarks,
+				['approver' => $approver]
+			);
+			
+			$status = "Disbursement Approved!";
 			echo "
 			<script>
 				toastr.success('{$status}!', 'Well Done!', {
@@ -848,13 +920,12 @@ class MyDisbursementModel extends Model
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mydisbursementapproval?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+						window.location.href = 'mydisbursementapproval?meaction=MAIN';
+					}, 2500);
 			</script>
 			";
-			exit; // Stop further PHP execution after the toast
+			exit;
 		} else {
-			// If there's an error, show an alert message
 			echo "<script type='text/javascript'>
 					alert('An error occurred while executing the query.');
 				  </script>";
@@ -862,6 +933,7 @@ class MyDisbursementModel extends Model
 		}
 	}
 
+	// CERTIFIED B DISAPPROVAL
 	public function disbursement_certifyb_disapprove() { 
 		$recid = $this->request->getPostGet('recid');
 		$approver = $this->request->getPostGet('approver');
@@ -884,12 +956,27 @@ class MyDisbursementModel extends Model
 		}
 
 		$query = $this->db->query("
-			UPDATE tbl_disbursement_hd SET `is_pending` = '0', `is_approved_certb` = '0',`is_disapproved_certb` = '1',`certb_approver` = '$approver', `certb_remarks` = '$remarks' WHERE `recid` = '$recid'
+			UPDATE tbl_disbursement_hd 
+			SET 
+				`is_pending` = '0', 
+				`is_approved_certb` = '0',
+				`is_disapproved_certb` = '1',
+				`certb_approver` = '$approver', 
+				`certb_remarks` = '$remarks' 
+			WHERE `recid` = '$recid'
 		");
-		$status = "disbursement disapproved!";
 		
 		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
+			// LOG: Disapproved by Certified B
+			$this->logHistory(
+				$recid,
+				'DISAPPROVED_CERTB',
+				'DISAPPROVED',
+				$remarks,
+				['approver' => $approver]
+			);
+			
+			$status = "Disbursement Disapproved!";
 			echo "
 			<script>
 				toastr.success('{$status}!', 'Well Done!', {
@@ -898,13 +985,12 @@ class MyDisbursementModel extends Model
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mydisbursementapproval?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+						window.location.href = 'mydisbursementapproval?meaction=MAIN';
+					}, 2500);
 			</script>
 			";
-			exit; // Stop further PHP execution after the toast
+			exit;
 		} else {
-			// If there's an error, show an alert message
 			echo "<script type='text/javascript'>
 					alert('An error occurred while executing the query.');
 				  </script>";
@@ -964,9 +1050,8 @@ class MyDisbursementModel extends Model
 				$query = $this->db->query("update myctr_disbursement set {$xfield} = '{$xnumb}'");
 			}
 		}
-		return  $fund_cluster . '-' . $funding_source . '-' . $xsysyear . '-' . $xsysmonth . '-' . $xnumb;//.$supp
+		return  $fund_cluster . '-' . $funding_source . '-' . $xsysyear . '-' . $xsysmonth . '-' . $xnumb;
 	} 
 
-	
 } //end main class
 ?>
