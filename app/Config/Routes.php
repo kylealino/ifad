@@ -102,3 +102,8 @@ $routes->post('myrci', 'MyRCI::index',['filter' => 'myauthuser']);
 // SUPPORT - Support Chat System
 $routes->get('support', 'Support::index', ['filter' => 'myauthuser']);
 $routes->post('support', 'Support::index', ['filter' => 'myauthuser']);
+
+//Cashier
+//ADA - ADA module
+$routes->get('myada', 'MyADA::index',['filter' => 'myauthuser']);
+$routes->post('myada', 'MyADA::index',['filter' => 'myauthuser']);

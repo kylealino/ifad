@@ -445,6 +445,14 @@ $this->cuser = $this->session->get('__xsys_myuserzicas__');
               </a>
             </li> 
             <li class="sidebar-item">
+              <a class="sidebar-link sidebar-link" href="<?=site_url();?>myada?meaction=MAIN" aria-expanded="false">
+                <span class="rounded-3">
+                  <i class="ti ti-cash"></i>
+                </span>
+                <span class="hide-menu">ADA</span>
+              </a>
+            </li> 
+            <li class="sidebar-item">
               <a class="sidebar-link sidebar-link" href="<?=site_url();?>myrci?meaction=MAIN" aria-expanded="false">
                 <span class="rounded-3">
                   <i class="ti ti-file"></i>
