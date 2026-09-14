@@ -276,7 +276,7 @@ $pdf->Cell(70, 5, $position_b, 0, 1, 'C');
 $Y = $pdf->GetY()+5;
 
 $pdf->SetLineWidth(0.5);   // in mm — normal is 0.2
-$pdf->Line(10, $pdf->GetY()+5, 200, $pdf->GetY()+5);
+$pdf->Line(10, $pdf->GetY()+10, 200, $pdf->GetY()+10);
 $pdf->SetLineWidth(0.2);   // reset back to normal
 
 $Y = 190;
