@@ -14,46 +14,62 @@ $total_payroll = 0;
 
 // --- NUMBER TO WORDS CONVERTER FUNCTION ---
 function convertNumberToWords($number) {
-    $number = number_format($number, 2, '.', '');
-    $decimal = substr($number, strpos($number, '.') + 1);
-    $whole = floor($number);
-    
-    $words = array(
-        0 => '', 1 => 'ONE', 2 => 'TWO', 3 => 'THREE', 4 => 'FOUR', 5 => 'FIVE',
-        6 => 'SIX', 7 => 'SEVEN', 8 => 'EIGHT', 9 => 'NINE', 10 => 'TEN',
-        11 => 'ELEVEN', 12 => 'TWELVE', 13 => 'THIRTEEN', 14 => 'FOURTEEN',
-        15 => 'FIFTEEN', 16 => 'SIXTEEN', 17 => 'SEVENTEEN', 18 => 'EIGHTEEN', 19 => 'NINETEEN',
-        20 => 'TWENTY', 30 => 'THIRTY', 40 => 'FORTY', 50 => 'FIFTY',
-        60 => 'SIXTY', 70 => 'SEVENTY', 80 => 'EIGHTY', 90 => 'NINETY'
-    );
-    
-    $temp = '';
-    if ($whole < 20) {
-        $temp = $words[$whole];
-    } elseif ($whole < 100) {
-        $temp = $words[floor($whole / 10) * 10] . ' ' . $words[$whole % 10];
-    } elseif ($whole < 1000) {
-        $temp = $words[floor($whole / 100)] . ' HUNDRED ' . convertNumberToWords($whole % 100);
-    } elseif ($whole < 1000000) {
-        $temp = convertNumberToWords(floor($whole / 1000)) . ' THOUSAND ' . convertNumberToWords($whole % 1000);
-    } elseif ($whole < 1000000000) {
-        $temp = convertNumberToWords(floor($whole / 1000000)) . ' MILLION ' . convertNumberToWords($whole % 1000000);
+    $number = (float) $number;
+    $whole  = (int) floor($number);
+    $cents  = (int) round(($number - $whole) * 100);
+
+    $words = trim(convertWholeNumber($whole));
+    if ($words === '') {
+        $words = 'ZERO';
     }
-    
-    $temp = trim(preg_replace('/\s+/', ' ', $temp));
-    
-    $centavos = intval($decimal);
-    $cent_words = '';
-    if ($centavos > 0) {
-        if ($centavos < 20) {
-            $cent_words = $words[$centavos];
-        } elseif ($centavos < 100) {
-            $cent_words = $words[floor($centavos / 10) * 10] . ' ' . $words[$centavos % 10];
-        }
-        $cent_words = ' AND ' . trim($cent_words) . ' CENTAVOS';
+
+    $result = $words . ' PESOS';
+
+    if ($cents > 0) {
+        $centWords = trim(convertWholeNumber($cents));
+        $result .= ' AND ' . $centWords . ' CENTAVO' . ($cents == 1 ? '' : 'S');
     }
-    
-    return $temp . ' PESOS' . $cent_words;
+
+    return strtoupper($result);
+}
+
+function convertWholeNumber($n) {
+    $ones = [
+        0 => '', 1 => 'ONE', 2 => 'TWO', 3 => 'THREE', 4 => 'FOUR',
+        5 => 'FIVE', 6 => 'SIX', 7 => 'SEVEN', 8 => 'EIGHT', 9 => 'NINE',
+        10 => 'TEN', 11 => 'ELEVEN', 12 => 'TWELVE', 13 => 'THIRTEEN',
+        14 => 'FOURTEEN', 15 => 'FIFTEEN', 16 => 'SIXTEEN',
+        17 => 'SEVENTEEN', 18 => 'EIGHTEEN', 19 => 'NINETEEN'
+    ];
+    $tens = [
+        2 => 'TWENTY', 3 => 'THIRTY', 4 => 'FORTY', 5 => 'FIFTY',
+        6 => 'SIXTY', 7 => 'SEVENTY', 8 => 'EIGHTY', 9 => 'NINETY'
+    ];
+
+    if ($n < 20) {
+        return $ones[$n];
+    } elseif ($n < 100) {
+        $t = intdiv($n, 10);
+        $o = $n % 10;
+        return $tens[$t] . ($o ? ' ' . $ones[$o] : '');
+    } elseif ($n < 1000) {
+        $h = intdiv($n, 100);
+        $r = $n % 100;
+        return $ones[$h] . ' HUNDRED' . ($r ? ' ' . convertWholeNumber($r) : '');
+    } elseif ($n < 1000000) {
+        $th = intdiv($n, 1000);
+        $r  = $n % 1000;
+        return convertWholeNumber($th) . ' THOUSAND' . ($r ? ' ' . convertWholeNumber($r) : '');
+    } elseif ($n < 1000000000) {
+        $m = intdiv($n, 1000000);
+        $r = $n % 1000000;
+        return convertWholeNumber($m) . ' MILLION' . ($r ? ' ' . convertWholeNumber($r) : '');
+    } elseif ($n < 1000000000000) {
+        $b = intdiv($n, 1000000000);
+        $r = $n % 1000000000;
+        return convertWholeNumber($b) . ' BILLION' . ($r ? ' ' . convertWholeNumber($r) : '');
+    }
+    return '';
 }
 
 $query = $this->db->query("
