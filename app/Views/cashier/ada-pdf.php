@@ -99,7 +99,7 @@ $amount_formatted = number_format($net_amount, 2);
 $pdf = new FPDF('P', 'mm', 'A4');
 $pdf->AliasNbPages();
 $pdf->AddPage();
-$pdf->SetTitle('DV Print');
+$pdf->SetTitle('ADA Print');
 $pdf->SetFont('Times', 'B', 16);
 
 $pdf->SetXY(0, 8);
