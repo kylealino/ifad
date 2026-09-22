@@ -267,10 +267,11 @@ $pdf->Cell(50, 5, '', 0, 1, 'C');
 $pdf->SetXY(130, $Y);
 $pdf->Cell(70, 5, '', 'B', 1, 'R');
 
+$certified_a_converted = iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $certified_a);
 $Y = $pdf->GetY();
 $pdf->SetFont('Times', '', 11);
 $pdf->SetXY(10, $Y);
-$pdf->Cell(70, 5, $certified_a, 0, 1, 'C');
+$pdf->Cell(70, 5, $certified_a_converted, 0, 1, 'C');
 
 $pdf->SetXY(80, $Y);
 $pdf->Cell(50, 5, '', 0, 1, 'C');

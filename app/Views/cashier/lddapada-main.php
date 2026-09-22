@@ -126,7 +126,7 @@ echo view('templates/myheader.php');
                                     <span class="fw-bold">MDS SUB ACCOUNT NO.:</span>
                                 </div>
                                 <div class="col-sm-8">
-                                    <input type="text" id="mds_accountno" name="mds_accountno" value="<?= !empty($recid) ? $mds_accountno : '2182-9001-36';?>" class="form-control form-control-sm" disabled/>
+                                    <input type="text" id="mds_accountno" name="mds_accountno" value="<?= !empty($recid) ? $mds_accountno : '';?>" class="form-control form-control-sm" disabled/>
                                 </div>
                             </div>
                             <div class="row mb-2">
@@ -763,6 +763,35 @@ $(document).on('input', '.net_amount', function() {
 
     computeTotals();
 
+});
+
+function updateMdsAccountNo() {
+    const fundClusterSelect = document.getElementById('fund_cluster_code');
+    const mdsAccountInput = document.getElementById('mds_accountno');
+    
+    const accountMapping = {
+        '01': '2182-9001-36',
+        '07': '2182-9006-16'
+    };
+    
+    const selectedValue = fundClusterSelect.value;
+    
+    if (accountMapping[selectedValue]) {
+        mdsAccountInput.value = accountMapping[selectedValue];
+    }
+}
+
+// Attach the event listener when the DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    const fundClusterSelect = document.getElementById('fund_cluster_code');
+    
+    // Add change event listener
+    fundClusterSelect.addEventListener('change', updateMdsAccountNo);
+    
+    // Optional: Trigger on page load if a value is already selected
+    if (fundClusterSelect.value) {
+        updateMdsAccountNo();
+    }
 });
 
 </script>

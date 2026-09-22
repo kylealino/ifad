@@ -18,7 +18,9 @@ SELECT
     a.`ckno`,
     a.`ada_approver`,
     (select position from myua_user where full_name = a.`ada_approver`) AS `position`,
-    a.`fund_cluster_code`
+    a.`fund_cluster_code`,
+    a.`mds_accountno`,
+    a.`lddapadano`
 FROM
     `tbl_lddapada_hd` a
 WHERE 
@@ -30,6 +32,8 @@ $ckno = $data['ckno'];
 $ada_approver = $data['ada_approver'];
 $position = $data['position'];
 $fund_cluster_code = $data['fund_cluster_code'];
+$mds_accountno = $data['mds_accountno'];
+$lddapadano = $data['lddapadano'];
 
 
 $pdf = new FPDF('P', 'mm', 'A4');
@@ -54,7 +58,7 @@ $pdf->Cell(100, 4, 'Department of Science and Technology' , 0, 1, 'L');
 $pdf->SetXY(130, $Y);
 $pdf->Cell(25, 4, 'LDDAP-ADA No.' , 0, 1, 'R');
 $pdf->SetXY(155, $Y);
-$pdf->Cell(45, 4, '184-04-145-2026' , 'R', 1, 'L');
+$pdf->Cell(45, 4, $lddapadano , 'R', 1, 'L');
 
 $Y = $pdf->GetY();
 $pdf->Cell(20, 4, 'Entity Name:' , 'L', 1, 'L');
@@ -95,7 +99,7 @@ $pdf->Cell(45, 4, '' , 'R', 1, 'L');
 $Y = $pdf->GetY();
 $pdf->Cell(45, 4, 'MDS SUB ACCOUNT NO.:' , 'L', 1, 'L');
 $pdf->SetXY(55, $Y);
-$pdf->Cell(100, 4, '2182-9006-16' , 0, 1, 'L');
+$pdf->Cell(100, 4, $mds_accountno , 0, 1, 'L');
 $pdf->SetXY(130, $Y);
 $pdf->Cell(25, 4, '' , 0, 1, 'R');
 $pdf->SetXY(155, $Y);
@@ -247,6 +251,7 @@ foreach ($data as $row) {
 
     $payee_name = str_replace(["\r","\n"], '', $row['payee_name']);
     $account_no = $row['payee_account_num'];
+    $serialno   = $row['serialno'];
     $dvno       = $row['dvno'];
     $uacs       = $row['uacs_code'];
     $gross      = $row['gross_amount'];
@@ -315,7 +320,7 @@ foreach ($data as $row) {
     // DV NO
     // ============================================
     $pdf->SetXY(75, $startY);
-    $pdf->Cell(30, $rowHeight, $dvno, 'L', 0, 'C');
+    $pdf->Cell(30, $rowHeight, $serialno, 'L', 0, 'C');
 
     // ============================================
     // UACS
@@ -817,7 +822,7 @@ $pdf->SetXY(10, $Y);
 $pdf->Cell(42, 4, 'Please debit MDS Sub-Account Number:' , 'L', 1, 'L');
 $pdf->SetXY(52, $Y);
 $pdf->SetFont('Times', 'B', 7);
-$pdf->Cell(148, 4, '2182-9006-16' , 'R', 1, 'L');
+$pdf->Cell(148, 4, $mds_accountno , 'R', 1, 'L');
 
 $Y = $pdf->GetY();
 $pdf->SetFont('Times', '', 7);
@@ -931,12 +936,12 @@ $pdf->Cell(190, 3, 'Certifier of LDDAP - one (1) certifier' , 0, 1, 'L');
 
 $Y = 267;
 $pdf->SetFont('Times', 'B', 13);
-$pdf->SetXY(160, $Y);
-$pdf->Cell(40, 3, 'CK#'.$ckno , 0, 1, 'L');
+$pdf->SetXY(170, $Y);
+$pdf->Cell(30, 3, 'CK#'.$ckno , 0, 1, 'R');
 $pdf->SetFont('Times', '', 9);
 $Y = $pdf->GetY()+2;
 $pdf->SetXY(170, $Y);
-$pdf->Cell(40, 3, $formattedDate , 0, 1, 'L');
+$pdf->Cell(30, 3, $formattedDate , 0, 1, 'R');
 
 $pdf->Output();
 exit;
