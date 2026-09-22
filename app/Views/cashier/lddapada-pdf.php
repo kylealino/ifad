@@ -314,7 +314,8 @@ foreach ($data as $row) {
     // ACCOUNT NO
     // ============================================
     $pdf->SetXY(50, $startY);
-    $pdf->Cell(25, $rowHeight, $account_no, 'L', 0, 'C');
+    // $pdf->Cell(25, $rowHeight, $account_no, 'L', 0, 'C');
+    $pdf->MultiCell(25, $rowHeight, $account_no, 0, 'C');
 
     // ============================================
     // DV NO
@@ -558,6 +559,7 @@ foreach ($data as $row) {
     // ============================================
     $pdf->SetXY(50, $startY);
     $pdf->Cell(25, $rowHeight, $account_no, 'L', 0, 'C');
+
 
     // ============================================
     // DV NO
