@@ -2095,6 +2095,7 @@ echo view('templates/myheader.php');
                     <thead>
                         <tr>
                             <th class="text-center">Action</th>
+                            <th class="text-center">DV No.</th>
                             <th class="text-center" style="width:250px;">Serial No.</th>
                             <th class="text-center">Particulars</th>
                             <th class="text-center">Payee</th>
@@ -2105,6 +2106,7 @@ echo view('templates/myheader.php');
                         <?php if(!empty($disbursementhddata)):
                             foreach ($disbursementhddata as $data):
                                 $dt_recid = $data['recid'];
+                                $dvno = $data['dvno'];
                                 $serialno = $data['serialno'];
                                 $particulars = $data['particulars'];
                                 $payee_name = $data['payee_name'];
@@ -2125,6 +2127,7 @@ echo view('templates/myheader.php');
                                     </button>
                                 </div>
                             </td>
+                            <td class="text-center"><?=$dvno;?></td>
                             <td class="text-center"><?=$serialno;?></td>
                             <td class="text-center"><?=$particulars;?></td>
                             <td class="text-center"><?=$payee_name;?></td>

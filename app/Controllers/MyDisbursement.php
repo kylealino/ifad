@@ -100,6 +100,7 @@ class MyDisbursement extends BaseController
         $disbursementhdquery = $this->db->query("
         SELECT 
             a.recid,
+            a.dvno,
             a.serialno,
             a.particulars,
             a.funding_source,
