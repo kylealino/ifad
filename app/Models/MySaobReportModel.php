@@ -17,39 +17,76 @@ class MySaobReportModel extends Model
         
     }
 
-	public function saob_save() { 
+	// Months in order: the hd flags are is_<key>, the line columns <value>_revision
+	const MONTHS = [
+		'jan' => 'january', 'feb' => 'february', 'mar' => 'march', 'apr' => 'april',
+		'may' => 'may', 'jun' => 'june', 'jul' => 'july', 'aug' => 'august',
+		'sep' => 'september', 'oct' => 'october', 'nov' => 'november', 'dec' => 'december',
+	];
+
+	// Line tables (tbl_saob_<key>_dt) and the payload field each one is posted in
+	const GRIDS = [
+		'ps'   => 'budgetdtdata',
+		'mooe' => 'budgetmooedtdata',
+		'co'   => 'budgetcodtdata',
+	];
+
+	// Months are switched on in order. The revision month is the last one of an
+	// unbroken Jan..N run (1-12); 0 when no month is on or the run is broken.
+	public static function revision_month(array $hd) {
+		$flags = [];
+		foreach (array_keys(self::MONTHS) as $month) {
+			$flags[] = ($hd['is_' . $month] ?? 0) == 1;
+		}
+		$n = 0;
+		while ($n < 12 && $flags[$n]) {
+			$n++;
+		}
+		return in_array(true, array_slice($flags, $n), true) ? 0 : $n;
+	}
+
+	//SAOB - ONE RECORD WITH ITS LINE ITEMS (editor modal)
+	public function saob_load($recid) {
+		$hd = $this->db->query("SELECT * FROM tbl_saob_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		if (empty($hd)) {
+			return null;
+		}
+
+		$revisions = implode(', ', array_map(fn ($month) => "`{$month}_revision`", self::MONTHS));
+		$hd['grids'] = [];
+		foreach (array_keys(self::GRIDS) as $key) {
+			$hd['grids'][$key] = $this->db->query("
+				SELECT `recid`, `object_code`, `particulars`, `code`, `approved_budget`, {$revisions}
+				FROM tbl_saob_{$key}_dt
+				WHERE `project_id` = ?
+				ORDER BY `recid` ASC
+			", [$recid])->getResultArray();
+		}
+		return $hd;
+	}
+
+	//SAOB - SAVE
+	public function saob_save() {
 		$recid = $this->request->getPostGet('recid');
-		$trxno = $this->request->getPostGet('trxno');
 		$program_title = $this->request->getPostGet('program_title');
 		$project_title = $this->request->getPostGet('project_title');
 		$department = $this->request->getPostGet('department');
 		$agency = $this->request->getPostGet('agency');
 		$current_year = $this->request->getPostGet('current_year');
 
-		//newly added fields
-		$is_jan = $this->request->getPostGet('is_jan');
-		$is_feb = $this->request->getPostGet('is_feb');
-		$is_mar = $this->request->getPostGet('is_mar');
-		$is_apr = $this->request->getPostGet('is_apr');
-		$is_may = $this->request->getPostGet('is_may');
-		$is_jun = $this->request->getPostGet('is_jun');
-		$is_jul = $this->request->getPostGet('is_jul');
-		$is_aug = $this->request->getPostGet('is_aug');
-		$is_sep = $this->request->getPostGet('is_sep');
-		$is_oct = $this->request->getPostGet('is_oct');
-		$is_nov = $this->request->getPostGet('is_nov');
-		$is_dec = $this->request->getPostGet('is_dec');
-
 		$total_proposed_combined = $this->request->getPostGet('total_proposed_combined');
 		$total_approved_combined = $this->request->getPostGet('total_approved_combined');
-		
-		$budgetdtdata = $this->request->getPostGet('budgetdtdata');
-		$budgetmooedtdata = $this->request->getPostGet('budgetmooedtdata');
-		$budgetcodtdata = $this->request->getPostGet('budgetcodtdata');
 
-		$cseqn =  $this->get_ctr_saob('LIB','fods','CTRL_NO01');//TRANSACTION NO
-		$trx = empty($trxno) ? $cseqn : $trxno;
+		//REVISION MONTHS
+		$flags = [];
+		foreach (array_keys(self::MONTHS) as $month) {
+			$flags['is_' . $month] = $this->request->getPostGet('is_' . $month) == 1 ? 1 : 0;
+		}
 
+		$lines = [];
+		foreach (self::GRIDS as $key => $field) {
+			$lines[$key] = $this->request->getPostGet($field);
+		}
 
 		if (empty($program_title)) {
 			echo "
@@ -93,15 +130,14 @@ class MySaobReportModel extends Model
 			toastr.error('Year is required!', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
-					timeOut:2000,0
+					timeOut:2000,
 				});
 			</script>
 			";
 			die();
-			
 		}
 
-		if (empty($budgetdtdata) && empty($budgetmooedtdata) && empty($budgetcodtdata)) {
+		if (empty($lines['ps']) && empty($lines['mooe']) && empty($lines['co'])) {
 			echo "
 			<script>
 			toastr.error('No particulars found!', 'Oops!', {
@@ -128,180 +164,49 @@ class MySaobReportModel extends Model
 
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::SAOB_ADD, 'Saving');
+			$old = [];
+			$trx = $this->get_ctr_saob('LIB','fods','CTRL_NO01');//TRANSACTION NO
+
+			$this->db->transStart();
 
 			//INSERTING HD DATA
-			$query = $this->db->query("
+			$this->db->query("
 				INSERT INTO tbl_saob_hd (
 					trxno, program_title, project_title, department, agency, current_year,
 					is_jan, is_feb, is_mar, is_apr, is_may, is_jun, is_jul,
 					is_aug, is_sep, is_oct, is_nov, is_dec, added_at, added_by
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)", 
-				[
-					$trx,
-					$program_title,
-					$project_title,
-					$department,
-					$agency,
-					$current_year,
-					$is_jan,
-					$is_feb,
-					$is_mar,
-					$is_apr,
-					$is_may,
-					$is_jun,
-					$is_jul,
-					$is_aug,
-					$is_sep,
-					$is_oct,
-					$is_nov,
-					$is_dec,
-					$this->cuser
-				]
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+				array_merge(
+					[$trx, $program_title, $project_title, $department, $agency, $current_year],
+					array_values($flags),
+					[$this->cuser]
+				)
 			);
 
+			$project_id = $this->db->insertID();
 
-			//PROJECT ID FETCHING
-			$query = $this->db->query("
-			SELECT `recid` FROM tbl_saob_hd WHERE `trxno` = '$trx'
-			");
-			$rw = $query->getRowArray();
-			$project_id = $rw['recid'];
-
-			//INSERTING PS DT DATA
-			if (!empty($budgetdtdata)) {
-				for($aa = 0; $aa < count($budgetdtdata); $aa++){
-					$medata = explode("x|x",$budgetdtdata[$aa]);
-					$object_code = $medata[0]; 
-					$particulars = $medata[1]; 
-					$code = $medata[2]; 
-					$approved_budget = $medata[3]; 
-					$revised_allotment = $medata[4]; 
-					$revision = $medata[5];  
-					$proposed_revision = $medata[6]; 
-
-					$query = $this->db->query("
-					INSERT INTO `tbl_saob_ps_dt`(
-							`project_id`,
-							`project_title`,
-							`object_code`,
-							`particulars`,
-							`code`,
-							`approved_budget`,
-							`revised_allotment`,
-							`revision`,
-							`proposed_revision`,
-							`added_by`
-						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-						[
-							$project_id,
-							$project_title,
-							$object_code,
-							$particulars,
-							$code,
-							$approved_budget,
-							$revised_allotment,
-							$revision,
-							$proposed_revision,
-							$this->cuser
-						]
-					);
-					
-				}
-			}
-
-			//INSERTING MOOE DT DATA
-			if (!empty($budgetmooedtdata)) {
-				//this is for normal saving and updating
-				for($aa = 0; $aa < count($budgetmooedtdata); $aa++){
-					$medata = explode("x|x",$budgetmooedtdata[$aa]);
-					$object_code = $medata[0]; 
-					$particulars = $medata[1]; 
-					$code = $medata[2]; 
-					$approved_budget = $medata[3]; 
-					$revised_allotment = $medata[4]; 
-					$revision = $medata[5];  
-					$proposed_revision = $medata[6]; 
-
-					$query = $this->db->query("
-					INSERT INTO `tbl_saob_mooe_dt`(
-							`project_id`,
-							`project_title`,
-							`object_code`,
-							`particulars`,
-							`code`,
-							`approved_budget`,
-							`revised_allotment`,
-							`revision`,
-							`proposed_revision`,
-							`added_by`
-						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-						[
-							$project_id,
-							$project_title,
-							$object_code,
-							$particulars,
-							$code,
-							$approved_budget,
-							$revised_allotment,
-							$revision,
-							$proposed_revision,
-							$this->cuser
-						]
-					);
-				}
-			}
-
-			//INSERTING CO DT DATA
-			if (!empty($budgetcodtdata)) {
-				//this is for normal saving and updating
-				for($aa = 0; $aa < count($budgetcodtdata); $aa++){
-					$medata = explode("x|x",$budgetcodtdata[$aa]);
-					$object_code = $medata[0]; 
-					$particulars = $medata[1]; 
-					$code = $medata[2]; 
-					$approved_budget = $medata[3]; 
-					$revised_allotment = $medata[4]; 
-					$revision = $medata[5];  
-					$proposed_revision = $medata[6]; 
-
-					$query = $this->db->query("
-					INSERT INTO `tbl_saob_co_dt`(
-							`project_id`,
-							`project_title`,
-							`object_code`,
-							`particulars`,
-							`code`,
-							`approved_budget`,
-							`revised_allotment`,
-							`revision`,
-							`proposed_revision`,
-							`added_by`
-						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-						[
-							$project_id,
-							$project_title,
-							$object_code,
-							$particulars,
-							$code,
-							$approved_budget,
-							$revised_allotment,
-							$revision,
-							$proposed_revision,
-							$this->cuser
-						]
-					);
-				}
-			}
-
-			$status = "SAOB Saved Successfully!";
+			$status = "SAOB saved successfully";
 			$color = "success";
 		}else{
 			fods_require_access(\Config\AccessCodes::SAOB_UPDATE, 'Updating');
-			$query = $this->db->query("
+			$old = $this->db->query("SELECT * FROM tbl_saob_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			if (empty($old)) {
+				echo "
+				<script>
+				toastr.error('SAOB not found', 'Oops!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2000,
+					});
+				</script>
+				";
+				die();
+			}
+
+			$this->db->transStart();
+
+			$this->db->query("
 				UPDATE tbl_saob_hd
 				SET
 					program_title = ?,
@@ -322,544 +227,82 @@ class MySaobReportModel extends Model
 					is_nov = ?,
 					is_dec = ?
 				WHERE recid = ?
-			", [
-				$program_title,
-				$project_title,
-				$department,
-				$agency,
-				$current_year,
-				$is_jan,
-				$is_feb,
-				$is_mar,
-				$is_apr,
-				$is_may,
-				$is_jun,
-				$is_jul,
-				$is_aug,
-				$is_sep,
-				$is_oct,
-				$is_nov,
-				$is_dec,
-				$recid
-			]);
+			", array_merge(
+				[$program_title, $project_title, $department, $agency, $current_year],
+				array_values($flags),
+				[$recid]
+			));
 
+			$project_id = $recid;
 
-			//PROJECT ID FETCHING
-			$query = $this->db->query("
-			SELECT `recid` FROM tbl_saob_hd WHERE `trxno` = '$trx'
-			");
-			$rw = $query->getRowArray();
-			$project_id = $rw['recid'];
-
-			//UPDATE OR INSERT OF NEW ROW DATA
-			if (!empty($budgetdtdata)) {
-				$this->db->query("CREATE TEMPORARY TABLE tmp_saob_ps_dt LIKE tbl_saob_ps_dt");
-				for($aa = 0; $aa < count($budgetdtdata); $aa++){
-					$medata = explode("x|x",$budgetdtdata[$aa]);
-					$object_code = $medata[0]; 
-					$particulars = $medata[1]; 
-					$code = $medata[2]; 
-					$approved_budget = $medata[3]; 
-					$todate_realignment = $medata[4]; 
-					$proposed_realignment = $medata[5];  
-					$revised_allotment = $medata[6];
-					$january_revision = $medata[7];
-					$february_revision = $medata[8];
-					$march_revision = $medata[9];
-					$april_revision = $medata[10];
-					$may_revision = $medata[11];
-					$june_revision = $medata[12];
-					$july_revision = $medata[13];
-					$august_revision = $medata[14];
-					$september_revision = $medata[15];
-					$october_revision = $medata[16];
-					$november_revision = $medata[17];
-					$december_revision = $medata[18];
-
-					// JANUARY
-					if ($is_jan==1 && $is_feb==0 && $is_mar==0 && $is_apr==0 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $january_revision = $proposed_realignment; }
-
-					// FEBRUARY
-					if ($is_jan==1 && $is_feb==1 && $is_mar==0 && $is_apr==0 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $february_revision = $proposed_realignment; }
-
-					// MARCH
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==0 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $march_revision = $proposed_realignment; }
-
-					// APRIL
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $april_revision = $proposed_realignment; }
-
-					// MAY
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $may_revision = $proposed_realignment; }
-
-					// JUNE
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $june_revision = $proposed_realignment; }
-
-					// JULY
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $july_revision = $proposed_realignment; }
-
-					// AUGUST
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $august_revision = $proposed_realignment; }
-
-					// SEPTEMBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $september_revision = $proposed_realignment; }
-
-					// OCTOBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==1 && $is_nov==0 && $is_dec==0) { $october_revision = $proposed_realignment; }
-
-					// NOVEMBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==1 && $is_nov==1 && $is_dec==0) { $november_revision = $proposed_realignment; }
-
-					// DECEMBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==1 && $is_nov==1 && $is_dec==1) { $december_revision = $proposed_realignment; }
-					
-					$query = $this->db->query("
-						INSERT INTO tmp_saob_ps_dt (
-							`project_id`,
-							`project_title`,
-							`object_code`,
-							`particulars`,
-							`code`,
-							`approved_budget`,
-							`revised_allotment`,
-							`january_revision`,
-							`february_revision`,
-							`march_revision`,
-							`april_revision`,
-							`may_revision`,
-							`june_revision`,
-							`july_revision`,
-							`august_revision`,
-							`september_revision`,
-							`october_revision`,
-							`november_revision`,
-							`december_revision`,
-							`added_by`
-						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-						[
-							$project_id,
-							$project_title,
-							$object_code,
-							$particulars,
-							$code,
-							$approved_budget,
-							$revised_allotment,
-							$january_revision,
-							$february_revision,
-							$march_revision,
-							$april_revision,
-							$may_revision,
-							$june_revision,
-							$july_revision,
-							$august_revision,
-							$september_revision,
-							$october_revision,
-							$november_revision,
-							$december_revision,
-							$this->cuser
-						]
-					);
-
-				}
-
-				$query = $this->db->query("DELETE FROM tbl_saob_ps_dt WHERE `project_id` = '$project_id'");
-
-				$this->db->query("
-					INSERT INTO tbl_saob_ps_dt (
-						project_id,
-						project_title,
-						object_code,
-						particulars,
-						code,
-						approved_budget,
-						revised_allotment,
-						january_revision,
-						february_revision,
-						march_revision,
-						april_revision,
-						may_revision,
-						june_revision,
-						july_revision,
-						august_revision,
-						september_revision,
-						october_revision,
-						november_revision,
-						december_revision,
-						added_by
-					)
-					SELECT
-						project_id,
-						project_title,
-						object_code,
-						particulars,
-						code,
-						approved_budget,
-						revised_allotment,
-						january_revision,
-						february_revision,
-						march_revision,
-						april_revision,
-						may_revision,
-						june_revision,
-						july_revision,
-						august_revision,
-						september_revision,
-						october_revision,
-						november_revision,
-						december_revision,
-						added_by
-					FROM tmp_saob_ps_dt
-					WHERE project_id = '$project_id'
-				");
-
-				$query = $this->db->query("DELETE FROM tmp_saob_ps_dt WHERE `project_id` = '$project_id'");
-			}else{
-				$query = $this->db->query("DELETE FROM tbl_saob_ps_dt WHERE `project_id` = '$project_id'");
-			}
-
-			//INSERTING MOOE DT DATA
-			if (!empty($budgetmooedtdata)) {
-				$this->db->query("CREATE TEMPORARY TABLE tmp_saob_mooe_dt LIKE tbl_saob_mooe_dt");
-
-				for($aa = 0; $aa < count($budgetmooedtdata); $aa++){
-					$medata = explode("x|x",$budgetmooedtdata[$aa]);
-					$object_code = $medata[0]; 
-					$particulars = $medata[1]; 
-					$code = $medata[2]; 
-					$approved_budget = $medata[3]; 
-					$todate_realignment = $medata[4]; 
-					$proposed_realignment = $medata[5];  
-					$revised_allotment = $medata[6];
-					$january_revision = $medata[7];
-					$february_revision = $medata[8];
-					$march_revision = $medata[9];
-					$april_revision = $medata[10];
-					$may_revision = $medata[11];
-					$june_revision = $medata[12];
-					$july_revision = $medata[13];
-					$august_revision = $medata[14];
-					$september_revision = $medata[15];
-					$october_revision = $medata[16];
-					$november_revision = $medata[17];
-					$december_revision = $medata[18];
-
-					// JANUARY
-					if ($is_jan==1 && $is_feb==0 && $is_mar==0 && $is_apr==0 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $january_revision = $proposed_realignment; }
-
-					// FEBRUARY
-					if ($is_jan==1 && $is_feb==1 && $is_mar==0 && $is_apr==0 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $february_revision = $proposed_realignment; }
-
-					// MARCH
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==0 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $march_revision = $proposed_realignment; }
-
-					// APRIL
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $april_revision = $proposed_realignment; }
-
-					// MAY
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $may_revision = $proposed_realignment; }
-
-					// JUNE
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $june_revision = $proposed_realignment; }
-
-					// JULY
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $july_revision = $proposed_realignment; }
-
-					// AUGUST
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $august_revision = $proposed_realignment; }
-
-					// SEPTEMBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $september_revision = $proposed_realignment; }
-
-					// OCTOBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==1 && $is_nov==0 && $is_dec==0) { $october_revision = $proposed_realignment; }
-
-					// NOVEMBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==1 && $is_nov==1 && $is_dec==0) { $november_revision = $proposed_realignment; }
-
-					// DECEMBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==1 && $is_nov==1 && $is_dec==1) { $december_revision = $proposed_realignment; }
-					
-					$query = $this->db->query("
-						INSERT INTO tmp_saob_mooe_dt (
-							`project_id`,
-							`project_title`,
-							`object_code`,
-							`particulars`,
-							`code`,
-							`approved_budget`,
-							`revised_allotment`,
-							`january_revision`,
-							`february_revision`,
-							`march_revision`,
-							`april_revision`,
-							`may_revision`,
-							`june_revision`,
-							`july_revision`,
-							`august_revision`,
-							`september_revision`,
-							`october_revision`,
-							`november_revision`,
-							`december_revision`,
-							`added_by`
-						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-						[
-							$project_id,
-							$project_title,
-							$object_code,
-							$particulars,
-							$code,
-							$approved_budget,
-							$revised_allotment,
-							$january_revision,
-							$february_revision,
-							$march_revision,
-							$april_revision,
-							$may_revision,
-							$june_revision,
-							$july_revision,
-							$august_revision,
-							$september_revision,
-							$october_revision,
-							$november_revision,
-							$december_revision,
-							$this->cuser
-						]
-					);
-
-				}
-
-				$query = $this->db->query("DELETE FROM tbl_saob_mooe_dt WHERE `project_id` = '$project_id'");
-
-				$this->db->query("
-					INSERT INTO tbl_saob_mooe_dt (
-						project_id,
-						project_title,
-						object_code,
-						particulars,
-						code,
-						approved_budget,
-						revised_allotment,
-						january_revision,
-						february_revision,
-						march_revision,
-						april_revision,
-						may_revision,
-						june_revision,
-						july_revision,
-						august_revision,
-						september_revision,
-						october_revision,
-						november_revision,
-						december_revision,
-						added_by
-					)
-					SELECT
-						project_id,
-						project_title,
-						object_code,
-						particulars,
-						code,
-						approved_budget,
-						revised_allotment,
-						january_revision,
-						february_revision,
-						march_revision,
-						april_revision,
-						may_revision,
-						june_revision,
-						july_revision,
-						august_revision,
-						september_revision,
-						october_revision,
-						november_revision,
-						december_revision,
-						added_by
-					FROM tmp_saob_mooe_dt
-					WHERE project_id = '$project_id'
-				");
-
-				$query = $this->db->query("DELETE FROM tmp_saob_mooe_dt WHERE `project_id` = '$project_id'");
-
-			}else{
-				$query = $this->db->query("DELETE FROM tbl_saob_mooe_dt WHERE `project_id` = '$project_id'");
-			}
-
-			//INSERTING CO DT DATA
-			if (!empty($budgetcodtdata)) {
-				$this->db->query("CREATE TEMPORARY TABLE tmp_saob_co_dt LIKE tbl_saob_mooe_dt");
-				for($aa = 0; $aa < count($budgetcodtdata); $aa++){
-					$medata = explode("x|x",$budgetcodtdata[$aa]);
-					$object_code = $medata[0]; 
-					$particulars = $medata[1]; 
-					$code = $medata[2]; 
-					$approved_budget = $medata[3]; 
-					$todate_realignment = $medata[4]; 
-					$proposed_realignment = $medata[5];  
-					$revised_allotment = $medata[6];
-					$january_revision = $medata[7];
-					$february_revision = $medata[8];
-					$march_revision = $medata[9];
-					$april_revision = $medata[10];
-					$may_revision = $medata[11];
-					$june_revision = $medata[12];
-					$july_revision = $medata[13];
-					$august_revision = $medata[14];
-					$september_revision = $medata[15];
-					$october_revision = $medata[16];
-					$november_revision = $medata[17];
-					$december_revision = $medata[18];
-
-					// JANUARY
-					if ($is_jan==1 && $is_feb==0 && $is_mar==0 && $is_apr==0 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $january_revision = $proposed_realignment; }
-
-					// FEBRUARY
-					if ($is_jan==1 && $is_feb==1 && $is_mar==0 && $is_apr==0 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $february_revision = $proposed_realignment; }
-
-					// MARCH
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==0 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $march_revision = $proposed_realignment; }
-
-					// APRIL
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==0 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $april_revision = $proposed_realignment; }
-
-					// MAY
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==0 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $may_revision = $proposed_realignment; }
-
-					// JUNE
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==0 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $june_revision = $proposed_realignment; }
-
-					// JULY
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==0 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $july_revision = $proposed_realignment; }
-
-					// AUGUST
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==0 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $august_revision = $proposed_realignment; }
-
-					// SEPTEMBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==0 && $is_nov==0 && $is_dec==0) { $september_revision = $proposed_realignment; }
-
-					// OCTOBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==1 && $is_nov==0 && $is_dec==0) { $october_revision = $proposed_realignment; }
-
-					// NOVEMBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==1 && $is_nov==1 && $is_dec==0) { $november_revision = $proposed_realignment; }
-
-					// DECEMBER
-					if ($is_jan==1 && $is_feb==1 && $is_mar==1 && $is_apr==1 && $is_may==1 && $is_jun==1 && $is_jul==1 && $is_aug==1 && $is_sep==1 && $is_oct==1 && $is_nov==1 && $is_dec==1) { $december_revision = $proposed_realignment; }
-					
-					
-					$query = $this->db->query("
-						INSERT INTO tmp_saob_co_dt (
-							`project_id`,
-							`project_title`,
-							`object_code`,
-							`particulars`,
-							`code`,
-							`approved_budget`,
-							`revised_allotment`,
-							`january_revision`,
-							`february_revision`,
-							`march_revision`,
-							`april_revision`,
-							`may_revision`,
-							`june_revision`,
-							`july_revision`,
-							`august_revision`,
-							`september_revision`,
-							`october_revision`,
-							`november_revision`,
-							`december_revision`,
-							`added_by`
-						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-						[
-							$project_id,
-							$project_title,
-							$object_code,
-							$particulars,
-							$code,
-							$approved_budget,
-							$revised_allotment,
-							$january_revision,
-							$february_revision,
-							$march_revision,
-							$april_revision,
-							$may_revision,
-							$june_revision,
-							$july_revision,
-							$august_revision,
-							$september_revision,
-							$october_revision,
-							$november_revision,
-							$december_revision,
-							$this->cuser
-						]
-					);
-				}
-
-				$query = $this->db->query("DELETE FROM tbl_saob_co_dt WHERE `project_id` = '$project_id'");
-
-				$this->db->query("
-					INSERT INTO tbl_saob_co_dt (
-						project_id,
-						project_title,
-						object_code,
-						particulars,
-						code,
-						approved_budget,
-						revised_allotment,
-						january_revision,
-						february_revision,
-						march_revision,
-						april_revision,
-						may_revision,
-						june_revision,
-						july_revision,
-						august_revision,
-						september_revision,
-						october_revision,
-						november_revision,
-						december_revision,
-						added_by
-					)
-					SELECT
-						project_id,
-						project_title,
-						object_code,
-						particulars,
-						code,
-						approved_budget,
-						revised_allotment,
-						january_revision,
-						february_revision,
-						march_revision,
-						april_revision,
-						may_revision,
-						june_revision,
-						july_revision,
-						august_revision,
-						september_revision,
-						october_revision,
-						november_revision,
-						december_revision,
-						added_by
-					FROM tmp_saob_co_dt
-					WHERE project_id = '$project_id'
-				");
-
-				$query = $this->db->query("DELETE FROM tmp_saob_co_dt WHERE `project_id` = '$project_id'");
-			}else{
-				$query = $this->db->query("DELETE FROM tbl_saob_co_dt WHERE `project_id` = '$project_id'");
-			}
-
-			$status = "SAOB Updated Successfully!";
+			$status = "SAOB updated successfully";
 			$color = "info";
 		}
 
-		if ($query) {
+		// The proposed realignment is recorded under the revision month, but only
+		// when that month is switched on by this save. Saving again without a new
+		// month keeps the realignments already recorded.
+		$revision_month = self::revision_month($flags);
+		$month_keys = array_keys(self::MONTHS);
+		$is_new_month = $revision_month > 0 && (empty($old) || $old['is_' . $month_keys[$revision_month - 1]] != 1);
+
+		// blank or non-numeric amounts are saved as 0
+		$num = fn ($v) => is_numeric($v) ? $v : 0;
+		$revision_columns = implode(', ', array_map(fn ($month) => "`{$month}_revision`", self::MONTHS));
+
+		//INSERTING PS / MOOE / CO DT DATA (each line: object code, particulars, UACS, approved,
+		//to-date, proposed, revised, then the 12 monthly revisions)
+		foreach (array_keys(self::GRIDS) as $key) {
+			$this->db->query("DELETE FROM tbl_saob_{$key}_dt WHERE `project_id` = ?", [$project_id]);
+			if (empty($lines[$key])) {
+				continue;
+			}
+			for($aa = 0; $aa < count($lines[$key]); $aa++){
+				$medata = explode("x|x",$lines[$key][$aa]);
+				$object_code = $medata[0];
+				$particulars = $medata[1] ?? '';
+				$code = $medata[2] ?? '';
+				$approved_budget = $num($medata[3] ?? 0);
+				$proposed_realignment = $num($medata[5] ?? 0);
+				$revised_allotment = $num($medata[6] ?? 0);
+
+				$revisions = [];
+				for($bb = 0; $bb < 12; $bb++){
+					$revisions[] = $num($medata[7 + $bb] ?? 0);
+				}
+				if ($is_new_month) {
+					$revisions[$revision_month - 1] = $proposed_realignment;
+				}
+
+				$this->db->query("
+					INSERT INTO tbl_saob_{$key}_dt (
+						`project_id`,
+						`project_title`,
+						`object_code`,
+						`particulars`,
+						`code`,
+						`approved_budget`,
+						`revised_allotment`,
+						{$revision_columns},
+						`added_by`
+					)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+					array_merge(
+						[$project_id, $project_title, $object_code, $particulars, $code, $approved_budget, $revised_allotment],
+						$revisions,
+						[$this->cuser]
+					)
+				);
+			}
+		}
+
+		$this->db->transComplete();
+
+		if ($this->db->transStatus()) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
 			<script>
-				document.getElementById('submitBtnMain').disabled = true;
+				document.getElementById('submitBtn').disabled = true;
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
@@ -872,13 +315,19 @@ class MySaobReportModel extends Model
 			";
 			exit; // Stop further PHP execution after the toast
 		} else {
-			// If there's an error, show an alert message
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
+			// Nothing was written: the header and its lines are saved together
+			echo "
+			<script>
+			toastr.error('The SAOB could not be saved. Nothing was changed.', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:3000,
+				});
+			</script>
+			";
 			exit;
 		}
-		
+
 	}
 	
 	public function budget_approve() { 

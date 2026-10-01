@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use CodeIgniter\Controller;
+use App\Models\MySaobReportModel;
 
 class MySaobReport extends BaseController
 {
@@ -23,43 +24,43 @@ class MySaobReport extends BaseController
         $meaction = $this->request->getPostGet('meaction');
     
         switch ($meaction) {
-            case 'MAIN': 
+            case 'MAIN':
                 if (fods_has_access(\Config\AccessCodes::SAOB_VIEW)) {
                     return $this->loadMainView();
-                    break;
                 }else {
                     return view('errors/html/access-restricted');
                 }
-    
-			case 'SAOB-PDF':
-				if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
-				return view('report/saob-pdf');
-				break;
 
-            case 'MAIN-SAVE': 
+            // One SAOB with its line items, for the editor modal
+            case 'MAIN-LOAD':
+                if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) {
+                    return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
+                }
+                $record = $this->mysaob->saob_load($this->request->getGet('recid'));
+                if ($record === null) {
+                    return $this->response->setStatusCode(404)->setJSON(['error' => 'SAOB not found']);
+                }
+                return $this->response->setJSON($record);
+
+            case 'MAIN-SAVE':
                 $this->mysaob->saob_save();
                 return redirect()->to('mysaobrpt?meaction=MAIN');
                 break;
 
-            case 'SAVINGS-SAVE': 
+            case 'SAOB-PDF':
+                if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
+                return view('report/saob-pdf');
+                break;
+
+            case 'SAVINGS-SAVE':
                 $this->mysaob->savings_save();
                 return redirect()->to('mysaobrpt?meaction=MAIN');
                 break;
 
-            case 'SAVINGS-PRINT': 
+            case 'SAVINGS-PRINT':
                 if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
                 return view('report/saob-savings-pdf');
                 break;
-                
-            //  case 'MAIN-APPROVE': 
-            //     $this->mysaob->budget_approve();
-            //     return redirect()->to('myua?meaction=MAIN');
-            //     break;
-
-            //   case 'MAIN-DISAPPROVE': 
-            //     $this->mysaob->budget_disapprove();
-            //     return redirect()->to('myua?meaction=MAIN');
-            //     break;
         }
     }
     
@@ -1789,104 +1790,95 @@ class MySaobReport extends BaseController
 
     private function loadMainView() {
 
-        //budget table dt fetching
-        $budgetdtquery = $this->db->query("
-        SELECT 
-            a.`recid`,
-            a.`trxno`,
-            a.`project_title`,
-            a.`responsibility_code`,
-            a.`fund_cluster_code`,
-            a.`division_name`,
-            a.`is_pending`,
-            a.`is_approved`,
-            a.`is_disapproved`,
-            a.`added_at`,
-            (
-                IFNULL((SELECT SUM(`approved_budget`) FROM `tbl_budget_direct_ps_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`approved_budget`) FROM `tbl_budget_indirect_ps_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`approved_budget`) FROM `tbl_budget_direct_mooe_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`approved_budget`) FROM `tbl_budget_indirect_mooe_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`approved_budget`) FROM `tbl_budget_indirect_co_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`approved_budget`) FROM `tbl_budget_direct_co_dt` WHERE project_id = a.recid), 0)
-            ) AS approved_budget
-        FROM
-            tbl_budget_hd a
-        ");
-        $budgetdtdata = $budgetdtquery->getResultArray();
+        $line_tables = fn ($key) => "(SELECT project_id, COUNT(*) n, SUM(approved_budget) amount FROM tbl_saob_{$key}_dt GROUP BY project_id)";
 
-        //hd lookup data
-        $fundclusterquery = $this->db->query("SELECT `fund_cluster_code` FROM tbl_fundcluster");
-        $fundclusterdata = $fundclusterquery->getResultArray();
-
-        $divisionquery = $this->db->query("SELECT `division_name` FROM tbl_division");
-        $divisiondata = $divisionquery->getResultArray();
-
-        $psuacsquery = $this->db->query("SELECT * FROM mst_uacs WHERE allotment_class = 'Personnel Services' ORDER BY TRIM(sub_object_code) ASC");
-        $psuacsdata = $psuacsquery->getResultArray();
-
-        $psobjectquery = $this->db->query("SELECT DISTINCT object_code FROM mst_uacs WHERE allotment_class = 'Personnel Services'  ORDER BY TRIM(object_code) ASC");
-        $psobjectdata = $psobjectquery->getResultArray();
-
-        $mooeuacsquery = $this->db->query("SELECT * FROM mst_uacs WHERE allotment_class = 'Maintenance and Other Operating Expenses' ORDER BY TRIM(sub_object_code) ASC");
-        $mooeuacsdata = $mooeuacsquery->getResultArray();
-
-        $mooeobjectquery = $this->db->query("SELECT DISTINCT object_code FROM mst_uacs WHERE allotment_class = 'Maintenance and Other Operating Expenses' ORDER BY TRIM(object_code) ASC");
-        $mooeobjectdata = $mooeobjectquery->getResultArray();
-        $mooeobjectdata[] = ['object_code' => 'General Services'];
-
-        $couacsquery = $this->db->query("SELECT * FROM mst_uacs WHERE allotment_class = 'Capital Outlay' ORDER BY TRIM(sub_object_code) ASC");
-        $couacsdata = $couacsquery->getResultArray();
-
-        $coobjectquery = $this->db->query("SELECT DISTINCT object_code FROM mst_uacs WHERE allotment_class = 'Capital Outlay' ORDER BY TRIM(object_code) ASC");
-        $coobjectdata = $coobjectquery->getResultArray();
-
-        // $programtitlequery = $this->db->query("SELECT program_title FROM tbl_budget_hd WHERE fund_cluster_code = '01'  GROUP BY program_title ORDER BY recid DESC");
-        // $programtitledata = $programtitlequery->getResultArray();
-
-        $saobhdquery = $this->db->query("SELECT * FROM tbl_saob_hd ORDER BY recid DESC");
-        $saobhddata = $saobhdquery->getResultArray();
-
-
-        //reference/project title lookup
-        $projectquery = $this->db->query("
+        $saobhddata = $this->db->query("
         SELECT
-            a.`fundcluster_id`,
-            b.`fund_cluster_code`,
-            a.`division_id`,
-            c.`division_name`,
-            a.`responsibility_code`,
-            a.`project_title`
-        FROM
-            `tbl_reference_project` a
-        JOIN
-            `tbl_fundcluster`b
-        ON 
-            a.fundcluster_id = b.`recid`
-        JOIN
-            `tbl_division` c
-        ON
-            a.`division_id` = c.recid
-        ORDER BY a.`project_title` ASC
-        ");
-        $projectdata = $projectquery->getResultArray();
+            a.recid,
+            a.trxno,
+            a.program_title,
+            a.project_title,
+            a.current_year,
+            a.is_jan, a.is_feb, a.is_mar, a.is_apr, a.is_may, a.is_jun,
+            a.is_jul, a.is_aug, a.is_sep, a.is_oct, a.is_nov, a.is_dec,
+            a.added_at,
+            a.added_by,
+            COALESCE(ps.n,0) AS ps_lines,
+            COALESCE(m.n,0) AS mooe_lines,
+            COALESCE(co.n,0) AS co_lines,
+            COALESCE(ps.amount,0)
+        + COALESCE(m.amount,0)
+        + COALESCE(co.amount,0) AS amount
+        FROM tbl_saob_hd a
+        LEFT JOIN {$line_tables('ps')} ps ON ps.project_id = a.recid
+        LEFT JOIN {$line_tables('mooe')} m ON m.project_id = a.recid
+        LEFT JOIN {$line_tables('co')} co ON co.project_id = a.recid
+        ORDER BY a.recid DESC
+        ")->getResultArray();
 
+        // One status per SAOB, and the month its realignments run up to
+        foreach ($saobhddata as &$row) {
+            $row['status'] = self::statusOf($row);
+            $row['revised_to'] = MySaobReportModel::revision_month($row);
+            foreach (array_keys(MySaobReportModel::MONTHS) as $month) {
+                unset($row['is_' . $month]);
+            }
+        }
+        unset($row);
+
+
+        //object code / particulars lookups per allotment class
+        $objectLookup = fn ($class) => array_column(
+            $this->db->query("SELECT DISTINCT `object_code` FROM mst_uacs WHERE allotment_class = ? ORDER BY TRIM(object_code) ASC", [$class])->getResultArray(),
+            'object_code'
+        );
+
+        $uacsLookup = fn ($class) => $this->db->query("
+        SELECT `sub_object_code` AS value, `uacs_code`, `object_code`
+        FROM mst_uacs
+        WHERE allotment_class = ?
+        ORDER BY TRIM(sub_object_code) ASC
+        ", [$class])->getResultArray();
+
+        $mooeobjects = $objectLookup('Maintenance and Other Operating Expenses');
+        $mooeobjects[] = 'General Services';
 
         return view('report/saob-main', [
-            'fundclusterdata' => $fundclusterdata,
-            'divisiondata' => $divisiondata,
-            'psobjectdata' => $psobjectdata,
-            'mooeobjectdata' => $mooeobjectdata,
-            'coobjectdata' => $coobjectdata,
-            'psuacsdata' => $psuacsdata,
-            'mooeuacsdata' => $mooeuacsdata,
-            'couacsdata' => $couacsdata,
-            'budgetdtdata' => $budgetdtdata,
-            'projectdata' => $projectdata,
-            // 'programtitledata' => $programtitledata,
             'saobhddata' => $saobhddata,
+            'lookups' => [
+                'psobjects' => $objectLookup('Personnel Services'),
+                'mooeobjects' => $mooeobjects,
+                'coobjects' => $objectLookup('Capital Outlay'),
+                'psuacs' => $uacsLookup('Personnel Services'),
+                'mooeuacs' => $uacsLookup('Maintenance and Other Operating Expenses'),
+                'couacs' => $uacsLookup('Capital Outlay'),
+                // the monthly report matches budgets on their program title, so suggest those
+                'programs' => array_column(
+                    $this->db->query("SELECT DISTINCT TRIM(`program_title`) AS program_title FROM tbl_budget_hd WHERE TRIM(`program_title`) NOT IN ('', 'N/A') ORDER BY 1 ASC")->getResultArray(),
+                    'program_title'
+                ),
+                'years' => range((int) date('Y') + 1, 2025),        // allotment year
+                'report_years' => range((int) date('Y'), 2022),     // SAOB report year
+            ],
+            'perms' => [
+                'add' => fods_has_access(\Config\AccessCodes::SAOB_ADD),
+                'edit' => fods_has_access(\Config\AccessCodes::SAOB_UPDATE),
+            ],
+            'open' => (string) $this->request->getGet('recid'),        // ?recid= opens that SAOB directly
+            'copy' => (string) $this->request->getGet('reuse_recid'),  // ?reuse_recid= starts a new one from it
         ]);
     }
-    
-    
+
+    // original: no revision month switched on yet
+    // revised: at least one month of realignments recorded
+    public static function statusOf(array $hd) {
+        foreach (array_keys(MySaobReportModel::MONTHS) as $month) {
+            if ($hd['is_' . $month] == '1') {
+                return 'revised';
+            }
+        }
+        return 'original';
+    }
+
+
 }

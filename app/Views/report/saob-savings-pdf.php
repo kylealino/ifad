@@ -345,7 +345,7 @@ SELECT
             JOIN tbl_ors_hd hd ON dmooe.project_id = hd.recid
             WHERE dmooe.project_title = budget.project_title AND hd.ors_date BETWEEN '$current_year-01-01' AND '$end_date'),0)
       + COALESCE((SELECT SUM(idmooe.amount) FROM tbl_ors_indirect_mooe_dt idmooe
-            JOIN tbl_ors_hd hd ON idmooe.project_id = hd.recid5
+            JOIN tbl_ors_hd hd ON idmooe.project_id = hd.recid
             WHERE idmooe.project_title = budget.project_title AND hd.ors_date BETWEEN '$current_year-01-01' AND '$end_date'),0)
     ) AS todate
 
