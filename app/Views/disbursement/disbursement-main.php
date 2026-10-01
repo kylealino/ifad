@@ -90,7 +90,7 @@ echo view('templates/myheader.php');
                 </ol>
             </nav>
             <h1 class="fods-page-title">Disbursement Vouchers</h1>
-            <p class="fods-page-sub">Prepare disbursement vouchers from an ORS or BURS, then send them to accounting for approval.</p>
+            <p class="fods-page-sub">Prepare disbursement vouchers from an ORS or BURS, then send them for approval: Box A, Box C, then Box D.</p>
         </div>
         <div class="fods-page-actions d-flex">
             <select class="form-select form-select-sm fods-year" id="dvYear" aria-label="Year"></select>
@@ -330,23 +330,35 @@ echo view('templates/myheader.php');
                         <!-- Certification -->
                         <div class="tab-pane fade" id="dvPaneSign">
                             <div class="row g-3">
-                                <div class="col-md-6">
+                                <!-- Each box is approved in order by the person named on it -->
+                                <div class="col-lg-4 col-md-6">
                                     <div class="dv-sign">
-                                        <div class="dv-sign-head"><span class="dv-sign-box">Box A · Supervisor</span></div>
+                                        <div class="dv-sign-head"><span class="dv-sign-box">Box A · Supervisor</span><span id="dvSignStatusA"></span></div>
                                         <label class="form-label" for="certified_a">Certified by</label>
                                         <select class="form-select" id="certified_a" name="certified_a"></select>
                                         <label class="form-label mt-2" for="position_a">Position</label>
                                         <input type="text" class="form-control" id="position_a" name="position_a" readonly>
+                                        <div class="dv-sign-note" id="dvSignNoteA"></div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-lg-4 col-md-6">
                                     <div class="dv-sign">
-                                        <div class="dv-sign-head"><span class="dv-sign-box">Box C · Accounting</span><span id="dvSignStatus"></span></div>
+                                        <div class="dv-sign-head"><span class="dv-sign-box">Box C · Accounting</span><span id="dvSignStatusC"></span></div>
                                         <label class="form-label" for="certified_c">Certified by</label>
                                         <select class="form-select" id="certified_c" name="certified_c"></select>
                                         <label class="form-label mt-2" for="position_c">Position</label>
                                         <input type="text" class="form-control" id="position_c" name="position_c" readonly>
-                                        <div class="dv-sign-note" id="dvSignNote"></div>
+                                        <div class="dv-sign-note" id="dvSignNoteC"></div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4 col-md-12">
+                                    <div class="dv-sign">
+                                        <div class="dv-sign-head"><span class="dv-sign-box">Box D · Approved for payment</span><span id="dvSignStatusD"></span></div>
+                                        <label class="form-label" for="certified_d">Approved by</label>
+                                        <input type="text" class="form-control" id="certified_d" placeholder="Set from the net amount on save" readonly>
+                                        <label class="form-label mt-2" for="position_d">Position</label>
+                                        <input type="text" class="form-control" id="position_d" readonly>
+                                        <div class="dv-sign-note" id="dvSignNoteD"></div>
                                     </div>
                                 </div>
                             </div>
@@ -398,5 +410,5 @@ echo view('templates/myheader.php');
     var __dv_perms = <?= json_encode($perms) ?>;
     var __dv_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/disbursement/mydisbursement.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/disbursement/mydisbursement.js?v=4');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

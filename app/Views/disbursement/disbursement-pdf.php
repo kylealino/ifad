@@ -880,15 +880,10 @@ $pdf->SetXY(101, $Y);
 $pdf->SetFont('Times', '', 8);
 $pdf->Cell(15, 4, 'Name', 'BRL', 0, 'C');
 
-$certified_d = '';
-$position_d = '';
-if ($net >= 100000) {
-    $certified_d = 'Atty. LUCIEDEN G. RAZ';
-    $position_d = 'Director III';
-}else{
-    $certified_d = 'ALEXIS M. ORTIZ';
-    $position_d = 'Chief Administrative Officer';
-}
+// Same rule Disbursement Approval uses to pick who approves Box D
+$boxd = \App\Models\MyDisbursementModel::box_d($net);
+$certified_d = $boxd['name'];
+$position_d = $boxd['position'];
 
 $pdf->SetXY(116, $Y);
 $pdf->SetFont('Times', 'B',10);

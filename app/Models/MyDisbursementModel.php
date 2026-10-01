@@ -112,7 +112,48 @@ class MyDisbursementModel extends Model
             ", [$recid])->getResultArray();
         }
         $hd['history'] = $this->getTransactionHistory($recid);
+
+        // Box D is not picked on the DV; the modals show it next to Box A and C
+        $boxd = self::box_d($hd['net_amount']);
+        $hd['certified_d'] = $boxd['name'];
+        $hd['position_d'] = $boxd['position'];
+        $hd['can_decide'] = self::can_decide($hd);
         return $hd;
+    }
+
+    //DISBURSEMENT - APPROVAL STEPS: Box A (supervisor), Box C (accounting), Box D (approved for payment)
+
+    // Box D follows the net amount, as printed on the DV
+    public static function box_d($net) {
+        if ((float) $net >= 100000) {
+            return ['name' => 'Atty. LUCIEDEN G. RAZ', 'position' => 'Director III'];
+        }
+        return ['name' => 'ALEXIS M. ORTIZ', 'position' => 'Chief Administrative Officer'];
+    }
+
+    // Box the DV is waiting at ('a', 'c' or 'd'); '' once approved or disapproved
+    public static function step_of(array $hd) {
+        $status = \App\Controllers\MyDisbursement::statusOf($hd);
+        return strpos($status, 'pending_') === 0 ? substr($status, -1) : '';
+    }
+
+    // Signatory named on a box of the DV
+    public static function signatory(array $hd, $box) {
+        return trim((string) ($box === 'd' ? self::box_d($hd['net_amount'])['name'] : $hd['certified_' . $box]));
+    }
+
+    // Only the signatory named on the current box decides it (matched on the
+    // user's full name); an administrator can decide any step
+    public static function can_decide(array $hd) {
+        $box = self::step_of($hd);
+        if ($box === '' || !fods_has_access(\Config\AccessCodes::DISBURSEMENTAPPROVAL_APPROVE)) {
+            return false;
+        }
+        if (fods_is_admin()) {
+            return true;
+        }
+        $name = self::signatory($hd, $box);
+        return $name !== '' && mb_strtolower($name) === mb_strtolower(trim(fods_current_user()['full_name']));
     }
 
     // Line tables per grid key (tbl_ors_*, tbl_burs_* and tbl_disbursement_* share the suffixes)
@@ -219,7 +260,32 @@ class MyDisbursementModel extends Model
 			";
 			die();
 		}
-		
+		// Box A and Box C name who approves those steps
+		if (empty($certified_a)) {
+			echo "
+			<script>
+			toastr.error('Box A signatory is required!', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			</script>
+			";
+			die();
+		}
+		if (empty($certified_c)) {
+			echo "
+			<script>
+			toastr.error('Box C signatory is required!', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			</script>
+			";
+			die();
+		}
+
 		if (empty($budgetdtdata) && empty($budgetdtindirectdata) && empty($budgetmooedtdata) && empty($budgetmooeindirectdtdata) && empty($budgetcodtdata) && empty($budgetindirectcodtdata)) {
 			echo "
 			<script>
@@ -521,13 +587,14 @@ class MyDisbursementModel extends Model
 				die();
 			}
 
-			// Once accounting has approved it the DV is locked; a disapproved DV
-			// can be corrected and goes back for approval
-			$is_disapproved = $oldData['is_disapproved_certa'] == '1' || $oldData['is_disapproved_certb'] == '1';
+			// Once Box A has approved it the DV is locked; a disapproved DV
+			// can be corrected and goes back to Box A
+			$is_disapproved = $oldData['is_disapproved_certa'] == '1' || $oldData['is_disapproved_certb'] == '1'
+				|| $oldData['is_disapproved_certc'] == '1' || $oldData['is_disapproved_certd'] == '1';
 			if ($oldData['is_approved_certa'] == '1' && !$is_disapproved) {
 				echo "
 				<script>
-				toastr.error('This disbursement is already approved and can no longer be edited', 'Locked', {
+				toastr.error('This disbursement is already in approval and can no longer be edited', 'Locked', {
 						progressBar: true,
 						closeButton: true,
 						timeOut:2500,
@@ -544,7 +611,11 @@ class MyDisbursementModel extends Model
 						`is_approved_certa` = '0',
 						`is_disapproved_certa` = '0',
 						`is_approved_certb` = '0',
-						`is_disapproved_certb` = '0'
+						`is_disapproved_certb` = '0',
+						`is_approved_certc` = '0',
+						`is_disapproved_certc` = '0',
+						`is_approved_certd` = '0',
+						`is_disapproved_certd` = '0'
 					WHERE `recid` = ?
 				", [$recid]);
 			}
@@ -879,10 +950,12 @@ class MyDisbursementModel extends Model
 		
 	}
 	
-	//ACCOUNTING APPROVAL / DISAPPROVAL (single step; stored in the certa columns)
+	//BOX A / C / D - APPROVAL / DISAPPROVAL (the step the DV is waiting at)
 	public function disbursement_approve() { $this->disbursement_decide(true); }
 	public function disbursement_disapprove() { $this->disbursement_decide(false); }
 
+	// Box A decides first, then Box C, then Box D. A disapproval at any box
+	// sends the DV back to the preparer.
 	private function disbursement_decide($approve) {
 		$recid = $this->request->getPostGet('recid');
 		$remarks = trim((string) $this->request->getPostGet('remarks'));
@@ -892,13 +965,26 @@ class MyDisbursementModel extends Model
 
 		// Only a DV that is still waiting can be decided
 		$hd = $this->getOldData($recid);
-		if (empty($hd) || $hd['is_approved_certa'] == '1' || $hd['is_disapproved_certa'] == '1') {
+		$box = empty($hd) ? '' : self::step_of($hd);
+		if ($box === '') {
 			echo "
 			<script>
 			toastr.error('This disbursement is not waiting for approval', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2500,
+				});
+			</script>
+			";
+			exit;
+		}
+		if (!self::can_decide($hd)) {
+			echo "
+			<script>
+			toastr.error('Only the Box " . strtoupper($box) . " signatory of this DV or an administrator can decide this step', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:3000,
 				});
 			</script>
 			";
@@ -917,28 +1003,34 @@ class MyDisbursementModel extends Model
 			exit;
 		}
 
+		// $box is 'a', 'c' or 'd' from step_of(), never from the request
 		$query = $this->db->query("
 			UPDATE tbl_disbursement_hd
 			SET
 				`is_pending` = '0',
-				`is_approved_certa` = ?,
-				`is_disapproved_certa` = ?,
-				`certa_approver` = ?,
-				`certa_remarks` = ?
+				`is_approved_cert{$box}` = ?,
+				`is_disapproved_cert{$box}` = ?,
+				`cert{$box}_approver` = ?,
+				`cert{$box}_remarks` = ?
 			WHERE `recid` = ?
 		", [$approve ? 1 : 0, $approve ? 0 : 1, $approver, mb_substr($remarks, 0, 100), $recid]);
 
 		if ($query) {
-			// LOG: decision
+			// LOG: decision at this box (Box D approving is the final approval)
+			$final = $approve && $box === 'd';
 			$this->logHistory(
 				$recid,
-				$approve ? 'APPROVED' : 'DISAPPROVED',
-				$approve ? 'APPROVED' : 'DISAPPROVED',
+				($approve ? 'APPROVED' : 'DISAPPROVED') . '_BOX_' . strtoupper($box),
+				$approve ? ($final ? 'APPROVED' : 'PENDING') : 'DISAPPROVED',
 				$remarks,
-				['approver' => $approver]
+				['approver' => $approver, 'box' => strtoupper($box)]
 			);
 
-			$status = $approve ? "Disbursement approved" : "Disbursement disapproved";
+			if (!$approve) {
+				$status = "Disbursement disapproved";
+			} else {
+				$status = $final ? "Disbursement approved for payment" : "Box " . strtoupper($box) . " approved";
+			}
 			$color = $approve ? "success" : "warning";
 			echo "
 			<script>

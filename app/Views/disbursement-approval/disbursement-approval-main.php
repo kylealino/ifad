@@ -21,7 +21,7 @@ echo view('templates/myheader.php');
 .rev-table td { padding:.45rem .75rem; border-bottom:1px solid #f1f4f8; color:var(--fods-text); }
 .rev-table .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .rev-table tfoot td { font-weight:700; background:#fafbfc; border-bottom:0; }
-.rev-steps { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:.75rem; }
+.rev-steps { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:.75rem; }
 .rev-step { border:1px solid var(--fods-border); background:#fff; border-radius:12px; padding:.8rem 1rem; }
 .rev-step.is-current { border-color:var(--fods-teal); box-shadow:0 0 0 3px var(--fods-teal-soft); }
 .rev-step-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
@@ -39,7 +39,8 @@ echo view('templates/myheader.php');
 .dv-timeline .meta { font-size:.75rem; color:var(--fods-muted); }
 .dv-timeline .note { font-size:.8rem; color:var(--fods-text); margin-top:.2rem; overflow-wrap:anywhere; }
 @media (max-width: 991.98px) { .rev-totals { grid-template-columns:repeat(3, minmax(0,1fr)); } }
-@media (max-width: 575.98px) { .rev-totals { grid-template-columns:repeat(2, minmax(0,1fr)); } .rev-steps { grid-template-columns:1fr; } }
+@media (max-width: 767.98px) { .rev-steps { grid-template-columns:1fr; } }
+@media (max-width: 575.98px) { .rev-totals { grid-template-columns:repeat(2, minmax(0,1fr)); } }
 @media (min-width: 1200px) { .rev-dialog { max-width:min(1200px, calc(100vw - 4rem)); } }
 </style>
 </head>
@@ -57,7 +58,7 @@ echo view('templates/myheader.php');
                 </ol>
             </nav>
             <h1 class="fods-page-title">Disbursement Approval</h1>
-            <p class="fods-page-sub">Review disbursement vouchers, then approve or disapprove them for accounting.</p>
+            <p class="fods-page-sub">Review disbursement vouchers and approve your box: Box A, then Box C, then Box D.</p>
         </div>
         <div class="fods-page-actions d-flex">
             <select class="form-select form-select-sm fods-year" id="approvalYear" aria-label="Year"></select>
@@ -67,7 +68,7 @@ echo view('templates/myheader.php');
     <!-- Stat cards (filled by mydisbursementapproval.js for the selected year) -->
     <div class="row g-3 mb-4" id="approvalTableCards">
         <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="approvalTable" data-filter="pending">
+            <button type="button" class="fods-stat" data-table="approvalTable" data-filter="mine">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
                 <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
             </button>
@@ -95,7 +96,10 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="approvalTableFilter">
-                <button type="button" class="active" data-filter="pending">Waiting for you</button>
+                <button type="button" class="active" data-filter="mine">Waiting for you</button>
+                <button type="button" data-filter="pending_a">Box A</button>
+                <button type="button" data-filter="pending_c">Box C</button>
+                <button type="button" data-filter="pending_d">Box D</button>
                 <button type="button" data-filter="disapproved">Returned</button>
                 <button type="button" data-filter="approved">Approved</button>
                 <button type="button" data-filter="all">All</button>
@@ -114,7 +118,7 @@ echo view('templates/myheader.php');
                         <th class="text-end">Net amount</th>
                         <th>Status</th>
                         <th class="d-none d-lg-table-cell">Submitted</th>
-                        <th class="d-none d-xl-table-cell">Decided by</th>
+                        <th class="d-none d-xl-table-cell">Last decided by</th>
                         <th class="text-end"></th>
                     </tr>
                 </thead>
@@ -204,5 +208,5 @@ echo view('templates/myheader.php');
     var __approval_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __approval_perms = <?= json_encode($perms) ?>;
 </script>
-<script src="<?=base_url('assets/js/disbursement/mydisbursementapproval.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/disbursement/mydisbursementapproval.js?v=4');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

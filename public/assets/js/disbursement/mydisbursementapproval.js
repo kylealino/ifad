@@ -6,12 +6,14 @@ function __mysys_disbursement_approval_ent() {
 	const perms = window.__approval_perms || {};
 
 	let table = null;
-	let filter = 'pending';          // approvers start on what is waiting for them
+	let filter = 'mine';          // approvers start on what is waiting for them
 	let record = null;          // DV open in the review modal
 	let decision = null;        // 'approve' | 'disapprove' while confirming
 
 	const STATUS = {
-		pending: ['tone-amber', 'Pending'],
+		pending_a: ['tone-amber', 'Box A · supervisor'],
+		pending_c: ['tone-indigo', 'Box C · accounting'],
+		pending_d: ['tone-teal', 'Box D · for payment'],
 		approved: ['tone-green', 'Approved'],
 		disapproved: ['tone-red', 'Disapproved']
 	};
@@ -23,10 +25,16 @@ function __mysys_disbursement_approval_ent() {
 		{ title: 'III. Capital Outlay', grids: [['co_direct', 'Direct cost'], ['co_indirect', 'Indirect cost']] }
 	];
 
-	// The *_CERTA/B entries are from the earlier two-step flow
+	// APPROVED / DISAPPROVED and the *_CERTA/B entries are from the earlier flows
 	const HISTORY = {
 		ADDED: ['Created', '#0f6f6f'],
 		UPDATED: ['Updated', '#b45309'],
+		APPROVED_BOX_A: ['Box A approved', '#15803d'],
+		APPROVED_BOX_C: ['Box C approved', '#15803d'],
+		APPROVED_BOX_D: ['Box D approved for payment', '#15803d'],
+		DISAPPROVED_BOX_A: ['Disapproved at Box A', '#b91c1c'],
+		DISAPPROVED_BOX_C: ['Disapproved at Box C', '#b91c1c'],
+		DISAPPROVED_BOX_D: ['Disapproved at Box D', '#b91c1c'],
 		APPROVED: ['Approved', '#15803d'],
 		DISAPPROVED: ['Disapproved', '#b91c1c'],
 		APPROVED_CERTA: ['Approved', '#15803d'],
@@ -58,15 +66,23 @@ function __mysys_disbursement_approval_ent() {
 		return isNaN(dt) ? (d || '') : dt.toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 	}
 
-	// Single accounting approval (same rule as MyDisbursement::statusOf)
+	// Box A approves first, then Box C, then Box D (same rule as MyDisbursement::statusOf)
+	const BOXES = ['a', 'c', 'd'];
+	const BOX_ROLE = { a: 'Supervisor', c: 'Accounting', d: 'Approved for payment' };
+
 	function statusOf(hd) {
-		if (String(hd.is_disapproved_certa) === '1') { return 'disapproved'; }
-		if (String(hd.is_approved_certa) === '1') { return 'approved'; }
-		return 'pending';
+		if (BOXES.some(function (b) { return String(hd['is_disapproved_cert' + b]) === '1'; })) { return 'disapproved'; }
+		if (String(hd.is_approved_certd) === '1') { return 'approved'; }
+		if (String(hd.is_approved_certc) === '1') { return 'pending_d'; }
+		if (String(hd.is_approved_certa) === '1') { return 'pending_c'; }
+		return 'pending_a';
 	}
 
+	// Box a status is waiting at ('' once decided)
+	function boxOf(status) { return status.indexOf('pending_') === 0 ? status.slice(-1) : ''; }
+
 	function chip(status) {
-		var s = STATUS[status];
+		var s = STATUS[status] || STATUS.pending_a;
 		return '<span class="fods-chip ' + s[0] + '"><span class="fods-dot"></span>' + s[1] + '</span>';
 	}
 
@@ -91,17 +107,26 @@ function __mysys_disbursement_approval_ent() {
 
 	function inYear(r) { return year === 'all' || yearOf(r) === year; }
 
+	// "mine" is the steps this user can decide (their own box, or any box for
+	// an administrator); view-only users see everything still pending instead
+	function inGroup(r, key) {
+		if (key === 'all') { return true; }
+		if (key === 'mine') { return perms.approve ? !!r.mine : boxOf(r.status) !== ''; }
+		return r.status === key;
+	}
+
 	//APPROVAL - STAT CARDS: Waiting for you, Returned, Approved, Total amount
 	function renderCards() {
 		var $ = window.jQuery;
 		var list = rows.filter(inYear);
 		var amount = function (l) { return l.reduce(function (t, r) { return t + num(r.net_amount); }, 0); };
-		var card = function (key, status, label) {
-			var l = list.filter(function (r) { return r.status === status; });
+		var card = function (key, group, label) {
+			var l = list.filter(function (r) { return inGroup(r, group); });
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + moneyShort(amount(l)));
 		};
-		card('pending', 'pending', 'Waiting for you');
+		card('pending', 'mine', perms.approve ? 'Waiting for you' : 'Pending');
+		if (!perms.approve) { $('#approvalTableFilter [data-filter="mine"]').text('Pending'); }
 		card('returned', 'disapproved', 'Returned');
 		card('approved', 'approved', 'Approved');
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -130,8 +155,7 @@ function __mysys_disbursement_approval_ent() {
 		$.fn.dataTable.ext.search.push(function (settings, data, idx) {
 			if (settings.nTable.id !== 'approvalTable') { return true; }
 			var row = settings.aoData[idx]._aData;
-			if (!inYear(row)) { return false; }
-			return filter === 'all' || row.status === filter;
+			return inYear(row) && inGroup(row, filter);
 		});
 
 		table = $('#approvalTable').DataTable({
@@ -166,7 +190,11 @@ function __mysys_disbursement_approval_ent() {
 				},
 				{
 					data: 'status', className: 'cell-right',
-					render: function (v, type) { return type === 'display' ? chip(v) : STATUS[v][1]; }
+					render: function (v, type, r) {
+						if (type !== 'display') { return (STATUS[v] || STATUS.pending_a)[1] + ' ' + (r.waiting_on || ''); }
+						// while pending, name whose turn it is
+						return chip(v) + (boxOf(v) ? '<div class="small text-muted mt-1" style="overflow-wrap:anywhere">' + (r.waiting_on ? esc(r.waiting_on) : 'No signatory named') + '</div>' : '');
+					}
 				},
 				{
 					data: 'added_at', className: 'd-none d-lg-table-cell text-muted small',
@@ -179,7 +207,7 @@ function __mysys_disbursement_approval_ent() {
 				{
 					data: null, orderable: false, searchable: false, className: 'cell-actions text-end',
 					render: function (v, type, r) {
-						var review = r.status === 'pending' && perms.approve
+						var review = r.mine
 							? '<button type="button" class="btn btn-sm btn-fods approval-review" data-recid="' + r.recid + '"><i class="ti ti-file-search me-1"></i>Review</button>'
 							: '<button type="button" class="fods-icon-btn is-teal approval-review" data-recid="' + r.recid + '" title="View"><i class="ti ti-eye"></i></button>';
 						return '<div class="d-flex justify-content-end align-items-center gap-1">' + review
@@ -282,24 +310,26 @@ function __mysys_disbursement_approval_ent() {
 		document.getElementById('reviewItems').innerHTML = html || '<div class="text-muted small mt-3">This DV has no line items.</div>';
 	}
 
-	// The DV's signatories: Box A (supervisor) is printed on the DV only;
-	// accounting (Box C) carries the approval status
+	// The DV's three signatories, each with where its step stands
 	function renderSigners(hd, status) {
-		var state = status === 'approved' ? '<span class="fods-chip tone-green"><i class="ti ti-check"></i>Approved</span>'
-			: status === 'disapproved' ? '<span class="fods-chip tone-red"><i class="ti ti-x"></i>Disapproved</span>'
-			: '<span class="fods-chip tone-amber"><span class="fods-dot"></span>Pending</span>';
-		var decided = status !== 'pending'
-			? 'Decided by ' + esc(hd.certa_approver || '—') + (hd.certa_remarks ? ' — ' + esc(hd.certa_remarks) : '')
-			: 'Waiting for accounting';
-		var card = function (title, name, position, right, note, current) {
-			return '<div class="rev-step' + (current ? ' is-current' : '') + '">'
-				+ '<div class="rev-step-head"><span class="rev-step-box">' + title + '</span>' + right + '</div>'
-				+ '<div class="rev-step-name">' + esc(name || '—') + '</div>'
+		var current = boxOf(status);
+		document.getElementById('reviewSteps').innerHTML = BOXES.map(function (box, i) {
+			var approved = String(hd['is_approved_cert' + box]) === '1';
+			var disapproved = String(hd['is_disapproved_cert' + box]) === '1';
+			var by = hd['cert' + box + '_approver'], remarks = hd['cert' + box + '_remarks'];
+			var position = hd['position_' + box];
+			var state = approved ? '<span class="fods-chip tone-green"><i class="ti ti-check"></i>Approved</span>'
+				: disapproved ? '<span class="fods-chip tone-red"><i class="ti ti-x"></i>Disapproved</span>'
+				: box === current ? '<span class="fods-chip tone-amber"><span class="fods-dot"></span>Waiting</span>'
+				: current && i > BOXES.indexOf(current) ? '<span class="fods-chip tone-slate">After Box ' + BOXES[i - 1].toUpperCase() + '</span>'
+				: '';
+			var note = approved || disapproved ? 'By ' + esc(by || '—') + (remarks ? ' — ' + esc(remarks) : '') : '';
+			return '<div class="rev-step' + (box === current ? ' is-current' : '') + '">'
+				+ '<div class="rev-step-head"><span class="rev-step-box">Box ' + box.toUpperCase() + ' · ' + BOX_ROLE[box] + '</span>' + state + '</div>'
+				+ '<div class="rev-step-name">' + esc(hd['certified_' + box] || '—') + '</div>'
 				+ '<div class="rev-step-note">' + (position ? esc(position) : '') + (note ? (position ? ' · ' : '') + note : '') + '</div>'
 				+ '</div>';
-		};
-		document.getElementById('reviewSteps').innerHTML = card('Box A · Supervisor', hd.certified_a, hd.position_a, '', '', false)
-			+ card('Box C · Accounting', hd.certified_c, hd.position_c, state, decided, status === 'pending');
+		}).join('');
 	}
 
 	function renderHistory(hd) {
@@ -330,7 +360,8 @@ function __mysys_disbursement_approval_ent() {
 			.done(function (hd) {
 				record = hd;
 				var status = statusOf(hd);
-				var decide = status === 'pending' && !!perms.approve;
+				var box = boxOf(status);
+				var decide = box !== '' && !!hd.can_decide;
 
 				document.getElementById('reviewTitle').textContent = hd.dvno ? 'DV ' + hd.dvno : 'DV #' + hd.recid;
 				document.getElementById('reviewSub').innerHTML = esc(hd.payee_name) + ' &nbsp;' + chip(status);
@@ -338,11 +369,12 @@ function __mysys_disbursement_approval_ent() {
 				var banner = document.getElementById('reviewBanner');
 				if (status === 'approved') {
 					banner.className = 'alert mb-3 alert-success';
-					banner.innerHTML = '<b>Approved</b> by ' + esc(hd.certa_approver || '—') + (hd.certa_remarks ? ' — ' + esc(hd.certa_remarks) : '') + '.';
+					banner.innerHTML = '<b>Approved for payment</b> — ' + BOXES.map(function (b) { return 'Box ' + b.toUpperCase() + ' by ' + esc(hd['cert' + b + '_approver'] || '—'); }).join(', ') + '.';
 				} else if (status === 'disapproved') {
+					var at = BOXES.filter(function (b) { return String(hd['is_disapproved_cert' + b]) === '1'; })[0];
 					banner.className = 'alert mb-3 alert-danger';
-					banner.innerHTML = '<b>Disapproved</b> by ' + esc(hd.certa_approver || '—') + (hd.certa_remarks ? ' — ' + esc(hd.certa_remarks) : '')
-						+ '. It comes back here once the preparer corrects it.';
+					banner.innerHTML = '<b>Disapproved at Box ' + at.toUpperCase() + '</b> by ' + esc(hd['cert' + at + '_approver'] || '—') + (hd['cert' + at + '_remarks'] ? ' — ' + esc(hd['cert' + at + '_remarks']) : '')
+						+ '. It comes back to Box A once the preparer corrects it.';
 				} else {
 					banner.className = 'alert d-none mb-3';
 					banner.innerHTML = '';
@@ -357,12 +389,19 @@ function __mysys_disbursement_approval_ent() {
 				var remarks = document.getElementById('reviewRemarks');
 				remarks.value = '';
 				remarks.classList.remove('is-invalid');
-				document.getElementById('reviewDecisionTitle').textContent = 'Your decision · Accounting';
+				document.getElementById('reviewDecisionTitle').textContent = 'Your decision · Box ' + box.toUpperCase();
 				showActions(decide);
 
-				document.getElementById('reviewFooterNote').textContent = status !== 'pending'
-					? 'Already decided — view only.'
-					: (perms.approve ? 'Check the voucher, then approve or disapprove.' : 'View only — you don\'t have permission to approve.');
+				// Each box is decided by the signatory named on it (or an administrator)
+				var signer = box ? hd['certified_' + box] : '';
+				var note = 'Already decided — view only.';
+				if (decide) { note = 'Check the voucher, then approve or disapprove Box ' + box.toUpperCase() + '.'; }
+				else if (box && !perms.approve) { note = 'View only — you don\'t have permission to approve.'; }
+				else if (box) {
+					note = signer ? 'Waiting for ' + signer + ' (Box ' + box.toUpperCase() + '). Only that signatory or an administrator can decide this step.'
+						: 'No Box ' + box.toUpperCase() + ' signatory is named on this DV — only an administrator can decide this step.';
+				}
+				document.getElementById('reviewFooterNote').textContent = note;
 
 				bootstrap.Modal.getOrCreateInstance(document.getElementById('reviewModal')).show();
 			})
@@ -371,7 +410,7 @@ function __mysys_disbursement_approval_ent() {
 			});
 	};
 
-	//APPROVAL - APPROVE / DISAPPROVE (two-step: choose, then confirm)
+	//APPROVAL - APPROVE / DISAPPROVE THE CURRENT BOX (two-step: choose, then confirm)
 	this.__approval_decision = function () {
 		var $ = window.jQuery;
 		var remarks = document.getElementById('reviewRemarks');
@@ -385,7 +424,8 @@ function __mysys_disbursement_approval_ent() {
 			}
 			decision = kind;
 			var approve = kind === 'approve';
-			document.getElementById('reviewConfirmText').textContent = approve ? 'Approve this DV?' : 'Disapprove this DV?';
+			var box = boxOf(statusOf(record)).toUpperCase();
+			document.getElementById('reviewConfirmText').textContent = (approve ? 'Approve Box ' : 'Disapprove at Box ') + box + ' of this DV?';
 			var yes = document.getElementById('reviewConfirmYes');
 			yes.className = 'btn btn-sm px-4 ' + (approve ? 'btn-success' : 'btn-danger');
 			yes.textContent = approve ? 'Yes, approve' : 'Yes, disapprove';

@@ -101,6 +101,18 @@ if (!function_exists('fods_current_user')) {
     }
 }
 
+if (!function_exists('fods_is_admin')) {
+    /**
+     * True for users on the Administrator role (the role the migrations
+     * grant every code to). Used where a step is otherwise tied to a named
+     * signatory, e.g. Disbursement Approval.
+     */
+    function fods_is_admin(): bool
+    {
+        return fods_current_user()['role_name'] === 'Administrator';
+    }
+}
+
 if (!function_exists('fods_initials')) {
     /**
      * Avatar initials: drops anything after a comma (", CPA") and tokens

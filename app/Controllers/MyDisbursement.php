@@ -55,7 +55,7 @@ class MyDisbursement extends BaseController
                 break;
 
             // Approval now happens in Disbursement Approval (MyDisbursementApproval);
-            // these stay so older links keep working
+            // these stay so older links keep working (they decide the current box)
             case 'MAIN-APPROVE':
             case 'MAIN-APPROVE-A':
                 $this->mydisbursement->disbursement_approve();
@@ -93,6 +93,10 @@ class MyDisbursement extends BaseController
             a.net_amount,
             a.is_approved_certa,
             a.is_disapproved_certa,
+            a.is_approved_certc,
+            a.is_disapproved_certc,
+            a.is_approved_certd,
+            a.is_disapproved_certd,
             a.added_at,
             a.added_by,
             COALESCE(ps.amount,0)
@@ -111,10 +115,10 @@ class MyDisbursement extends BaseController
         ORDER BY a.recid DESC
         ")->getResultArray();
 
-        // One status per DV: pending, approved or disapproved (accounting approval)
+        // One status per DV (Box A approves first, then Box C, then Box D)
         foreach ($disbursementhddata as &$row) {
             $row['status'] = self::statusOf($row);
-            unset($row['is_approved_certa'], $row['is_disapproved_certa']);
+            unset($row['is_approved_certa'], $row['is_disapproved_certa'], $row['is_approved_certc'], $row['is_disapproved_certc'], $row['is_approved_certd'], $row['is_disapproved_certd']);
         }
         unset($row);
 
@@ -172,15 +176,23 @@ class MyDisbursement extends BaseController
         ]);
     }
 
-    // Single accounting approval, kept in the certa columns
+    // pending_a: waiting for the supervisor (Box A)
+    // pending_c: Box A approved, waiting for accounting (Box C)
+    // pending_d: Box C approved, waiting for approval for payment (Box D)
     public static function statusOf(array $hd) {
-        if ($hd['is_disapproved_certa'] == '1') {
+        if ($hd['is_disapproved_certa'] == '1' || $hd['is_disapproved_certc'] == '1' || $hd['is_disapproved_certd'] == '1') {
             return 'disapproved';
         }
-        if ($hd['is_approved_certa'] == '1') {
+        if ($hd['is_approved_certd'] == '1') {
             return 'approved';
         }
-        return 'pending';
+        if ($hd['is_approved_certc'] == '1') {
+            return 'pending_d';
+        }
+        if ($hd['is_approved_certa'] == '1') {
+            return 'pending_c';
+        }
+        return 'pending_a';
     }
 
 
