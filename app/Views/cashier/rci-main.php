@@ -1,478 +1,231 @@
 <?php
-$this->request = \Config\Services::request();
-$this->db = \Config\Database::connect();
-$action = $this->request->getPostGet('action');
-$recid = $this->request->getPostGet('recid');
-
-$mds_branch = '';
-$mds_accountno = '';
-$reportno = '';
-$funding_source = '';
-
-
-if((!empty($recid) || !is_null($recid)) ) { 
-    $query = $this->db->query("
-        SELECT
-            `mds_branch`,
-            `mds_accountno`,
-            `fund_cluster_code`,
-            `reportno`
-        FROM
-            `tbl_rci_hd`
-        WHERE 
-            `recid` = '$recid'
-        "
-    );
-
-    $data = $query->getRowArray();
-    $mds_branch        = $data['mds_branch'];
-    $mds_accountno        = $data['mds_accountno'];
-    $fund_cluster_code     = $data['fund_cluster_code'];
-    $reportno     = $data['reportno'];
-}
-
 echo view('templates/myheader.php');
 ?>
+<head>
 <style>
-    #dv_line_items input,
-    #dv_line_items textarea {
-        width: 100%;
-        box-sizing: border-box;
-    }
+/* Report lines grid */
+.rc-grid-card { border:1px solid var(--fods-border); background:#fff; border-radius:12px; overflow:hidden; }
+.rc-grid-head { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; justify-content:space-between; padding:.65rem .9rem; border-bottom:1px solid var(--fods-border); background:#fafbfc; }
+.rc-grid-title { font-weight:600; color:var(--fods-text); }
+.rc-grid-sub { font-size:.75rem; color:var(--fods-muted); }
+.rc-grid-wrap { overflow-x:auto; scrollbar-width:thin; }
+.rc-grid { width:max-content; min-width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:.85rem; }
+.rc-grid col.c-no { width:44px; }
+.rc-grid col.c-ld { width:190px; }
+.rc-grid col.c-date { width:150px; }
+.rc-grid col.c-ck { width:130px; }
+.rc-grid col.c-dv { width:150px; }
+.rc-grid col.c-serial { width:200px; }
+.rc-grid col.c-rc { width:220px; }
+.rc-grid col.c-payee { width:240px; }
+.rc-grid col.c-part { width:280px; }
+.rc-grid col.c-amt { width:130px; }
+.rc-grid col.c-act { width:52px; }
+.rc-grid th { background:#f8fafc; color:var(--fods-muted); font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:.6rem .5rem; border-bottom:1px solid var(--fods-border); white-space:nowrap; text-align:left; }
+.rc-grid th.num, .rc-grid td.num { text-align:right; }
+.rc-grid td { padding:.4rem .5rem; border-bottom:1px solid #f1f4f8; vertical-align:middle; background:#fff; }
+.rc-grid input { width:100%; height:34px; border:1px solid var(--fods-border); background:#fff; padding:.3rem .55rem; font-size:.84rem; color:var(--fods-text); border-radius:8px; text-overflow:ellipsis; }
+.rc-grid input:focus { outline:none; border-color:var(--fods-teal); box-shadow:0 0 0 3px var(--fods-teal-soft); }
+.rc-grid input[type=number] { text-align:right; font-variant-numeric:tabular-nums; }
+.rc-grid input.g-net { font-weight:600; }
+.rc-grid input:disabled { color:#475569; background:#f1f4f8; border-color:transparent; }
+.rc-grid tfoot td { font-weight:600; background:#fafbfc; border-top:1px solid var(--fods-border); border-bottom:0; padding:.6rem .5rem; font-variant-numeric:tabular-nums; }
+.rc-grid .sticky-l { position:sticky; left:0; z-index:1; }
+.rc-grid .sticky-r { position:sticky; right:0; z-index:1; box-shadow:-8px 0 8px -8px rgba(15,23,42,.18); }
+.rc-grid th.sticky-l, .rc-grid th.sticky-r { background:#f8fafc; z-index:2; }
+.rc-grid tfoot .sticky-l, .rc-grid tfoot .sticky-r { background:#fafbfc; }
+.rc-empty { padding:1.25rem; text-align:center; color:var(--fods-muted); font-size:.82rem; }
+.rc-totals { display:flex; flex-wrap:wrap; gap:1.25rem; align-items:center; font-size:.82rem; color:var(--fods-muted); }
+.rc-totals b { color:var(--fods-text); font-size:.95rem; font-variant-numeric:tabular-nums; }
+.fods-stat.is-static { cursor:default; }
+@media (min-width: 1200px) { .rc-dialog { max-width: min(1320px, calc(100vw - 4rem)); } }
+.ui-autocomplete { z-index:2000 !important; max-height:280px; overflow-y:auto; overflow-x:hidden; font-size:.82rem; }
+.ui-autocomplete .ors-ac-sub { display:block; font-size:.72rem; color:var(--fods-muted); }
+@media (max-width: 767.98px) { .rc-totals { gap:.5rem 1rem; width:100%; } }
 </style>
+</head>
 <div class="container-fluid">
-    <div class="row me-myrciburs-appr-outp-msg mx-0">
-    </div>
-    
     <input type="hidden" id="__siteurl" data-mesiteurl="<?=site_url();?>" />
-    <div class="row mb-2 mt-0">
-        <h4 class="fw-semibold mb-8">Reports of Checks Issued</h4>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a class="text-muted text-decoration-none" href="<?=site_url();?>"><i class="ti ti-home fs-5"></i></a>
-            </li>
-            <li class="breadcrumb-item" aria-current="page">Cashier</li>
-            <li class="breadcrumb-item" aria-current="page"><span class="form-label fw-bold">RCI</span></li>
-            </ol>
-        </nav>
+    <div class="row me-outp-msg mx-0"></div>
+
+    <div class="fods-page-head">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="#">Cashier</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">RCI</li>
+                </ol>
+            </nav>
+            <h1 class="fods-page-title">Report of Checks Issued</h1>
+            <p class="fods-page-sub">Report the checks and ADAs issued — pick the LDDAP-ADAs and their DVs fill in.</p>
+        </div>
+        <div class="fods-page-actions d-flex">
+            <select class="form-select form-select-sm fods-year" id="rcYear" aria-label="Year"></select>
+            <?php if ($perms['add']): ?>
+                <button type="button" class="btn btn-fods btn-sm px-3 py-2" id="rcTableAdd"><i class="ti ti-plus me-1"></i> New RCI</button>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <div class="card rounded">
-        <div class="row myrci-outp-msg mx-0">
-
-        </div>
-        <div class="card-header   bg-info p-1">
-            <div class="row d-flex align-items-center">
-                <div class="col-sm-6 d-flex align-items-center text-start">
-                    <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                        <i class="ti ti-pencil fs-5 me-1"></i>
-                        <span class="pt-1">Entry</span>
-                    </h6>
-                </div>
-                <div class="col-sm-6 text-end">
-                </div>
+    <!-- Stat cards (filled by myrci.js for the selected year) -->
+    <div class="row g-3 mb-4" id="rcTableCards">
+        <div class="col-6 col-xl-3">
+            <div class="fods-stat is-static">
+                <div class="fods-stat-icon tone-indigo"><i class="ti ti-report"></i></div>
+                <div><div class="fods-stat-value" data-card-value="reports">0</div><div class="fods-stat-label" data-card-label="reports">Reports</div></div>
             </div>
-        </div>						
-        <div class="card-body p-0 px-4 py-2 my-2">
-            <form action="<?=site_url();?>myrci?meaction=MAIN-SAVE" method="post" class="myrci-validation">
-                <input type="hidden" class="form-control form-control-sm" id="recid" name="recid" value="<?=$recid;?>"/>
-                <div class="row">
-                    <div class="col-sm-6">
-                        <div class="row">
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span class="fw-bold">BRANCH:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="text" id="mds_branch" name="mds_branch" value="<?= !empty($recid) ? $mds_branch : 'Land Bank of the Philippines - DOST Branch';?>" class="form-control form-control-sm"/>
-                                </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span class="fw-bold">ACCOUNT NO.:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="text" id="mds_accountno" name="mds_accountno" value="<?= !empty($recid) ? $mds_accountno : '2182-9001-36';?>" class="form-control form-control-sm"/>
-                                </div>
-                            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="fods-stat is-static">
+                <div class="fods-stat-icon tone-amber"><i class="ti ti-building-bank"></i></div>
+                <div><div class="fods-stat-value" data-card-value="lddapadas">0</div><div class="fods-stat-label" data-card-label="lddapadas">LDDAP-ADAs covered</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="fods-stat is-static">
+                <div class="fods-stat-icon tone-green"><i class="ti ti-file-dollar"></i></div>
+                <div><div class="fods-stat-value" data-card-value="dvs">0</div><div class="fods-stat-label" data-card-label="dvs">DVs paid</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="fods-stat is-static">
+                <div class="fods-stat-icon tone-teal"><i class="ti ti-cash"></i></div>
+                <div><div class="fods-stat-value" data-card-value="total">₱0.00</div><div class="fods-stat-label" data-card-label="total">Total amount</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fods-card">
+        <div class="fods-card-head">
+            <div class="fw-semibold text-dark">Reports</div>
+            <div class="fods-search">
+                <i class="ti ti-search"></i>
+                <input type="search" class="form-control form-control-sm" id="rcTableSearch" placeholder="Search report no., LDDAP-ADA no....">
+            </div>
+        </div>
+        <div class="fods-card-body fods-dt">
+            <table id="rcTable" class="table fods-table fods-table-stack w-100">
+                <thead>
+                    <tr>
+                        <th>Report</th>
+                        <th class="d-none d-lg-table-cell">Account</th>
+                        <th class="d-none d-md-table-cell">DVs</th>
+                        <th class="text-end">Net amount</th>
+                        <th class="d-none d-xl-table-cell">Encoded</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ============================= EDITOR ============================= -->
+<div class="modal fade fods-modal" id="rcModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down rc-dialog">
+        <div class="modal-content">
+            <form id="rcForm" novalidate>
+                <div class="modal-header border-bottom">
+                    <div class="d-flex align-items-center" style="min-width:0">
+                        <div class="fods-modal-icon tone-teal"><i class="ti ti-report"></i></div>
+                        <div style="min-width:0">
+                            <h5 class="modal-title text-truncate" id="rcModalTitle">New RCI</h5>
+                            <div class="fods-modal-sub" id="rcModalSub">Fill in the report details, then add the LDDAP-ADAs.</div>
                         </div>
                     </div>
-                    <div class="col-sm-6">
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span>Fund Cluster:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <select name="" id="fund_cluster_code" class="form-select form-select-sm">
-                                <?php if(!empty($recid)):?>
-                                    <option value="<?=$fund_cluster_code;?>"><?=$fund_cluster_code;?></option>
-                                <?php else:?>
-                                    <option value="">Choose...</option>
-                                <?php endif;?>
-                                    <option value="01">01</option>
-                                    <option value="07">07</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">Report No.:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="text" id="reportno" name="reportno" value="<?=$reportno;?>" class="form-control form-control-sm"/>
-                            </div>
-                        </div>
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="rcPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
-                <hr>
 
-                <div class="col-sm-12">
-                    <div class="row mb-2">
-                        <div class="table-responsive pe-2 ps-0">
-                            <div class="col-md-12 mb-2">
-                                <table id="rci_line_items" class="table-sm table-striped rcidata-list">
-                                    <thead>
-                                        <th class="text-center">
-                                            <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_trxrciitem_add" href="javascript:__mysys_rci_ent.my_add_rci_line();"><i class="ti ti-new-section"></i></a>
-                                        </th>
-                                        <th class="text-center align-middle">LDDAP-ADA #</th>
-                                        <th class="text-center align-middle">Check Date</th>
-                                        <th class="text-center align-middle">Check No.</th>
-                                        <th class="text-center align-middle">DV #</th>
-                                        <th class="text-center align-middle">ORS/BURS #</th>
-                                        <th class="text-center align-middle">RESPONSIBILITY CENTER CODE</th>
-                                        <th class="text-center align-middle">PAYEE</th>
-                                        <th class="text-center align-middle">NATURE OF PAYMENT</th>
-                                        <th class="text-center align-middle">GROSS AMOUNT</th>
-                                        <th class="text-center align-middle">PHILHEALTH AMOUNT</th>
-                                        <th class="text-center align-middle">TAX AMOUNT</th>
-                                        <th class="text-center align-middle">NET AMOUNT</th>
-                                    </thead>
-                                    <tbody>
-                                        <tr style="display:none;">
-                                            <td class="text-center align-middle">
-                                                <div class="d-inline-flex gap-1 justify-content-center">
-                                                    <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                    href="javascript:void(0)"
-                                                    onclick="$(this).closest('tr').remove();">
-                                                        <i class="ti ti-trash"></i>
-                                                    </a>
-                                                    <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                    href="javascript:void(0)"
-                                                    title="Add rows above"
-                                                    onclick="__mysys_rci_ent.my_add_rci_line_above(this);">
-                                                        <i class="ti ti-plus"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text"  value="" name="lddapadano" class="lddapadano text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="date"  value="" name="lddapada_date" class="lddapada_date text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text"  value="" name="ckno" class="ckno text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text"  value="" name="dvno" class="dvno text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text" value="" name="serialno" class="serialno text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text" value="" name="responsibility_code" class="responsibility_code text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text" value="" name="payee_name" class="payee_name text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text" value="" name="particulars" class="particulars text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="number" value="" step="any"  name="gross_amount" class="gross_amount text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="number"  value="" step="any"  name="philhealth_amount" data-dtid=""  class="philhealth_amount text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="number"  value="" step="any"  name="tax_amount" data-dtid=""  class="tax_amount text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="number"  value="" step="any" name="net_amount" data-dtid="" class="net_amount text-center"/>
-                                            </td>
-                                        </tr>
-                                        <?php if(!empty($recid)):
-                                                $query = $this->db->query("
-                                                SELECT
-                                                    `recid`,
-                                                    `hd_rid`,
-                                                    `lddapadano`,
-                                                    `lddapada_date`,
-                                                    `ckno`,
-                                                    `dvno`,
-                                                    `serialno`,
-                                                    `responsibility_code`,
-                                                    `payee_name`,
-                                                    `particulars`,
-                                                    `gross_amount`,
-                                                    `philhealth_amount`,
-                                                    `tax_amount`,
-                                                    `net_amount`
-                                                FROM
-                                                    `tbl_rci_dt`
-                                                WHERE
-                                                    `hd_rid` = '$recid'
-                                                ");
-                                                $result = $query->getResultArray();
-                                                foreach ($result as $data):
-                                                    $dt_id = $data['recid'];
-                                                    $lddapadano = $data['lddapadano'];
-                                                    $lddapada_date = $data['lddapada_date'];
-                                                    $ckno = $data['ckno'];
-                                                    $dvno = $data['dvno'];
-                                                    $serialno = $data['serialno'];
-                                                    $responsibility_code = $data['responsibility_code'];
-                                                    $payee_name = $data['payee_name'];
-                                                    $particulars = $data['particulars'];
-                                                    $gross_amount = $data['gross_amount'];
-                                                    $philhealth_amount = $data['philhealth_amount'];
-                                                    $tax_amount = $data['tax_amount'];
-                                                    $net_amount = $data['net_amount'];
-                                            ?>
-                                            <tr>
-                                                <td class="text-center align-middle">
-                                                    <div class="d-inline-flex gap-1 justify-content-center">
-                                                        <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                        href="javascript:void(0)"
-                                                        onclick="$(this).closest('tr').remove();">
-                                                            <i class="ti ti-trash"></i>
-                                                        </a>
-                                                        <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                        href="javascript:void(0)"
-                                                        title="Add rows above"
-                                                        onclick="__mysys_rci_ent.my_add_rci_line_above(this);">
-                                                            <i class="ti ti-plus"></i>
-                                                        </a>
-                                                    </div>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text"  value="<?=$lddapadano;?>" name="lddapadano" class="lddapadano text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="date"  value="<?=$lddapada_date;?>" name="lddapada_date" class="lddapada_date text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text"  value="<?=$ckno;?>" name="ckno" class="ckno text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text"  value="<?=$dvno;?>" name="dvno" class="dvno text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text" value="<?=$serialno;?>" name="serialno" class="serialno text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text" value="<?=$responsibility_code;?>" name="responsibility_code" class="responsibility_code text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text" value="<?=$payee_name;?>" name="payee_name" class="payee_name text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text" value="<?=$particulars;?>" name="particulars" class="particulars text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="number" value="<?=$gross_amount;?>" step="any"  name="gross_amount" class="gross_amount text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="number"  value="<?=$philhealth_amount;?>" step="any"  name="philhealth_amount" data-dtid=""  class="philhealth_amount text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="number"  value="<?=$tax_amount;?>" step="any"  name="tax_amount" data-dtid=""  class="tax_amount text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="number"  value="<?=$net_amount;?>" step="any" name="net_amount" data-dtid="" class="net_amount text-center"/>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; endif;?>
-                                    </tbody>
-                                </table>
+                <div class="modal-body" style="background:var(--fods-bg);">
+                    <input type="hidden" id="recid" name="recid">
+
+                    <div class="fods-card mb-3"><div class="fods-card-body pt-3">
+                        <div class="fods-section mt-0">Report</div>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label" for="reportno">Report no.</label>
+                                <input type="text" class="form-control" id="reportno" name="reportno">
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label class="form-label" for="fund_cluster_code">Fund cluster</label>
+                                <select class="form-select" id="fund_cluster_code" name="fund_cluster_code" required></select>
+                                <div class="invalid-feedback">Required.</div>
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label" for="mds_branch">MDS-GSB branch</label>
+                                <input type="text" class="form-control" id="mds_branch" name="mds_branch" required>
+                                <div class="invalid-feedback">Required.</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="mds_accountno">MDS sub-account no.</label>
+                                <input type="text" class="form-control" id="mds_accountno" name="mds_accountno">
                             </div>
                         </div>
-                    </div>
+                    </div></div>
 
+                    <div class="rc-grid-card">
+                        <div class="rc-grid-head">
+                            <div>
+                                <div class="rc-grid-title">Checks / ADAs issued <span class="rc-grid-sub" id="rcCount"></span></div>
+                                <div class="rc-grid-sub">Picking an LDDAP-ADA adds one line per DV on it</div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 align-items-center" id="rcAddRow">
+                                <input type="text" class="form-control form-control-sm" id="ld_lookup" placeholder="Add an LDDAP-ADA…" autocomplete="off" style="min-width:260px;">
+                                <button type="button" class="btn btn-sm btn-fods-ghost" id="rcAddBlank"><i class="ti ti-plus me-1"></i>Blank line</button>
+                            </div>
+                        </div>
+                        <div class="rc-grid-wrap">
+                            <table class="rc-grid" id="rcGrid">
+                                <colgroup><col class="c-no"><col class="c-ld"><col class="c-date"><col class="c-ck"><col class="c-dv"><col class="c-serial"><col class="c-rc"><col class="c-payee"><col class="c-part"><col class="c-amt"><col class="c-amt"><col class="c-amt"><col class="c-amt"><col class="c-act"></colgroup>
+                                <thead><tr><th class="sticky-l">#</th><th>LDDAP-ADA no.</th><th>Check date</th><th>Check no.</th><th>DV no.</th><th>ORS / BURS no.</th><th>Responsibility center</th><th>Payee</th><th>Nature of payment</th><th class="num">Gross</th><th class="num">PhilHealth</th><th class="num">Tax</th><th class="num">Net amount</th><th class="sticky-r"></th></tr></thead>
+                                <tbody></tbody>
+                                <tfoot><tr><td class="sticky-l"></td><td colspan="8">Total</td><td class="num" data-sum="gross"></td><td class="num" data-sum="philhealth"></td><td class="num" data-sum="tax"></td><td class="num" data-sum="net"></td><td class="sticky-r"></td></tr></tfoot>
+                            </table>
+                        </div>
+                        <div class="rc-empty d-none" id="rcEmpty">No lines yet — add an LDDAP-ADA above.</div>
+                    </div>
                 </div>
-                <hr>
-                <div class="row mb-2">  
-                    <div class="col-sm-12 text-end">
-                        <button type="submit" id="submitBtn" class="btn bg-<?= empty($recid) ? 'success' : 'info' ?>-subtle text-<?= empty($recid) ? 'success' : 'info' ?> btn-sm"><i class="ti ti-brand-doctrine mt-1 fs-4 me-1"></i>
-                            <?= empty($recid) ? 'Generate RCI' : 'Update' ?>
-                        </button>
+
+                <div class="modal-footer justify-content-between">
+                    <div class="rc-totals">
+                        <span>DVs <b id="rcFootCount">0</b></span>
+                        <span>Gross <b id="rcFootGross">₱0.00</b></span>
+                        <span>Net <b id="rcFootNet">₱0.00</b></span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Save</button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
-
-    <div class="row mb-2">
-        <div class="col-sm-12">
-            <div class="card">
-                <div class="card-header bg-info p-1">
-                    <div class="row">
-                        <div class="col-sm-6 d-flex align-items-center text-start">
-                            <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                                <i class="ti ti-list fs-5 me-1"></i>
-                                <span class="pt-1">List</span>
-                            </h6>
-                        </div>
-                    </div>
-                </div>						
-                <div class="card-body p-0 px-4 py-2 my-2">
-                    <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th class="text-center">Action</th>
-                                <th class="text-center">Report No.</th>
-                                <th class="text-center">MDS Branch</th>
-                                <th class="text-center">MDS Account No.</th>
-                                <th class="text-center">Fund Cluster</th>
-                            </tr>
-                        </thead>
-                        <tbody class="align-middle">
-                            <?php if(!empty($rcidata)):
-                                foreach ($rcidata as $data):
-                                    $dt_recid = $data['recid'];
-                                    $mds_branch = $data['mds_branch'];
-                                    $mds_accountno = $data['mds_accountno'];
-                                    $reportno = $data['reportno'];
-                                    $fund_cluster_code = $data['fund_cluster_code'];
-
-                            ?>
-                            <tr>
-                                <td class="text-center align-middle">
-                                    <div class="d-flex justify-content-center gap-2">
-                                        <a class="text-info nav-icon-hover fs-6" 
-                                        href="myrci?meaction=MAIN&recid=<?= $dt_recid ?>" 
-                                        title="Edit Transaction">
-                                        <i class="ti ti-edit"></i>
-                                        </a>
-                                        <button class="btn btn-sm fs-6 text-warning p-0 border-0 bg-transparent" 
-                                                onclick="__mysys_rci_ent.__showPdfInModal('<?= base_url('myrci?meaction=PRINT-RCI&recid='.$dt_recid) ?>')" 
-                                                title="Print RCI">
-                                        <i class="ti ti-printer"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                                <td class="text-center"><?=$reportno;?></td>
-                                <td class="text-center"><?=$mds_branch;?></td>
-                                <td class="text-center"><?=$mds_accountno;?></td>
-                                <td class="text-center"><?=$fund_cluster_code;?></td>
-                            </tr>
-                            <?php endforeach; endif;?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
-<!-- PDF Modal -->
-<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+<!-- Print preview -->
+<div class="modal fade fods-modal" id="rcPrintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-md-down">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Printing Preview</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title">RCI — print preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <iframe id="pdfFrame" src="" style="width: 100%; height: 80vh;" frameborder="0"></iframe>
+            <div class="modal-body p-0">
+                <iframe id="rcPrintFrame" src="about:blank" style="width:100%; height:80vh; border:0;"></iframe>
             </div>
         </div>
     </div>
 </div>
 
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
-<script src="<?=base_url('assets/js/cashier/rci.js?v=1');?>"></script>
-<script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
-
-<?php
-$lddapada = [];
-
-foreach ($lddapadadata as $data) {
-
-    $lddapada[] = [
-
-        'label' => $data['lddapadano'],
-        'value' => $data['lddapadano'],
-
-        'lddapada_date'      => $data['lddapada_date'],
-        'ckno'               => $data['ckno'],
-        'dvno'               => $data['dvno'],
-        'serialno'           => $data['serialno'],
-        'responsibility_code'=> $data['responsibility_code'],
-        'payee_name'         => $data['payee_name'],
-        'particulars'        => $data['particulars'],
-        'gross_amount'       => $data['gross_amount'],
-        'philhealth_amount'   => $data['philhealth_amount'],
-        'tax_amount'         => $data['tax_amount'],
-        'net_amount'         => $data['net_amount'],
-
-    ];
-
-}
-?>
-
 <script>
-
-var lddapada = <?= json_encode($lddapada); ?>;
-
-$(document).on("focus", ".lddapadano", function () {
-
-    if (!$(this).data("ui-autocomplete")) {
-
-        $(this).autocomplete({
-
-            source: lddapada,
-
-            select: function (event, ui) {
-
-                let row = $(this).closest('tr');
-
-                $(this).val(ui.item.value);
-
-                row.find('.lddapada_date').val(ui.item.lddapada_date);
-                row.find('.ckno').val(ui.item.ckno);
-                row.find('.dvno').val(ui.item.dvno);
-                row.find('.serialno').val(ui.item.serialno);
-                row.find('.responsibility_code').val(ui.item.responsibility_code);
-                row.find('.payee_name').val(ui.item.payee_name);
-                row.find('.particulars').val(ui.item.particulars);
-                row.find('.gross_amount').val(ui.item.gross_amount);
-                row.find('.philhealth_amount').val(ui.item.philhealth_amount);
-                row.find('.tax_amount').val(ui.item.tax_amount);
-                row.find('.net_amount').val(ui.item.net_amount);
-
-                return false;
-
-            }
-
-        });
-
-    }
-
-});
-
+    var __rc_data = <?= json_encode($rcidata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __rc_lookups = <?= json_encode($lookups, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __rc_perms = <?= json_encode($perms) ?>;
+    var __rc_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script>
-    __mysys_rci_ent.__rci_saving();
-</script>
-
-<?php
-    echo view('templates/myfooter.php');
-?>
-
-
+<script src="<?=base_url('assets/js/cashier/myrci.js?v=2');?>"></script>
+<?php echo view('templates/myfooter.php'); ?>

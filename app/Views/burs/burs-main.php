@@ -1,1584 +1,389 @@
 <?php
-$this->request = \Config\Services::request();
-$this->db = \Config\Database::connect();
-$this->myburs = model('App\Models\MyBursModel');
-$action = $this->request->getPostGet('action');
-$recid = $this->request->getPostGet('recid');
-
-$burs_date = '';
-$particulars = '';
-$funding_source = '';
-$payee_name = '';
-$payee_office = '';
-$payee_address = '';
-$certified_a = '';
-$certified_b = '';
-$position_a = '';
-$position_b = '';
-$serialno = '';
-$is_pending = '';
-$is_approved_certa = '';
-$is_disapproved_certa = '';
-$is_approved_certb = '';
-$is_disapproved_certb = '';
-$certa_remarks = '';
-$certb_remarks = '';
-$MDL_jsscript = "";
-$status_color= "";
-$status_msg = "";
-$status_color_b= "";
-$status_msg_b = "";
-
-if(!empty($recid) || !is_null($recid)) { 
-    $query = $this->db->query("
-    SELECT
-        `burs_date`,
-        `particulars`,
-        `funding_source`,
-        `payee_name`,
-        `payee_office`,
-        `payee_address`,
-        `certified_a`,
-        `certified_b`,
-        `position_a`,
-        `position_b`,
-        `serialno`,
-        `is_pending`,
-        `is_approved_certa`,
-        `is_disapproved_certa`,
-        `is_approved_certb`,
-        `is_disapproved_certb`,
-        `certa_remarks`,
-        `certb_remarks`,
-        `certa_approver`,
-        `certb_approver`
-    FROM
-        `tbl_burs_hd`
-    WHERE 
-        `recid` = '$recid'"
-    );
-
-    $data = $query->getRowArray();
-    $burs_date = $data['burs_date'];
-    $particulars = $data['particulars'];
-    $funding_source = $data['funding_source'];
-    $payee_name = $data['payee_name'];
-    $payee_office = $data['payee_office'];
-    $payee_address = $data['payee_address'];
-    $certified_a = $data['certified_a'];
-    $position_a = $data['position_a'];
-    $certified_b = $data['certified_b'];
-    $position_b = $data['position_b'];
-    $serialno = $data['serialno'];
-    $is_pending = $data['is_pending'];
-    $is_approved_certa = $data['is_approved_certa'];
-    $is_disapproved_certa = $data['is_disapproved_certa'];
-    $is_approved_certb = $data['is_approved_certb'];
-    $is_disapproved_certb = $data['is_disapproved_certb'];
-    $certa_remarks = $data['certa_remarks'];
-    $certb_remarks = $data['certb_remarks'];
-    $certa_approver = $data['certa_approver'];
-    $certb_approver = $data['certb_approver'];
-
-    if ($action == 'certifya_appr_pending') {
-        $MDL_jsscript = "
-        <script>
-            __mysys_burs_ent.__approve_certa();
-            __mysys_burs_ent.__disapprove_certa();
-        </script>
-       ";	
-    }elseif ($action == 'is_disapproved_certa') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_burs_ent.__disapprove_certa();
-        </script>
-       ";	
-    }elseif ($action == 'is_approved_certa') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_burs_ent.__approve_certa();
-        </script>
-       ";	
-    }elseif ($action == 'certifyb_appr_pending') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_burs_ent.__approve_certb();
-           __mysys_burs_ent.__disapprove_certb();
-        </script>
-       ";
-    }elseif ($action == 'is_disapproved_certb') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_burs_ent.__disapprove_certb();
-        </script>
-       ";	
-    }elseif ($action == 'is_approved_certb') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_burs_ent.__approve_certb();
-        </script>
-       ";	
-    }else{
-        $MDL_jsscript = "
-
-       ";	
-    }
-
-}
-
-if ($action == 'certifya_appr_pending') {
-    $status_color = 'text-warning';
-    $status_msg = 'For Approval';
-    $status_color_b = 'text-warning';
-    $status_msg_b = 'For Approval';
-}elseif ($action == 'certifyb_appr_pending'){
-    if ($is_approved_certa == '1' && $is_disapproved_certa == '0'&& $is_approved_certb == '0' && $is_disapproved_certb == '0') {
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
-    }elseif($is_approved_certa == '1' && $is_disapproved_certa == '0'&& $is_approved_certb == '0' && $is_disapproved_certb == '1'){
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-danger';
-        $status_msg_b = 'Disapproved';
-    }else{
-        $status_color = 'text-warning';
-        $status_msg = 'For Approval';
-        $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
-    }
-
-}elseif ($action == 'transaction_viewing') {
-    if ($is_approved_certa == '1' && $is_approved_certb == '0' && $is_disapproved_certb == '0') {
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
-    }elseif ($is_approved_certa == '1' && $is_approved_certb == '1') {
-        $status_color_b = 'text-success';
-        $status_msg_b = 'Approved by ' . $certb_approver;
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-    }elseif($is_approved_certa == '1' && $is_disapproved_certb == '1'){
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-danger';
-        $status_msg_b = 'Disapproved';
-    }else{
-        $status_color = 'text-warning';
-        $status_msg = 'For Approval';
-        $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
-    }
-}else{
-    $status_color_b = 'text-info';
-    $status_msg_b = '';
-}
-
-
 echo view('templates/myheader.php');
 ?>
+<head>
+<style>
+/* Editor grids */
+.burs-grid-card { border:1px solid var(--fods-border); background:#fff; margin-bottom:1rem; border-radius:12px; overflow:hidden; }
+.burs-grid-head { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; justify-content:space-between; padding:.65rem .9rem; border-bottom:1px solid var(--fods-border); background:#fafbfc; }
+.burs-grid-title { font-weight:600; color:var(--fods-text); }
+.burs-grid-sub { font-size:.75rem; color:var(--fods-muted); }
+.burs-grid-wrap { overflow-x:auto; scrollbar-width:thin; }
+/* Fixed, roomy columns: the grid scrolls sideways instead of squeezing the fields */
+.burs-grid { width:max-content; min-width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:.85rem; }
+.burs-grid col.c-act { width:84px; }
+.burs-grid col.c-program { width:320px; }
+.burs-grid col.c-project { width:360px; }
+.burs-grid col.c-rc { width:250px; }
+.burs-grid col.c-mfo { width:180px; }
+.burs-grid col.c-sub { width:300px; }
+.burs-grid col.c-uacs { width:140px; }
+.burs-grid col.c-amt { width:170px; }
+.burs-grid th { background:#f8fafc; color:var(--fods-muted); font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:.6rem .6rem; border-bottom:1px solid var(--fods-border); white-space:nowrap; text-align:left; }
+.burs-grid th.num, .burs-grid td.num { text-align:right; }
+.burs-grid td { padding:.45rem .6rem; border-bottom:1px solid #f1f4f8; vertical-align:middle; background:#fff; }
+.burs-grid tbody tr:hover td { background:#fbfcfd; }
+.burs-grid input { width:100%; height:36px; border:1px solid var(--fods-border); background:#fff; padding:.35rem .65rem; font-size:.85rem; color:var(--fods-text); border-radius:8px; text-overflow:ellipsis; }
+.burs-grid input::placeholder { color:#a3adbb; }
+.burs-grid input:hover:not(:disabled):not([readonly]) { border-color:#c7d0db; }
+.burs-grid input:focus { outline:none; border-color:var(--fods-teal); background:#fff; box-shadow:0 0 0 3px var(--fods-teal-soft); }
+.burs-grid input[type=number] { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+.burs-grid input:disabled, .burs-grid input[readonly] { color:#475569; background:#f1f4f8; border-color:transparent; }
+.burs-grid tfoot td { font-weight:600; background:#fafbfc; border-top:1px solid var(--fods-border); border-bottom:0; padding:.6rem .6rem; font-variant-numeric:tabular-nums; }
+/* Row actions stay on the left and the amount on the right while scrolling */
+.burs-grid .sticky-l { position:sticky; left:0; z-index:1; }
+.burs-grid .sticky-r { position:sticky; right:0; z-index:1; box-shadow:-8px 0 8px -8px rgba(15,23,42,.18); }
+.burs-grid th.sticky-l, .burs-grid th.sticky-r { background:#f8fafc; z-index:2; }
+.burs-grid tfoot .sticky-l, .burs-grid tfoot .sticky-r { background:#fafbfc; }
+.burs-grid-hint { font-size:.72rem; color:var(--fods-muted); }
+.burs-row-actions { display:flex; gap:.1rem; }
+.burs-row-actions .fods-icon-btn { width:28px; height:28px; font-size:.95rem; }
+.burs-empty { padding:1.25rem; text-align:center; color:var(--fods-muted); font-size:.82rem; }
 
+/* Amount summary on the Details tab */
+.burs-sum { border:1px solid var(--fods-border); background:#fafbfc; border-radius:12px; padding:.9rem 1rem; }
+.burs-sum-row { display:flex; justify-content:space-between; gap:1rem; padding:.3rem 0; font-size:.85rem; color:var(--fods-muted); }
+.burs-sum-row b { color:var(--fods-text); font-variant-numeric:tabular-nums; }
+.burs-sum-row.net { border-top:1px solid var(--fods-border); margin-top:.35rem; padding-top:.6rem; }
+.burs-sum-row.net b { color:#15803d; font-size:1.05rem; }
+
+/* Signatory status */
+.burs-sign { border:1px solid var(--fods-border); border-radius:12px; padding:.85rem 1rem; background:#fff; height:100%; }
+.burs-sign-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; margin-bottom:.6rem; }
+.burs-sign-box { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--fods-muted); }
+.burs-sign-note { font-size:.75rem; color:var(--fods-muted); margin-top:.5rem; }
+
+/* Editor footer totals */
+.burs-totals { display:flex; flex-wrap:wrap; gap:1.25rem; align-items:center; font-size:.82rem; color:var(--fods-muted); }
+.burs-totals b { color:var(--fods-text); font-size:.95rem; font-variant-numeric:tabular-nums; }
+.burs-tab-amt { font-size:.7rem; color:var(--fods-muted); margin-left:.35rem; font-weight:500; }
+
+/* Editor dialog: a bit wider than modal-xl on big screens so the grids fit */
+@media (min-width: 1200px) {
+    .burs-dialog { max-width: min(1320px, calc(100vw - 4rem)); }
+}
+
+/* jQuery UI autocomplete above the modal */
+.ui-autocomplete { z-index:2000 !important; max-height:280px; overflow-y:auto; overflow-x:hidden; font-size:.82rem; }
+.ui-autocomplete .burs-ac-sub { display:block; font-size:.72rem; color:var(--fods-muted); }
+
+@media (max-width: 767.98px) {
+    .burs-totals { gap:.5rem 1rem; width:100%; }
+}
+</style>
+</head>
 <div class="container-fluid">
-    <div class="row me-burs-appr-outp-msg mx-0">
-    </div>
-    
     <input type="hidden" id="__siteurl" data-mesiteurl="<?=site_url();?>" />
-    <div class="row mb-2 mt-0">
-        <h4 class="fw-semibold mb-8">Budget Utilization Request And Status</h4>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a class="text-muted text-decoration-none" href="<?=site_url();?>"><i class="ti ti-home fs-5"></i></a>
-            </li>
-            <li class="breadcrumb-item" aria-current="page">Budget</li>
-            <li class="breadcrumb-item" aria-current="page"><span class="form-label fw-bold">Burs</span></li>
-            </ol>
-        </nav>
+    <div class="row me-outp-msg mx-0"></div>
+
+    <div class="fods-page-head">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="#">BURS</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">BURS Entry</li>
+                </ol>
+            </nav>
+            <h1 class="fods-page-title">Budget Utilization Request and Status</h1>
+            <p class="fods-page-sub">Record budget utilization for payees against PS, MOOE and Capital Outlay, then send them for certification.</p>
+        </div>
+        <div class="fods-page-actions d-flex">
+            <select class="form-select form-select-sm fods-year" id="bursYear" aria-label="Year"></select>
+            <?php if ($perms['add']): ?>
+                <button type="button" class="btn btn-fods btn-sm px-3 py-2" id="bursTableAdd"><i class="ti ti-plus me-1"></i> New BURS</button>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <div class="card rounded">
-        <div class="row myburs-outp-msg mx-0">
-
+    <!-- Stat cards (filled by myburs.js for the selected year) -->
+    <div class="row g-3 mb-4" id="bursTableCards">
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="bursTable" data-filter="pending">
+                <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+            </button>
         </div>
-        <div class="card-header   bg-info p-1">
-            <div class="row d-flex align-items-center">
-                <div class="col-sm-6 d-flex align-items-center text-start">
-                    <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                        <i class="ti ti-pencil fs-5 me-1"></i>
-                        <span class="pt-1">Entry</span>
-                    </h6>
-                </div>
-                <div class="col-sm-6 text-end">
-                    <?php if($action == 'certifya_appr_pending' || $action == 'certifyb_appr_pending'):?>
-                        <button type="button" id="btn_approve" name="btn_approve" class="btn_approve btn btn-sm btn-success">
-                            Approve
-                        </button>
-                        <button type="button" id="btn_disapprove" name="btn_disapprove" class="btn_disapprove btn btn-sm btn-danger">
-                            Dispprove
-                        </button>
-                    <?php endif;?>
-                </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="bursTable" data-filter="disapproved">
+                <div class="fods-stat-icon tone-red"><i class="ti ti-arrow-back-up"></i></div>
+                <div><div class="fods-stat-value" data-card-value="returned">0</div><div class="fods-stat-label" data-card-label="returned">Returned</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="bursTable" data-filter="approved">
+                <div class="fods-stat-icon tone-green"><i class="ti ti-circle-check"></i></div>
+                <div><div class="fods-stat-value" data-card-value="approved">0</div><div class="fods-stat-label" data-card-label="approved">Approved</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="bursTable" data-filter="all">
+                <div class="fods-stat-icon tone-teal"><i class="ti ti-cash"></i></div>
+                <div><div class="fods-stat-value" data-card-value="total">₱0.00</div><div class="fods-stat-label" data-card-label="total">Total amount</div></div>
+            </button>
+        </div>
+    </div>
+
+    <div class="fods-card">
+        <div class="fods-card-head">
+            <div class="fods-filter" id="bursTableFilter">
+                <button type="button" class="active" data-filter="all">All</button>
+                <button type="button" data-filter="pending">Pending</button>
+                <button type="button" data-filter="disapproved">Returned</button>
+                <button type="button" data-filter="approved">Approved</button>
             </div>
-        </div>						
-        <div class="card-body p-0 px-4 py-2 my-2">
-            <form action="<?=site_url();?>myburs?meaction=MAIN-SAVE" method="post" class="myburs-validation">
-                <input type="hidden" class="form-control form-control-sm" id="recid" name="recid" value="<?=$recid;?>"/>
+            <div class="fods-search">
+                <i class="ti ti-search"></i>
+                <input type="search" class="form-control form-control-sm" id="bursTableSearch" placeholder="Search serial no., payee, particulars...">
+            </div>
+        </div>
+        <div class="fods-card-body fods-dt">
+            <table id="bursTable" class="table fods-table fods-table-stack w-100">
+                <thead>
+                    <tr>
+                        <th>BURS</th>
+                        <th class="d-none d-md-table-cell">Payee</th>
+                        <th class="d-none d-lg-table-cell">Date</th>
+                        <th class="text-end">Amount</th>
+                        <th>Status</th>
+                        <th class="d-none d-xl-table-cell">Encoded</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+</div>
 
-                <div class="row">
-                    <div class="col-sm-6">
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span>Particulars</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <textarea name="particulars" id="particulars" placeholder="" rows="4" class="form-control form-control-sm"><?=$particulars;?></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span>Funding Source:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <select name="" id="funding_source" class="form-select form-select-sm">
-                                        <?php if(!empty($recid)):?>
-                                            <option value="<?=$funding_source;?>"><?=$funding_source;?></option>
-                                        <?php else:?>
-                                            <option value="">Choose...</option>
-                                        <?php endif;?>
-                                            <option value="101101">101101</option>
-                                            <option value="102101">102101</option>
-                                            <option value="102406">102406</option>
-                                            <option value="102407">102407</option>
-                                            <option value="104102">104102</option>
-                                            <option value="105462">105462</option>
-                                            <option value="308601">308601</option>
-                                            <option value="308602">308602</option>
-                                            <option value="308603">308603</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span>Date</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="date" name="burs_date" id="burs_date" value="<?=$burs_date;?>" class="form form-control form-control-sm">
-                                    </div>
-                                </div>
-                            </div>
+<!-- ============================= EDITOR ============================= -->
+<div class="modal fade fods-modal" id="bursModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down burs-dialog">
+        <div class="modal-content">
+            <form id="bursForm" novalidate>
+                <div class="modal-header border-bottom">
+                    <div class="d-flex align-items-center" style="min-width:0">
+                        <div class="fods-modal-icon tone-teal"><i class="ti ti-file-invoice"></i></div>
+                        <div style="min-width:0">
+                            <h5 class="modal-title text-truncate" id="bursModalTitle">New BURS</h5>
+                            <div class="fods-modal-sub" id="bursModalSub">Fill in the payee and deductions, then the line items.</div>
                         </div>
                     </div>
-                    <div class="col-sm-6">
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">Payee:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="text" id="payee_name" name="payee_name" value="<?= $payee_name; ?>" class="form-control form-control-sm payee_name" />
-                            </div>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">Office:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="text" id="payee_office" name="payee_office" value="<?= $payee_office; ?>" class="form-control form-control-sm" disabled />
-                            </div>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">Address:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="text" id="payee_address" name="payee_address" value="<?= $payee_address; ?>" class="form-control form-control-sm" disabled />
-                            </div>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">Serial No.:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="text" id="serialno" name="serialno" value="<?=$serialno;?>" class="form-control form-control-sm"/>
-                            </div>
-                        </div>
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="bursPrintBtn"><i class="ti ti-printer me-1"></i>BURS</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="bursPrintDvBtn"><i class="ti ti-printer me-1"></i>DV</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
-                <hr>
 
-                <div class="row mb-2">
-                    <div class="col-sm-12">
-                        <!-- Nav tabs -->
-                        <ul class="nav nav-pills mb-3 gap-2" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link active rounded-pill px-3 fs-3 fw-semibold" data-bs-toggle="tab" href="#ps-pill" role="tab">
-                                I. Personal Services
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link rounded-pill px-3 fs-3 fw-semibold" data-bs-toggle="tab" href="#mooe-pill" role="tab">
-                                II. Maintenance
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link rounded-pill px-3 fs-3 fw-semibold" data-bs-toggle="tab" href="#co-pill" role="tab">
-                                III. Capital Outlay
-                                </a>
-                            </li>
-                        </ul>
+                <div class="modal-body" style="background:var(--fods-bg);">
+                    <input type="hidden" id="recid" name="recid">
 
-                        <!-- Tab panes -->
-                        <div class="tab-content border">
-                            <!-- PS TAB CONTENT -->
-                            <div class="tab-pane active p-3" id="ps-pill" role="tabpanel">
-                                <div class="row">
-                                    <div class="table-responsive pe-2 ps-0">
-                                        <div class="col-md-12 mb-2">
-                                            <span class="ms-3 fw-bold">Direct Cost:</span>
-                                            <table id="budget_line_items" class="table-sm table-striped budgetdata-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_trxjournalitem_add" href="javascript:__mysys_burs_ent.my_add_budget_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="sub_object_code psuacs_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_burs_direct_ps_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="psuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
+                    <div id="bursBanner" class="alert d-none mb-3"></div>
+
+                    <ul class="nav fods-segment mb-3 flex-nowrap fods-scroll-x" role="tablist" style="max-width:100%;">
+                        <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#bursPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
+                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#bursPanePs"><i class="ti ti-users"></i>Personnel Services<span class="burs-tab-amt" data-tab-total="ps"></span></button></li>
+                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#bursPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="burs-tab-amt" data-tab-total="mooe"></span></button></li>
+                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#bursPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="burs-tab-amt" data-tab-total="co"></span></button></li>
+                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#bursPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- Details -->
+                        <div class="tab-pane fade show active" id="bursPaneDetails">
+                            <div class="row g-3">
+                                <div class="col-lg-7">
+                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
+                                        <div class="fods-section mt-0">Utilization</div>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label" for="serialno">Serial no.</label>
+                                                <input type="text" class="form-control" id="serialno" name="serialno">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label" for="burs_date">Date</label>
+                                                <input type="date" class="form-control" id="burs_date" name="burs_date">
+                                            </div>
+                                            <div class="col-md-4 col-6">
+                                                <label class="form-label" for="funding_source">Funding source</label>
+                                                <select class="form-select" id="funding_source" name="funding_source" required></select>
+                                                <div class="invalid-feedback">Required.</div>
+                                            </div>
+                                            <div class="col-md-4 col-6">
+                                                <label class="form-label" for="fund_cluster_code">Fund cluster</label>
+                                                <select class="form-select" id="fund_cluster_code" name="fund_cluster_code"></select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label" for="dvno">DV no.</label>
+                                                <input type="text" class="form-control" id="dvno" placeholder="Set by Accounting" readonly>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" for="particulars">Particulars</label>
+                                                <textarea class="form-control" id="particulars" name="particulars" rows="3" maxlength="250"></textarea>
+                                            </div>
                                         </div>
-                                        <hr>
-                                        <div class="col-sm-12">
-                                            <span class="ms-3 fw-bold">Indirect Cost:</span>
-                                            <table id="budget_indirect_line_items" class="table-sm table-striped budgetdata-indirect-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_trxjournalitem_add" href="javascript:__mysys_burs_ent.my_add_budget_indirect_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_indirect_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="psuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_burs_indirect_ps_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="psuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>              
+
+                                        <div class="fods-section">Payee</div>
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label" for="payee_name">Payee</label>
+                                                <input type="text" class="form-control" id="payee_name" name="payee_name" placeholder="Start typing to pick a payee" autocomplete="off" required>
+                                                <div class="invalid-feedback">Payee is required.</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label" for="payee_office">Office</label>
+                                                <input type="text" class="form-control" id="payee_office" name="payee_office" readonly>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label" for="payee_address">Address</label>
+                                                <input type="text" class="form-control" id="payee_address" name="payee_address" readonly>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </div></div>
+                                </div>
+
+                                <div class="col-lg-5">
+                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
+                                        <div class="fods-section mt-0">Deductions</div>
+                                        <div class="row g-3">
+                                            <div class="col-7">
+                                                <label class="form-label" for="category">Category</label>
+                                                <select class="form-select" id="category" name="category"></select>
+                                            </div>
+                                            <div class="col-5 d-flex align-items-end burs-tax d-none">
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" id="is_vatable" value="1">
+                                                    <label class="form-check-label" for="is_vatable">VATable</label>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-4 burs-tax burs-vat d-none">
+                                                <label class="form-label" for="vat_percent">VAT %</label>
+                                                <input type="number" step="0.01" class="form-control" id="vat_percent" placeholder="e.g. 12">
+                                            </div>
+                                            <div class="col-4 burs-tax burs-ewt d-none">
+                                                <label class="form-label" for="ewt_percent">EWT %</label>
+                                                <input type="number" step="0.01" class="form-control" id="ewt_percent" placeholder="1, 2, 5">
+                                            </div>
+                                            <div class="col-4 burs-tax burs-pt d-none">
+                                                <label class="form-label" for="pt_percent">PT %</label>
+                                                <input type="number" step="0.01" class="form-control" id="pt_percent" placeholder="e.g. 5">
+                                            </div>
+                                            <div class="col-7 burs-tax d-none">
+                                                <label class="form-label" for="deduction_name">Other deduction</label>
+                                                <input type="text" class="form-control" id="deduction_name" placeholder="Type of deduction">
+                                            </div>
+                                            <div class="col-5 burs-tax d-none">
+                                                <label class="form-label" for="other_deductions">Amount</label>
+                                                <input type="number" step="0.01" class="form-control" id="other_deductions">
+                                            </div>
+
+                                            <div class="col-12 burs-income d-none">
+                                                <label class="form-label" for="income_tax">Income tax</label>
+                                                <input type="number" step="0.01" class="form-control" id="income_tax">
+                                            </div>
+
+                                            <div class="col-6 burs-payroll d-none"><label class="form-label" for="sss">SSS</label><input type="number" step="0.01" class="form-control" id="sss"></div>
+                                            <div class="col-6 burs-payroll d-none"><label class="form-label" for="hdmf">HDMF</label><input type="number" step="0.01" class="form-control" id="hdmf"></div>
+                                            <div class="col-6 burs-payroll d-none"><label class="form-label" for="pagibig_mp2">Pag-IBIG MP2</label><input type="number" step="0.01" class="form-control" id="pagibig_mp2"></div>
+                                            <div class="col-6 burs-payroll d-none"><label class="form-label" for="pagibig_loan">Pag-IBIG loan</label><input type="number" step="0.01" class="form-control" id="pagibig_loan"></div>
+                                            <div class="col-6 burs-payroll d-none"><label class="form-label" for="hmo">HMO</label><input type="number" step="0.01" class="form-control" id="hmo"></div>
+                                            <div class="col-6 burs-payroll d-none"><label class="form-label" for="wtax">WTAX</label><input type="number" step="0.01" class="form-control" id="wtax"></div>
+
+                                            <div class="col-12 burs-none"><div class="form-text mt-0">Pick a category to compute taxes and deductions.</div></div>
+                                        </div>
+
+                                        <div class="burs-sum mt-3">
+                                            <div class="burs-sum-row"><span>Gross amount</span><b id="bursGross">₱0.00</b></div>
+                                            <div class="burs-sum-row"><span>Total deductions</span><b class="text-danger" id="bursDeduction">₱0.00</b></div>
+                                            <div class="burs-sum-row net"><span>Net amount payable</span><b id="bursNet">₱0.00</b></div>
+                                        </div>
+                                        <input type="hidden" id="gross_amount">
+                                        <input type="hidden" id="total_deduction">
+                                        <input type="hidden" id="net_amount">
+                                    </div></div>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- MOOE TAB CONTENT -->
-                            <div class="tab-pane p-3" id="mooe-pill" role="tabpanel">
-                                <div class="row">
-                                    <div class="table-responsive pe-2 ps-0">
-                                        <div class="col-md-12 mb-2">
-                                            <span class="ms-3 fw-bold">Direct Cost:</span>
-                                            <table id="budget_mooe_line_items" class="table-sm table-striped budgetmooedata-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_trxjournalitem_add" href="javascript:__mysys_burs_ent.my_add_budget_mooe_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_mooe_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="mooeuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_burs_direct_mooe_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_mooe_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                       <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="mooeuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div class="col-sm-12">
-                                            <span class="ms-3 fw-bold">Indirect Cost:</span>
-                                            <table id="budget_mooe_indirect_line_items" class="table-sm table-striped budgetmooedata-indirect-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_trxjournalitem_add" href="javascript:__mysys_burs_ent.my_add_budget_indirect_mooe_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_indirect_mooe_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="mooeuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_burs_indirect_mooe_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_indirect_mooe_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="mooeuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
-                                        </div>
+                        <!-- Line items -->
+                        <div class="tab-pane fade" id="bursPanePs">
+                            <div class="burs-grid-card" data-grid="ps_direct"></div>
+                            <div class="burs-grid-card" data-grid="ps_indirect"></div>
+                        </div>
+                        <div class="tab-pane fade" id="bursPaneMooe">
+                            <div class="burs-grid-card" data-grid="mooe_direct"></div>
+                            <div class="burs-grid-card" data-grid="mooe_indirect"></div>
+                        </div>
+                        <div class="tab-pane fade" id="bursPaneCo">
+                            <div class="burs-grid-card" data-grid="co_direct"></div>
+                            <div class="burs-grid-card" data-grid="co_indirect"></div>
+                        </div>
+
+                        <!-- Certification -->
+                        <div class="tab-pane fade" id="bursPaneSign">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="burs-sign">
+                                        <div class="burs-sign-head"><span class="burs-sign-box">Box A · Requesting office</span><span id="bursSignStatusA"></span></div>
+                                        <label class="form-label" for="certified_a">Certified by</label>
+                                        <select class="form-select" id="certified_a" name="certified_a"></select>
+                                        <label class="form-label mt-2" for="position_a">Position</label>
+                                        <input type="text" class="form-control" id="position_a" name="position_a" readonly>
+                                        <div class="burs-sign-note" id="bursSignNoteA"></div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <!-- CO TAB CONTENT -->
-                            <div class="tab-pane p-3" id="co-pill" role="tabpanel">
-                                <div class="row">
-                                    <div class="table-responsive pe-2 ps-0">
-                                        <div class="col-md-12 mb-2">
-                                            <span class="ms-3 fw-bold">Direct Cost:</span>
-                                            <table id="budget_co_line_items" class="table-sm table-striped budgetcodata-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_budgetcoitem_add" disabled href="javascript:__mysys_burs_ent.my_add_budget_co_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_co_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="couacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_burs_direct_co_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_co_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="couacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div class="col-sm-12">
-                                            <span class="ms-3 fw-bold">Indirect Cost:</span>
-                                            <table id="budget_indirect_co_line_items" class="table-sm table-striped budgetcodata-indirect-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_budgetcoitem_add" disabled href="javascript:__mysys_burs_ent.my_add_budget_indirect_co_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_indirect_co_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="couacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_burs_indirect_co_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_burs_ent.my_add_budget_indirect_co_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="couacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                <div class="col-md-6">
+                                    <div class="burs-sign">
+                                        <div class="burs-sign-head"><span class="burs-sign-box">Box B · Budget</span><span id="bursSignStatusB"></span></div>
+                                        <label class="form-label" for="certified_b">Certified by</label>
+                                        <select class="form-select" id="certified_b" name="certified_b"></select>
+                                        <label class="form-label mt-2" for="position_b">Position</label>
+                                        <input type="text" class="form-control" id="position_b" name="position_b" readonly>
+                                        <div class="burs-sign-note" id="bursSignNoteB"></div>
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <hr class="fw-bolder">
-
-                <div class="row">
-                    <div class="col-sm-6">
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Certified A:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <?php if(!empty($recid)):?>
-                                            <select name="certified_a" id="certified_a" class="form-control select2 form-select-sm show-tick">
-                                                <option selected value="<?=$certified_a;?>"><?=$certified_a;?></option>
-                                                <?php foreach($certifyadata as $data): ?>
-                                                    <option 
-                                                        value="<?= $data['full_name'] ?>"
-                                                        data-position="<?= $data['position'] ?>"
-                                                    >
-                                                        <?= $data['full_name'] ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        <?php else:?>
-                                            <select name="certified_a" id="certified_a" class="form-control select2 form-select-sm show-tick">
-                                                <option selected value="">Choose...</option>
-                                                <?php foreach($certifyadata as $data): ?>
-                                                    <option 
-                                                        value="<?= $data['full_name'] ?>"
-                                                        data-position="<?= $data['position'] ?>"
-                                                    >
-                                                        <?= $data['full_name'] ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        <?php endif;?>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Position:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="text" id="position_a" name="position_a" value="<?=$position_a;?>" class="form-control form-control-sm" disabled/>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <?php if(!empty($action)):?>
-                                        <div class="col-sm-4">
-                                            <span class="fw-bold">Status:</span>
-                                        </div>
-                                        <div class="col-sm-8 <?=$status_color;?> fs-3 fw-bold">
-                                            <span><i class="ti ti-flag"></i> <?=$status_msg;?></span>
-                                        </div>
-                                    <?php endif;?>
-                                </div>
-                            </div>
-                        </div>
+                <div class="modal-footer justify-content-between">
+                    <div class="burs-totals">
+                        <span>Gross <b id="bursFootGross">₱0.00</b></span>
+                        <span>Deductions <b id="bursFootDeduction">₱0.00</b></span>
+                        <span>Net <b id="bursFootNet">₱0.00</b></span>
                     </div>
-                    <div class="col-sm-6">
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">Certified B:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <?php if(!empty($recid)):?>
-                                    <select name="certified_b" id="certified_b" class="form-control select2 form-select-sm show-tick">
-                                        <option selected value="<?=$certified_b;?>"><?=$certified_b;?></option>
-                                        <?php foreach($certifybdata as $data): ?>
-                                            <option 
-                                                value="<?= $data['full_name'] ?>"
-                                                data-position="<?= $data['position'] ?>"
-                                            >
-                                                <?= $data['full_name'] ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                <?php else:?>
-                                    <select name="certified_b" id="certified_b" class="form-control select2 form-select-sm show-tick">
-                                        <option selected value="">Choose...</option>
-                                        <?php foreach($certifybdata as $data): ?>
-                                            <option 
-                                                value="<?= $data['full_name'] ?>"
-                                                data-position="<?= $data['position'] ?>"
-                                            >
-                                                <?= $data['full_name'] ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                <?php endif;?>
-                            </div>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Position:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="text" id="position_b" name="position_b" value="<?=$position_b;?>" class="form-control form-control-sm" disabled/>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-sm-12">
-                            <div class="row mb-2">
-                                <?php if(!empty($action)):?>
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Status:</span>
-                                    </div>
-                                    <div class="col-sm-8 <?=$status_color_b;?> fs-3 fw-bold">
-                                        <span><i class="ti ti-flag"></i> <?=$status_msg_b;?></span>
-                                    </div>
-                                <?php endif;?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-
-                <div class="row mb-2">  
-                    <div class="col-sm-12 text-end">
-                        <button type="submit" id="submitBtn" class="btn bg-<?= empty($recid) ? 'success' : 'info' ?>-subtle text-<?= empty($recid) ? 'success' : 'info' ?> btn-sm"><i class="ti ti-brand-doctrine mt-1 fs-4 me-1"></i>
-                            <?= empty($recid) ? 'Save' : 'Update' ?>
-                        </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Save</button>
                     </div>
                 </div>
             </form>
-
-
-        </div>
-    </div>
-
-    <div class="row mb-2">
-        <div class="col-sm-12">
-            <div class="card">
-                <div class="card-header bg-info p-1">
-                    <div class="row">
-                        <div class="col-sm-6 d-flex align-items-center text-start">
-                            <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                                <i class="ti ti-list fs-5 me-1"></i>
-                                <span class="pt-1">List</span>
-                            </h6>
-                        </div>
-                    </div>
-                </div>						
-                <div class="card-body p-0 px-4 py-2 my-2">
-                    <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Action</th>
-                                <th>Particulars</th>
-                                <th>Payee</th>
-                                <th>Total Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody class="align-middle">
-                            <?php if(!empty($burshddata)):
-                                foreach ($burshddata as $data):
-                                    $dt_recid = $data['recid'];
-                                    $particulars = $data['particulars'];
-                                    $payee_name = $data['payee_name'];
-                                    $total_amount = $data['amount'];
-                            ?>
-                            <tr>
-                                <td class="text-center align-middle">
-                                    <div class="d-flex justify-content-center gap-2">
-                                        <a class="text-info nav-icon-hover fs-6" 
-                                        href="myburs?meaction=MAIN&recid=<?= $dt_recid ?>" 
-                                        title="Edit Transaction">
-                                        <i class="ti ti-edit"></i>
-                                        </a>
-                                        <button class="btn btn-sm fs-6 text-warning p-0 border-0 bg-transparent" 
-                                                onclick="__mysys_burs_ent.__showPdfInModal('<?= base_url('myburs?meaction=PRINT-BURS&recid='.$dt_recid) ?>')" 
-                                                title="Print burs">
-                                        <i class="ti ti-printer"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                                <td class="text-center"><?=$particulars;?></td>
-                                <td class="text-center"><?=$payee_name;?></td>
-                                <td class="text-center"><?= 'P'. number_format($total_amount,2);?></td>
-                            </tr>
-                            <?php endforeach; endif;?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-</div>
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-info text-white">
-        <h5 class="modal-title text-white" id="confirmDeleteModalLabel">Confirm Delete</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        Are you sure you want to delete this payee?
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success btn-sm px-3" id="confirmDeleteBtn">Yes</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- APPROVAL -->
-<div class="modal fade" id="confirmApproveModal" tabindex="-1" aria-labelledby="confirmApproveModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-        <div class="modal-header bg-info text-white">
-            <h5 class="modal-title text-white" id="confirmApproveModalLabel">Confirm Approval</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="row mb-2">
-                        <div class="col-sm-4">
-                            <span>Approver:</span>
-                        </div>
-                        <div class="col-sm-8">
-                            <?php if($action == 'certifya_appr_approved' && !empty($recid)):?>
-                                <input type="text" id="approved_by" name="approved_by" value="<?=$approver;?>" class="form-control form-control-sm" readonly/>
-                            <?php else:?>
-                                <input type="text" id="approved_by" name="approved_by" value="<?=$this->cuser;?>" class="form-control form-control-sm" readonly/>
-                            <?php endif;?>
-                        </div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-sm-4">
-                            <span>Remarks:</span>       
-                        </div>
-                        <div class="col-sm-8">
-                        <?php if($action == 'certifya_appr_approved' && !empty($recid)):?>
-                            <textarea name="approved_remarks" id="approved_remarks" placeholder="" rows="3" class="form-control form-control-sm" disabled><?=$certa_remarks;?></textarea>
-                        <?php else:?>
-                            <textarea name="approved_remarks" id="approved_remarks" placeholder="" rows="3" class="form-control form-control-sm"></textarea>
-                        <?php endif;?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
-        <div class="modal-footer">
-            <?php if($action == 'certifya_appr_approved' && !empty($recid)):?>
-                <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Back</button>
-            <?php else:?>
-                <button type="button" class="btn btn-success btn-sm px-3" id="confirmApproveBtn">Approve</button>
-                <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Cancel</button>
-            <?php endif;?>
-        </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="confirmDisapproveModal" tabindex="-1" aria-labelledby="confirmDisapproveModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-        <div class="modal-header bg-info text-white">
-            <h5 class="modal-title text-white" id="confirmDisapproveModalLabel">Confirm Disapproval</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="row mb-2">
-                        <div class="col-sm-4">
-                            <span>Disapprover:</span>
-                        </div>
-                        <div class="col-sm-8">
-                            <?php if($action == 'certifya_appr_disapproved' && !empty($recid)):?>
-                                <input type="text" id="disapproved_by" name="disapproved_by" value="<?=$approver;?>" class="form-control form-control-sm" readonly/>
-                            <?php else:?>
-                                <input type="text" id="disapproved_by" name="disapproved_by" value="<?=$this->cuser;?>" class="form-control form-control-sm" readonly/>
-                            <?php endif;?>
-                        </div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-sm-4">
-                            <span>Remarks:</span>       
-                        </div>
-                        <div class="col-sm-8">
-                            <?php if($action == 'certifya_appr_disapproved' && !empty($recid)):?>
-                                <textarea name="disapproved_remarks" id="disapproved_remarks" placeholder="" rows="3" class="form-control form-control-sm" disabled><?=$certb_remarks;?></textarea>
-                            <?php else:?>
-                                <textarea name="disapproved_remarks" id="disapproved_remarks" placeholder="" rows="3" class="form-control form-control-sm"></textarea>
-                            <?php endif;?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
-        <div class="modal-footer">
-            <?php if($action == 'certifya_appr_disapproved' && !empty($recid)):?>
-                <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Back</button>
-            <?php else:?>
-                <button type="button" class="btn btn-danger btn-sm px-3" id="confirmDisapproveBtn">Disapprove</button>
-                <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Cancel</button>
-            <?php endif;?>
-        </div>
-        </div>
-    </div>
-</div>
-
-<!-- PDF Modal -->
-<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+<!-- BURS / DV print preview -->
+<div class="modal fade fods-modal" id="bursPrintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-md-down">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Printing Preview</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="bursPrintTitle">Print preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <iframe id="pdfFrame" src="" style="width: 100%; height: 80vh;" frameborder="0"></iframe>
+            <div class="modal-body p-0">
+                <iframe id="bursPrintFrame" src="about:blank" style="width:100%; height:80vh; border:0;"></iframe>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
-<script src="<?=base_url('assets/js/burs/burs.js?v=6');?>"></script>
-<script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
 <script>
-<?php
-    $payees = [];
-    foreach ($payeedata as $data) {
-        $payees[] = [
-            'label' => $data['payee_name'],
-            'value' => $data['payee_name'],
-            'office' => $data['payee_office'],
-            'address' => $data['payee_address'],
-        ];
-    }
-?>
-var payeeData = <?php echo json_encode($payees); ?>;
-
-$(function() {
-    $(".payee_name").autocomplete({
-        source: function(request, response) {
-            var results = $.ui.autocomplete.filter(payeeData, request.term);
-            response(results.slice(0, 15)); // limit to 15 results
-        },
-        select: function(event, ui) {
-            // Auto-fill other fields
-            $('#payee_office').val(ui.item.office);
-            $('#payee_address').val(ui.item.address);
-        }
-    });
-});
+    var __burs_data = <?= json_encode($orshddata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __burs_lookups = <?= json_encode($lookups, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __burs_perms = <?= json_encode($perms) ?>;
+    var __burs_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-
-<script>
-<?php
-$projects = [];
-foreach ($projectdata as $data) {
-    $projects[$data['project_title']] = [
-        'rc' => $data['responsibility_code'],
-        'mfopaps' => $data['mfopaps_code']
-    ];
-}
-?>
-var projects = <?= json_encode($projects); ?>;
-var project_titles = Object.keys(projects);
-
-$(function () {
-
-  $(document).on("focus", ".project_title", function () {
-
-    if (!$(this).data("ui-autocomplete")) {
-
-      $(this).autocomplete({
-        source: project_titles,
-        select: function (event, ui) {
-
-          let row = $(this).closest('tr'); // change if not in table
-
-          row.find('.responsibility_code')
-             .val(projects[ui.item.value].rc);
-
-          row.find('.mfopaps_code')
-             .val(projects[ui.item.value].mfopaps);
-
-        }
-      });
-
-    }
-
-  });
-
-});
-</script>
-
-<!-- PSUACS TITLE LOOKUP -->
- <?php
-$psuacs = [];
-foreach ($psuacsdata as $data) {
-    $psuacs[] = [
-        'label'     => $data['sub_object_code'], // shown in dropdown
-        'value'     => $data['sub_object_code'], // filled in input
-        'uacs_code' => $data['uacs_code'],        // mapped value
-    ];
-}
-?>
-<script>
-var psuacs = <?= json_encode($psuacs); ?>;
-
-$(document).on("focus", ".psuacs_code", function () {
-
-  if (!$(this).data("ui-autocomplete")) {
-
-    $(this).autocomplete({
-      source: psuacs,
-      select: function (event, ui) {
-
-        let row = $(this).closest('tr');
-
-        // Set selected values
-        $(this).val(ui.item.value);
-        row.find('.uacs').val(ui.item.uacs_code);
-
-        return false; // stop default behavior
-      }
-    });
-
-  }
-});
-</script>
-
-
-<!-- MOOEUACS TITLE LOOKUP -->
- <?php
-$mooeuacs = [];
-foreach ($mooeuacsdata as $data) {
-    $mooeuacs[] = [
-        'label'     => $data['sub_object_code'], // what user sees
-        'value'     => $data['sub_object_code'], // what goes in input
-        'uacs_code' => $data['uacs_code'],        // extra data
-    ];
-}
-?>
-
-<script>
-var mooeuacs = <?= json_encode($mooeuacs); ?>;
-
-$(document).on("focus", ".mooeuacs_code", function () {
-
-  if (!$(this).data("ui-autocomplete")) {
-
-    $(this).autocomplete({
-      source: mooeuacs,
-      select: function (event, ui) {
-
-        let row = $(this).closest('tr');
-
-        // Set selected values
-        $(this).val(ui.item.value);
-        row.find('.uacs').val(ui.item.uacs_code);
-
-        return false; // prevent default replace
-      }
-    });
-
-  }
-});
-</script>
-
-
-<!-- CO TITLE LOOKUP -->
- <?php
-$couacs = [];
-foreach ($couacsdata as $data) {
-    $couacs[] = [
-        'label'     => $data['sub_object_code'], // shown in dropdown
-        'value'     => $data['sub_object_code'], // inserted in input
-        'uacs_code' => $data['uacs_code'],        // mapped value
-    ];
-}
-?>
-
-<script>
-var couacs = <?= json_encode($couacs); ?>;
-
-$(document).on("focus", ".couacs_code", function () {
-
-  if (!$(this).data("ui-autocomplete")) {
-
-    $(this).autocomplete({
-      source: couacs,
-      select: function (event, ui) {
-
-        let row = $(this).closest('tr');
-
-        // Set selected values
-        $(this).val(ui.item.value);
-        row.find('.uacs').val(ui.item.uacs_code);
-
-        return false; // prevent default behavior
-      }
-    });
-
-  }
-});
-</script>
-
-
-
-
-<?php
-	echo $MDL_jsscript;
-?>
-<script>
-    __mysys_burs_ent.__burs_saving();
-</script>
-
-<?php
-    echo view('templates/myfooter.php');
-?>
-
-
+<script src="<?=base_url('assets/js/burs/myburs.js?v=6');?>"></script>
+<?php echo view('templates/myfooter.php'); ?>

@@ -1,6 +1,7 @@
 <?php
 $this->request = \Config\Services::request();
 $this->db = \Config\Database::connect();
+$recid = $this->request->getPostGet('recid');
 $dvno = $this->request->getPostGet('dvno');
 $month = $this->request->getPostGet('month');
 $year = $this->request->getPostGet('year');
@@ -8,6 +9,32 @@ $action = $this->request->getPostGet('action');
 $this->session = session();
 $this->cuser = $this->session->get('__xsys_myuserzicas__');
 require APPPATH . 'ThirdParty/fpdf/fpdf.php';
+
+// FPDF with UTF-8 text: names are stored in UTF-8 (ñ / Ñ are two bytes) but
+// FPDF's core fonts read Windows-1252, so text is converted here once.
+if (!class_exists('AdaPDF')) {
+    class AdaPDF extends FPDF {
+        // Converts only valid UTF-8 with non-ASCII characters, so text that
+        // is already Windows-1252 is left as is
+        public static function toPdf($text) {
+            $text = (string) $text;
+            if (!preg_match('/[\x80-\xFF]/', $text) || !mb_check_encoding($text, 'UTF-8')) {
+                return $text;
+            }
+            $out = @iconv('UTF-8', 'windows-1252//TRANSLIT', $text);
+            return $out === false ? $text : $out;
+        }
+        function Cell($w, $h = 0, $txt = '', $border = 0, $ln = 0, $align = '', $fill = false, $link = '') {
+            parent::Cell($w, $h, self::toPdf($txt), $border, $ln, $align, $fill, $link);
+        }
+        function MultiCell($w, $h, $txt, $border = 0, $align = 'J', $fill = false) {
+            parent::MultiCell($w, $h, self::toPdf($txt), $border, $align, $fill);
+        }
+        function GetStringWidth($s) {
+            return parent::GetStringWidth(self::toPdf($s));
+        }
+    }
+}
 $currentDate = date("Y-m-d");
 $formattedDate = date("F j, Y", strtotime($currentDate));
 $total_payroll = 0;
@@ -89,10 +116,12 @@ $query = $this->db->query("
     FROM
         `tbl_ada`
     WHERE 
-        `dvno` = '$dvno'
-");
-
+        " . (!empty($recid) ? "`recid` = ?" : "`dvno` = ?") . "
+    ORDER BY `recid` DESC
+    LIMIT 1
+", [!empty($recid) ? $recid : $dvno]);
 $data = $query->getRowArray();
+if (empty($data)) { echo 'Record not found.'; return; }
 
 // Assign variables based ONLY on the tbl_ada columns
 $recid           = $data['recid'];
@@ -112,7 +141,7 @@ $position_b      = $data['position_b'];
 $amount_in_words = convertNumberToWords($net_amount);
 $amount_formatted = number_format($net_amount, 2);
 
-$pdf = new FPDF('P', 'mm', 'A4');
+$pdf = new AdaPDF('P', 'mm', 'A4');
 $pdf->AliasNbPages();
 $pdf->AddPage();
 $pdf->SetTitle('ADA Print');

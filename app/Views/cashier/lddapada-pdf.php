@@ -8,11 +8,36 @@ $action = $this->request->getPostGet('action');
 $this->session = session();
 $this->cuser = $this->session->get('__xsys_myuserzicas__');
 require APPPATH . 'ThirdParty/fpdf/fpdf.php';
+
+// ============================================
+// FPDF with UTF-8 text: the database stores names in UTF-8 (ñ / Ñ are two
+// bytes) but FPDF's core fonts read Windows-1252, so text is converted
+// here once for every Cell, MultiCell and width measurement.
+// ============================================
+if (!class_exists('LddapadaPDF')) {
+    class LddapadaPDF extends FPDF {
+        // Converts only valid UTF-8 with non-ASCII characters, so text that
+        // is already Windows-1252 (e.g. iconv'd below) is left as is
+        public static function toPdf($text) {
+            $text = (string) $text;
+            if (!preg_match('/[\x80-\xFF]/', $text) || !mb_check_encoding($text, 'UTF-8')) {
+                return $text;
+            }
+            $out = @iconv('UTF-8', 'windows-1252//TRANSLIT', $text);
+            return $out === false ? $text : $out;
+        }
+        function Cell($w, $h = 0, $txt = '', $border = 0, $ln = 0, $align = '', $fill = false, $link = '') {
+            parent::Cell($w, $h, self::toPdf($txt), $border, $ln, $align, $fill, $link);
+        }
+        function MultiCell($w, $h, $txt, $border = 0, $align = 'J', $fill = false) {
+            parent::MultiCell($w, $h, self::toPdf($txt), $border, $align, $fill);
+        }
+        function GetStringWidth($s) {
+            return parent::GetStringWidth(self::toPdf($s));
+        }
+    }
+}
 $currentDate = date("Y-m-d");
-
-
-$currentYear = date('Y');
-$lastYear = $currentYear - 1;
 
 // ============================================
 // HELPER: Measure MultiCell height WITHOUT drawing
@@ -24,21 +49,59 @@ if (!function_exists('getMultiCellHeight')) {
             return $lineHeight;
         }
 
+        $w     = $w - 2; // MultiCell leaves a 1mm margin on each side
         $lines = 1;
         $line  = '';
 
         foreach (explode(' ', $text) as $word) {
             $test = ($line === '') ? $word : $line . ' ' . $word;
-
-            if ($pdf->GetStringWidth($test) > $w) {
-                $lines++;
-                $line = $word;
-            } else {
+            if ($pdf->GetStringWidth($test) <= $w) {
                 $line = $test;
+                continue;
             }
+
+            // doesn't fit: the word starts a new line
+            if ($line !== '') {
+                $lines++;
+            }
+            // a word wider than the cell is split across lines by MultiCell
+            while (strlen($word) > 1 && $pdf->GetStringWidth($word) > $w) {
+                $fit = strlen($word) - 1;
+                while ($fit > 1 && $pdf->GetStringWidth(substr($word, 0, $fit)) > $w) {
+                    $fit--;
+                }
+                $word = substr($word, $fit);
+                $lines++;
+            }
+            $line = $word;
         }
 
         return $lines * $lineHeight;
+    }
+}
+
+// ============================================
+// HELPER: Long remarks shrink (7pt down to 4.5pt) until they fit in
+// two lines without breaking a word in the middle.
+// Returns [font size, line height, total height].
+// ============================================
+if (!function_exists('fitRemarks')) {
+    function fitRemarks($pdf, $w, $text, $baseSize = 7) {
+        $size = $baseSize;
+        $words = preg_split('/\s+/', trim((string) $text));
+        while ($size > 4.5) {
+            $pdf->SetFontSize($size);
+            $longest = max(array_map(fn ($word) => $pdf->GetStringWidth($word), $words));
+            if ($longest <= $w - 2 && getMultiCellHeight($pdf, $w, $text, 1) <= 2) {
+                break;
+            }
+            $size -= 0.5;
+        }
+        $pdf->SetFontSize($size);
+        $lineHeight = $size >= $baseSize ? 4 : round($size * 0.5, 2);
+        $height = getMultiCellHeight($pdf, $w, $text, $lineHeight);
+        $pdf->SetFontSize($baseSize);
+        return [$size, $lineHeight, $height];
     }
 }
 
@@ -54,14 +117,15 @@ SELECT
     a.`lddapada_date`
 FROM
     `tbl_lddapada_hd` a
-WHERE 
-    a.`recid` = '$recid'"
-);
+WHERE
+    a.`recid` = ?"
+, [$recid]);
 
 $data = $query->getRowArray();
+if (empty($data)) { echo 'Record not found.'; return; }
 $ckno = $data['ckno'];
 $ada_approver = $data['ada_approver'];
-$position = $data['position'];
+$position = $data['position'] ?? '';
 $fund_cluster_code = $data['fund_cluster_code'];
 $mds_accountno = $data['mds_accountno'];
 $lddapadano = $data['lddapadano'];
@@ -69,7 +133,7 @@ $lddapada_date = $data['lddapada_date'];
 $formattedDate = date("F j, Y", strtotime($lddapada_date));
 
 
-$pdf = new FPDF('P', 'mm', 'A4');
+$pdf = new LddapadaPDF('P', 'mm', 'A4');
 $pdf->AliasNbPages();
 $pdf->AddPage();
 $pdf->SetTitle('LDDAP-ADA Print');
@@ -259,19 +323,15 @@ SELECT
     a.`gross_amount`,
     a.`total_deduction`,
     a.`net_amount`,
-    b.`disbursement_date`,
     a.`remarks`
 FROM
     `tbl_lddapada_dt` a
-LEFT JOIN
-    `tbl_disbursement_hd` b
-ON
-    a.`dvno` = b.`dvno`
-WHERE 
-    `lddapada_id` = '$recid' AND  YEAR(b.disbursement_date)  = '$currentYear'
+WHERE
+    a.`lddapada_id` = ?
+    -- every line of the LDDAP-ADA is listed under Current Year A/Ps
 ORDER BY
     a.`recid` ASC
-");
+", [$recid]);
 
 $data = $query->getResultArray();
 
@@ -301,7 +361,7 @@ foreach ($data as $row) {
     // MEASURE HEIGHTS (no drawing — avoids faux-bold)
     // ============================================
     $payeeHeight   = getMultiCellHeight($pdf, 40, $payee_name);
-    $remarksHeight = getMultiCellHeight($pdf, 15, $remarks);
+    [$remarksSize, $remarksLine, $remarksHeight] = fitRemarks($pdf, 15, $remarks);
     $accountHeight = getMultiCellHeight($pdf, 25, $account_no);
 
     // ============================================
@@ -375,7 +435,9 @@ foreach ($data as $row) {
     // Remarks
     $pdf->SetXY(185, $startY);
     if (!empty($remarks)) {
-        $pdf->MultiCell(15, 4, $remarks, 0, 'C');
+        $pdf->SetFontSize($remarksSize);
+        $pdf->MultiCell(15, $remarksLine, $remarks, 0, 'C');
+        $pdf->SetFontSize(7);
     }
 
     // ============================================
@@ -479,19 +541,17 @@ SELECT
     a.`gross_amount`,
     a.`total_deduction`,
     a.`net_amount`,
-    b.`disbursement_date`,
     a.`remarks`
 FROM
     `tbl_lddapada_dt` a
-LEFT JOIN
-    `tbl_disbursement_hd` b
-ON
-    a.`dvno` = b.`dvno`
-WHERE 
-    `lddapada_id` = '$recid' AND  YEAR(b.disbursement_date)  = '$lastYear'
+WHERE
+    a.`lddapada_id` = ?
+    -- Prior Year's A/Ps stays on the form but empty: all lines are
+    -- listed under Current Year A/Ps
+    AND 1 = 0
 ORDER BY
     a.`recid` ASC
-");
+", [$recid]);
 
 $data = $query->getResultArray();
 

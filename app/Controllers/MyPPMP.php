@@ -21,10 +21,7 @@ class MyPPMP extends BaseController
     
         switch ($meaction) {
             case 'MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '8001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+                if (fods_has_access(\Config\AccessCodes::PPMP_VIEW)) {
                     return $this->loadPPMPView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -37,6 +34,7 @@ class MyPPMP extends BaseController
                 break;
             
             case 'PPMP-PRINT':
+				if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) { return view('errors/html/access-restricted'); }
 				return view('procurement/ppmp/ppmp-pdf');
 				break;
 

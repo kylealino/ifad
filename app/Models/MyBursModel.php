@@ -35,7 +35,24 @@ class MyBursModel extends Model
 		$budgetcodtdata = $this->request->getPostGet('budgetcodtdata');
 		$budgetindirectcodtdata = $this->request->getPostGet('budgetindirectcodtdata');
 		$burs_date = $this->request->getPostGet('burs_date');
-		
+		$fund_cluster_code = $this->request->getPostGet('fund_cluster_code');
+		$category = $this->request->getPostGet('category');
+		$is_vatable = $this->request->getPostGet('is_vatable');
+		$vat_percent = $this->request->getPostGet('vat_percent');
+		$ewt_percent = $this->request->getPostGet('ewt_percent');
+		$pt_percent = $this->request->getPostGet('pt_percent');
+		$gross_amount = $this->request->getPostGet('gross_amount');
+		$total_deduction = $this->request->getPostGet('total_deduction');
+		$net_amount = $this->request->getPostGet('net_amount');
+		$other_deductions = $this->request->getPostGet('other_deductions');
+		$income_tax = $this->request->getPostGet('income_tax');
+		$deduction_name = $this->request->getPostGet('deduction_name');
+		$sss = $this->request->getPostGet('sss');
+		$hdmf = $this->request->getPostGet('hdmf');
+		$pagibig_mp2 = $this->request->getPostGet('pagibig_mp2');
+		$pagibig_loan = $this->request->getPostGet('pagibig_loan');
+		$hmo = $this->request->getPostGet('hmo');
+		$wtax = $this->request->getPostGet('wtax');
 		// var_dump($burs_date);
 		// die();
 		
@@ -103,23 +120,9 @@ class MyBursModel extends Model
 
 		if (empty($recid)) {
 
-			$accessquery = $this->db->query("
-				SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '11002' AND `is_active` = '1'
-			");
-			if ($accessquery->getNumRows() == 0) {
-				echo "
-				<script>
-				toastr.error('Saving Access Denied! Please Contact the Administrator.', 'Oops!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2000,
-					});
-				</script>
-				";
-				die();
-			}
+			fods_require_access(\Config\AccessCodes::BURS_ADD, 'Saving');
 			//INSERTING HD DATA
-			//burs SERIALNO
+			//BURS SERIALNO
 			$query = $this->db->query("
 				INSERT INTO tbl_burs_hd (
 					`serialno`,
@@ -133,9 +136,27 @@ class MyBursModel extends Model
 					`certified_b`,
 					`position_b`,
 					`added_by`,
-					`burs_date`
+					`burs_date`,
+					`fund_cluster_code`,
+					`is_vatable`,
+					`vat_percent`,
+					`ewt_percent`,
+					`pt_percent`,
+					`other_deductions`,
+					`income_tax`,
+					`deduction_name`,
+					`sss`,
+					`hdmf`,
+					`pagibig_mp2`,
+					`pagibig_loan`,
+					`hmo`,
+					`wtax`,
+					`category`,
+					`gross_amount`,
+					`total_deduction`,
+					`net_amount`
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
 				[
 					$serialno,
 					$particulars,
@@ -148,7 +169,25 @@ class MyBursModel extends Model
 					$certified_b,
 					$position_b,
 					$this->cuser,
-					$burs_date
+					$burs_date,
+					$fund_cluster_code,
+					$is_vatable,
+					$vat_percent,
+					$ewt_percent,
+					$pt_percent,
+					$other_deductions,
+					$income_tax,
+					$deduction_name,
+					$sss,
+					$hdmf,
+					$pagibig_mp2,
+					$pagibig_loan,
+					$hmo,
+					$wtax,
+					$category,
+					$gross_amount,
+					$total_deduction,
+					$net_amount
 				]
 			);
 
@@ -158,16 +197,18 @@ class MyBursModel extends Model
 			if (!empty($budgetdtdata)) {
 				for($aa = 0; $aa < count($budgetdtdata); $aa++){
 					$medata = explode("x|x",$budgetdtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_direct_ps_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -176,9 +217,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?,?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?,?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -195,16 +237,18 @@ class MyBursModel extends Model
 			if (!empty($budgetdtindirectdata)) {
 				for($aa = 0; $aa < count($budgetdtindirectdata); $aa++){
 					$medata = explode("x|x",$budgetdtindirectdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_indirect_ps_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -213,9 +257,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -234,16 +279,18 @@ class MyBursModel extends Model
 				//this is for normal saving and updating
 				for($aa = 0; $aa < count($budgetmooedtdata); $aa++){
 					$medata = explode("x|x",$budgetmooedtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_direct_mooe_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -252,9 +299,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -273,16 +321,18 @@ class MyBursModel extends Model
 				//this is for normal saving and updating
 				for($aa = 0; $aa < count($budgetmooeindirectdtdata); $aa++){
 					$medata = explode("x|x",$budgetmooeindirectdtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_indirect_mooe_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -291,9 +341,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -312,16 +363,18 @@ class MyBursModel extends Model
 				//this is for normal saving and updating
 				for($aa = 0; $aa < count($budgetcodtdata); $aa++){
 					$medata = explode("x|x",$budgetcodtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_direct_co_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -330,9 +383,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -350,16 +404,18 @@ class MyBursModel extends Model
 				//this is for normal saving and updating
 				for($aa = 0; $aa < count($budgetindirectcodtdata); $aa++){
 					$medata = explode("x|x",$budgetindirectcodtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_indirect_co_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -368,9 +424,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -384,16 +441,18 @@ class MyBursModel extends Model
 				}
 			}
 
-			$status = "BURS Saved Successfully!";
+			$status = "BURS saved successfully";
 			$color = "success";
 		}else{
-			$accessquery = $this->db->query("
-				SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '11003' AND `is_active` = '1'
-			");
-			if ($accessquery->getNumRows() == 0) {
+			fods_require_access(\Config\AccessCodes::BURS_UPDATE, 'Updating');
+
+			// Once the requesting office has certified it, the BURS is locked;
+			// a disapproved BURS can be corrected and goes back to Certification A
+			$current = $this->db->query("SELECT `is_approved_certa`, `is_disapproved_certa`, `is_approved_certb`, `is_disapproved_certb` FROM tbl_burs_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			if (empty($current)) {
 				echo "
 				<script>
-				toastr.error('Updating Access Denied! Please Contact the Administrator.', 'Oops!', {
+				toastr.error('BURS not found', 'Oops!', {
 						progressBar: true,
 						closeButton: true,
 						timeOut:2000,
@@ -402,6 +461,32 @@ class MyBursModel extends Model
 				";
 				die();
 			}
+			$is_disapproved = $current['is_disapproved_certa'] == '1' || $current['is_disapproved_certb'] == '1';
+			if ($current['is_approved_certa'] == '1' && !$is_disapproved) {
+				echo "
+				<script>
+				toastr.error('This BURS is already certified and can no longer be edited', 'Locked', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				</script>
+				";
+				die();
+			}
+			if ($is_disapproved) {
+				$this->db->query("
+					UPDATE tbl_burs_hd
+					SET
+						`is_pending` = '1',
+						`is_approved_certa` = '0',
+						`is_disapproved_certa` = '0',
+						`is_approved_certb` = '0',
+						`is_disapproved_certb` = '0'
+					WHERE `recid` = ?
+				", [$recid]);
+			}
+
 			$query = $this->db->query("
 				UPDATE tbl_burs_hd
 				SET
@@ -415,7 +500,25 @@ class MyBursModel extends Model
 					`position_a` = ?,
 					`certified_b` = ?,
 					`position_b` = ?,
-					`burs_date` = ?
+					`burs_date` = ?,
+					`fund_cluster_code` = ?,
+					`is_vatable` = ?,
+					`vat_percent` = ?,
+					`ewt_percent` = ?,
+					`pt_percent` = ?,
+					`other_deductions` = ?,
+					`income_tax` = ?,
+					`deduction_name` = ?,
+					`sss` = ?,
+					`hdmf` = ?,
+					`pagibig_mp2` = ?,
+					`pagibig_loan` = ?,
+					`hmo` = ?,
+					`wtax` = ?,
+					`category` = ?,
+					`gross_amount` = ?,
+					`total_deduction` = ?,
+					`net_amount` = ?
 				WHERE recid = ?
 			", [
 				$particulars,
@@ -429,24 +532,44 @@ class MyBursModel extends Model
 				$certified_b,
 				$position_b,
 				$burs_date,
+				$fund_cluster_code,
+				$is_vatable,
+				$vat_percent,
+				$ewt_percent,
+				$pt_percent,
+				$other_deductions,
+				$income_tax,
+				$deduction_name,
+				$sss,
+				$hdmf,
+				$pagibig_mp2,
+				$pagibig_loan,
+				$hmo,
+				$wtax,
+				$category,
+				$gross_amount,
+				$total_deduction,
+				$net_amount,
 				$recid
 			]);
 
 			$project_id = $recid;
 
 			if (!empty($budgetdtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_burs_direct_ps_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_direct_ps_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetdtdata); $aa++){
 					$medata = explode("x|x",$budgetdtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_direct_ps_dt (
+							`program_title`,
 							`project_id`,
 							`project_title`,
 							`responsibility_code`,
@@ -456,8 +579,9 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
+							$program_title,
 							$project_id,
 							$project_title,
 							$responsibility_code,
@@ -471,23 +595,25 @@ class MyBursModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_burs_direct_ps_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_direct_ps_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetdtindirectdata)) {
-				$query = $this->db->query("DELETE FROM tbl_burs_indirect_ps_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_indirect_ps_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetdtindirectdata); $aa++){
 					$medata = explode("x|x",$budgetdtindirectdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_indirect_ps_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -496,9 +622,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -511,23 +638,25 @@ class MyBursModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_burs_indirect_ps_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_indirect_ps_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetmooedtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_burs_direct_mooe_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_direct_mooe_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetmooedtdata); $aa++){
 					$medata = explode("x|x",$budgetmooedtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_direct_mooe_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -536,9 +665,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -552,23 +682,25 @@ class MyBursModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_burs_direct_mooe_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_direct_mooe_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetmooeindirectdtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_burs_indirect_mooe_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_indirect_mooe_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetmooeindirectdtdata); $aa++){
 					$medata = explode("x|x",$budgetmooeindirectdtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_indirect_mooe_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -577,9 +709,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -593,23 +726,25 @@ class MyBursModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_burs_indirect_mooe_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_indirect_mooe_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetcodtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_burs_direct_co_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_direct_co_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetcodtdata); $aa++){
 					$medata = explode("x|x",$budgetcodtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_direct_co_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -618,9 +753,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -634,23 +770,25 @@ class MyBursModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_burs_direct_co_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_direct_co_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetindirectcodtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_burs_indirect_co_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_indirect_co_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetindirectcodtdata); $aa++){
 					$medata = explode("x|x",$budgetindirectcodtdata[$aa]);
-					$project_title = $medata[0]; 
-					$responsibility_code = $medata[1]; 
-					$mfopaps_code = $medata[2]; 
-					$sub_object_code = $medata[3];
-					$uacs_code = $medata[4];  
-					$amount = $medata[5]; 
+					$program_title = $medata[0]; 
+					$project_title = $medata[1]; 
+					$responsibility_code = $medata[2]; 
+					$mfopaps_code = $medata[3];
+					$sub_object_code = $medata[4];  
+					$uacs_code = $medata[5]; 
+					$amount = $medata[6]; 
 
 					$query = $this->db->query("
 						INSERT INTO tbl_burs_indirect_co_dt (
 							`project_id`,
+							`program_title`,
 							`project_title`,
 							`responsibility_code`,
 							`mfopaps_code`,
@@ -659,9 +797,10 @@ class MyBursModel extends Model
 							`amount`,
 							`added_by`
 						)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)", 
 						[
 							$project_id,
+							$program_title,
 							$project_title,
 							$responsibility_code,
 							$mfopaps_code,
@@ -675,10 +814,10 @@ class MyBursModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_burs_indirect_co_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_burs_indirect_co_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
-			$status = "BURS Updated Successfully!";
+			$status = !empty($is_disapproved) ? "BURS updated and sent back for certification" : "BURS updated successfully";
 			$color = "info";
 		}
 
@@ -708,207 +847,116 @@ class MyBursModel extends Model
 		
 	}
 	
-	//CERTIFIED A APPROVAL/DISAPPROVAL
-	public function burs_certifya_approve() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
-		$serialno = $this->request->getPostGet('serialno');
-		$funding_source = $this->request->getPostGet('funding_source');
-
-		// $cseqn =  $this->get_ctr_burs('01',$funding_source,'CTRL_NO01');//TRANSACTION NO
-		// $trx = empty($serialno) ? $cseqn : $serialno;
-
-		$accessquery = $this->db->query("
-			SELECT `recid` FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
+	//BURS - ONE RECORD WITH ITS LINE ITEMS (editor / review modals)
+	public function burs_load($recid) {
+		$hd = $this->db->query("SELECT * FROM tbl_burs_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		if (empty($hd)) {
+			return null;
 		}
 
-		$query = $this->db->query("
-			UPDATE tbl_burs_hd 
-			SET 
-				`is_pending` = '0', 
-				`is_approved_certa` = '1',
-				`is_disapproved_certa` = '0',
-				`certa_approver` = '$approver', 
-				`certa_remarks` = '$remarks'
-			WHERE `recid` = '$recid'
-		");
-		$status = "burs approved!";
-		
-		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
-			echo "
-			<script>
-				toastr.success('{$status}!', 'Well Done!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2500,
-					});
-				setTimeout(function() {
-						window.location.href = 'mybursapproval?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
-			</script>
-			";
-			exit; // Stop further PHP execution after the toast
-		} else {
-			// If there's an error, show an alert message
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
-			exit;
+		$grids = [
+			'ps_direct'     => 'tbl_burs_direct_ps_dt',
+			'ps_indirect'   => 'tbl_burs_indirect_ps_dt',
+			'mooe_direct'   => 'tbl_burs_direct_mooe_dt',
+			'mooe_indirect' => 'tbl_burs_indirect_mooe_dt',
+			'co_direct'     => 'tbl_burs_direct_co_dt',
+			'co_indirect'   => 'tbl_burs_indirect_co_dt',
+		];
+		$hd['grids'] = [];
+		foreach ($grids as $key => $table) {
+			$hd['grids'][$key] = $this->db->query("
+				SELECT `recid`, `program_title`, `project_title`, `responsibility_code`, `mfopaps_code`, `sub_object_code`, `uacs_code`, `amount`
+				FROM {$table}
+				WHERE `project_id` = ?
+				ORDER BY `recid` ASC
+			", [$recid])->getResultArray();
 		}
+		return $hd;
 	}
 
-	public function burs_certifya_disapprove() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
+	//CERTIFIED A / B - APPROVAL / DISAPPROVAL
+	public function burs_certifya_approve() { $this->burs_certify('a', true); }
+	public function burs_certifya_disapprove() { $this->burs_certify('a', false); }
+	public function burs_certifyb_approve() { $this->burs_certify('b', true); }
+	public function burs_certifyb_disapprove() { $this->burs_certify('b', false); }
 
-		$accessquery = $this->db->query("
-			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
+	// Box A (requesting office) decides first, then Box B (budget). Each
+	// step only applies while the BURS is waiting at that step.
+	private function burs_certify($box, $approve) {
+		$recid = $this->request->getPostGet('recid');
+		$remarks = trim((string) $this->request->getPostGet('remarks'));
+		$approver = $this->cuser;
+
+		fods_require_access(\Config\AccessCodes::BURSAPPROVAL_APPROVE, $approve ? 'Approve' : 'Disapprove');
+
+		$hd = $this->db->query("SELECT `is_approved_certa`, `is_disapproved_certa`, `is_approved_certb`, `is_disapproved_certb` FROM tbl_burs_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		if ($box === 'a') {
+			$waiting = !empty($hd) && $hd['is_approved_certa'] == '0' && $hd['is_disapproved_certa'] == '0';
+		} else {
+			$waiting = !empty($hd) && $hd['is_approved_certa'] == '1' && $hd['is_approved_certb'] == '0' && $hd['is_disapproved_certb'] == '0';
+		}
+		if (!$waiting) {
 			echo "
 			<script>
-			toastr.error('Disapprove Access Denied! Please Contact the Administrator.', 'Oops!', {
+			toastr.error('This BURS is not waiting for Certification " . strtoupper($box) . "', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
-					timeOut:2000,
+					timeOut:2500,
 				});
 			</script>
 			";
-			die();
-		}
-
-		$query = $this->db->query("
-			UPDATE tbl_burs_hd SET `is_pending` = '0', `is_approved_certa` = '0',`is_disapproved_certa` = '1',`certa_approver` = '$approver', `certa_remarks` = '$remarks' WHERE `recid` = '$recid'
-		");
-		$status = "burs disapproved!";
-		
-		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
-			echo "
-			<script>
-				toastr.success('{$status}!', 'Well Done!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2500,
-					});
-				setTimeout(function() {
-						window.location.href = 'mybursapproval?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
-			</script>
-			";
-			exit; // Stop further PHP execution after the toast
-		} else {
-			// If there's an error, show an alert message
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
 			exit;
 		}
-	}
-
-	// CERTIFIED B APPROVAL/DISAPPROVAL
-	public function burs_certifyb_approve() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
-
-		$accessquery = $this->db->query("
-			SELECT `recid` FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2006' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
+		if (!$approve && $remarks === '') {
 			echo "
 			<script>
-			toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
+			toastr.error('Remarks are required when disapproving', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2000,
 				});
 			</script>
 			";
-			die();
-		}
-
-		$query = $this->db->query("
-			UPDATE tbl_burs_hd SET `is_pending` = '0', `is_approved_certb` = '1', `is_disapproved_certb` = '0',`certb_approver` = '$approver', `certb_remarks` = '$remarks' WHERE `recid` = '$recid'
-		");
-		$status = "burs approved!";
-		
-		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
-			echo "
-			<script>
-				toastr.success('{$status}!', 'Well Done!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2500,
-					});
-				setTimeout(function() {
-						window.location.href = 'mybursapproval?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
-			</script>
-			";
-			exit; // Stop further PHP execution after the toast
-		} else {
-			// If there's an error, show an alert message
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
 			exit;
 		}
-	}
 
-	public function burs_certifyb_disapprove() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
-
-		$accessquery = $this->db->query("
-			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2006' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Disapprove Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
+		if ($box === 'a') {
+			$query = $this->db->query("
+				UPDATE tbl_burs_hd
+				SET
+					`is_pending` = '0',
+					`is_approved_certa` = ?,
+					`is_disapproved_certa` = ?,
+					`certa_approver` = ?,
+					`certa_remarks` = ?
+				WHERE `recid` = ?
+			", [$approve ? 1 : 0, $approve ? 0 : 1, $approver, mb_substr($remarks, 0, 100), $recid]);
+		} else {
+			$query = $this->db->query("
+				UPDATE tbl_burs_hd
+				SET
+					`is_pending` = '0',
+					`is_approved_certb` = ?,
+					`is_disapproved_certb` = ?,
+					`certb_approver` = ?,
+					`certb_remarks` = ?
+				WHERE `recid` = ?
+			", [$approve ? 1 : 0, $approve ? 0 : 1, $approver, mb_substr($remarks, 0, 100), $recid]);
 		}
+		$status = $approve ? "BURS certified (Box " . strtoupper($box) . ")" : "BURS disapproved";
+		$color = $approve ? "success" : "warning";
 
-		$query = $this->db->query("
-			UPDATE tbl_burs_hd SET `is_pending` = '0', `is_approved_certb` = '0',`is_disapproved_certb` = '1',`certb_approver` = '$approver', `certb_remarks` = '$remarks' WHERE `recid` = '$recid'
-		");
-		$status = "burs disapproved!";
-		
 		if ($query) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
 			<script>
-				toastr.success('{$status}!', 'Well Done!', {
+				toastr.$color('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mybursapproval?meaction=MAIN'; // Redirect to MAIN view
+						window.location.href = 'mybursapproval'; // Redirect to MAIN view
 					}, 2500); // 2-second delay for user to see the toast
 			</script>
 			";
@@ -977,5 +1025,6 @@ class MyBursModel extends Model
 		return  $fund_cluster . '-' . $funding_source . '-' . $xsysyear . '-' . $xsysmonth . '-' . $xnumb;//.$supp
 	} 
 
+	
 } //end main class
 ?>

@@ -127,21 +127,7 @@ class MySaobReportModel extends Model
 		}
 
 		if (empty($recid)) {
-			// $accessquery = $this->db->query("
-			// 	SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '1002' AND `is_active` = '1'
-			// ");
-			// if ($accessquery->getNumRows() == 0) {
-			// 	echo "
-			// 	<script>
-			// 	toastr.error('Saving Access Denied! Please Contact the Administrator.', 'Oops!', {
-			// 			progressBar: true,
-			// 			closeButton: true,
-			// 			timeOut:2000,
-			// 		});
-			// 	</script>
-			// 	";
-			// 	die();
-			// }
+			fods_require_access(\Config\AccessCodes::SAOB_ADD, 'Saving');
 
 			//INSERTING HD DATA
 			$query = $this->db->query("
@@ -314,6 +300,7 @@ class MySaobReportModel extends Model
 			$status = "SAOB Saved Successfully!";
 			$color = "success";
 		}else{
+			fods_require_access(\Config\AccessCodes::SAOB_UPDATE, 'Updating');
 			$query = $this->db->query("
 				UPDATE tbl_saob_hd
 				SET
@@ -899,21 +886,7 @@ class MySaobReportModel extends Model
 		$approver = $this->request->getPostGet('approver');
 		$remarks = $this->request->getPostGet('remarks');
 
-		$accessquery = $this->db->query("
-			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '1005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
-		}
+		fods_require_access(\Config\AccessCodes::BUDGETAPPROVAL_APPROVE, 'Approve');
 
 		$query = $this->db->query("
 			UPDATE tbl_budget_hd SET `is_pending` = '0', `is_approved` = '1',`approver` = '$approver', `remarks` = '$remarks' WHERE `recid` = '$recid'
@@ -949,21 +922,7 @@ class MySaobReportModel extends Model
 		$approver = $this->request->getPostGet('approver');
 		$remarks = $this->request->getPostGet('remarks');
 
-		$accessquery = $this->db->query("
-			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '1005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Disapprove Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
-		}
+		fods_require_access(\Config\AccessCodes::BUDGETAPPROVAL_APPROVE, 'Disapprove');
 
 		$query = $this->db->query("
 			UPDATE tbl_budget_hd SET `is_pending` = '0', `is_approved` = '0',`is_disapproved` = '1',`approver` = '$approver', `remarks` = '$remarks' WHERE `recid` = '$recid'
@@ -1200,21 +1159,7 @@ class MySaobReportModel extends Model
 		}
 
 		if (!empty($project_id) && empty($savings_date)) {
-			// $accessquery = $this->db->query("
-			// 	SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '1002' AND `is_active` = '1'
-			// ");
-			// if ($accessquery->getNumRows() == 0) {
-			// 	echo "
-			// 	<script>
-			// 	toastr.error('Saving Access Denied! Please Contact the Administrator.', 'Oops!', {
-			// 			progressBar: true,
-			// 			closeButton: true,
-			// 			timeOut:2000,
-			// 		});
-			// 	</script>
-			// 	";
-			// 	die();
-			// }
+			fods_require_access(\Config\AccessCodes::SAOB_ADD, 'Saving');
 
 			//INSERTING PS DT DATA
 			if (!empty($savingsdtdata)) {
@@ -1267,6 +1212,7 @@ class MySaobReportModel extends Model
 			$status = "Savings Recorded Successfully!";
 			$color = "success";
 		}else{
+			fods_require_access(\Config\AccessCodes::SAOB_UPDATE, 'Updating');
 			if (!empty($savingsdtdata)) {
 				$query = $this->db->query("DELETE FROM tbl_saob_savings WHERE `project_id` = '$project_id' AND `savings_date` = '$savings_date'");
 				for($aa = 0; $aa < count($savingsdtdata); $aa++){

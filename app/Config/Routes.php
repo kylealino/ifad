@@ -60,6 +60,10 @@ $routes->post('myorsapproval', 'MyOrsApproval::index',['filter' => 'myauthuser']
 $routes->get('myburs', 'MyBurs::index',['filter' => 'myauthuser']);
 $routes->post('myburs', 'MyBurs::index',['filter' => 'myauthuser']);
 
+//BURS APPROVAL - BURS certification (Box A / Box B)
+$routes->get('mybursapproval', 'MyBursApproval::index',['filter' => 'myauthuser']);
+$routes->post('mybursapproval', 'MyBursApproval::index',['filter' => 'myauthuser']);
+
 //SAOB - SAOB module
 $routes->get('mysaobrpt', 'MySaobReport::index',['filter' => 'myauthuser']);
 $routes->post('mysaobrpt', 'MySaobReport::index',['filter' => 'myauthuser']);
@@ -90,16 +94,28 @@ $routes->get('saob-export-csv', 'MySaobReport::saobExportCsv');
 $routes->get('mydisbursement', 'MyDisbursement::index',['filter' => 'myauthuser']);
 $routes->post('mydisbursement', 'MyDisbursement::index',['filter' => 'myauthuser']);
 
+//DISBURSEMENT APPROVAL - DV certification (Box A / accounting)
+$routes->get('mydisbursementapproval', 'MyDisbursementApproval::index',['filter' => 'myauthuser']);
+$routes->post('mydisbursementapproval', 'MyDisbursementApproval::index',['filter' => 'myauthuser']);
+
 //Cashier
 //LDDAP-ADA - LDDAP-ADA module
 $routes->get('mylddapada', 'MyLDDAPADA::index',['filter' => 'myauthuser']);
 $routes->post('mylddapada', 'MyLDDAPADA::index',['filter' => 'myauthuser']);
 
+//LDDAP-ADA APPROVAL
+$routes->get('mylddapadaapproval', 'MyLDDAPADAApproval::index',['filter' => 'myauthuser']);
+$routes->post('mylddapadaapproval', 'MyLDDAPADAApproval::index',['filter' => 'myauthuser']);
+
 //RCI - RCI module
 $routes->get('myrci', 'MyRCI::index',['filter' => 'myauthuser']);
 $routes->post('myrci', 'MyRCI::index',['filter' => 'myauthuser']);
 
-// SUPPORT - Support Chat System
+//MESSAGES - chats between users + support tickets (topbar inbox)
+$routes->get('mymessages', 'MyMessages::index',['filter' => 'myauthuser']);
+$routes->post('mymessages', 'MyMessages::index',['filter' => 'myauthuser']);
+
+// SUPPORT - Support Chat System (old, replaced by mymessages)
 $routes->get('support', 'Support::index', ['filter' => 'myauthuser']);
 $routes->post('support', 'Support::index', ['filter' => 'myauthuser']);
 
@@ -107,3 +123,7 @@ $routes->post('support', 'Support::index', ['filter' => 'myauthuser']);
 //ADA - ADA module
 $routes->get('myada', 'MyADA::index',['filter' => 'myauthuser']);
 $routes->post('myada', 'MyADA::index',['filter' => 'myauthuser']);
+
+//ADA APPROVAL
+$routes->get('myadaapproval', 'MyADAApproval::index',['filter' => 'myauthuser']);
+$routes->post('myadaapproval', 'MyADAApproval::index',['filter' => 'myauthuser']);

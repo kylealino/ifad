@@ -9,6 +9,32 @@ $action = $this->request->getPostGet('action');
 $this->session = session();
 $this->cuser = $this->session->get('__xsys_myuserzicas__');
 require APPPATH . 'ThirdParty/fpdf/fpdf.php';
+
+// FPDF with UTF-8 text: names are stored in UTF-8 (ñ / Ñ are two bytes) but
+// FPDF's core fonts read Windows-1252, so text is converted here once.
+if (!class_exists('RciPDF')) {
+    class RciPDF extends FPDF {
+        // Converts only valid UTF-8 with non-ASCII characters, so text that
+        // is already Windows-1252 is left as is
+        public static function toPdf($text) {
+            $text = (string) $text;
+            if (!preg_match('/[\x80-\xFF]/', $text) || !mb_check_encoding($text, 'UTF-8')) {
+                return $text;
+            }
+            $out = @iconv('UTF-8', 'windows-1252//TRANSLIT', $text);
+            return $out === false ? $text : $out;
+        }
+        function Cell($w, $h = 0, $txt = '', $border = 0, $ln = 0, $align = '', $fill = false, $link = '') {
+            parent::Cell($w, $h, self::toPdf($txt), $border, $ln, $align, $fill, $link);
+        }
+        function MultiCell($w, $h, $txt, $border = 0, $align = 'J', $fill = false) {
+            parent::MultiCell($w, $h, self::toPdf($txt), $border, $align, $fill);
+        }
+        function GetStringWidth($s) {
+            return parent::GetStringWidth(self::toPdf($s));
+        }
+    }
+}
 $currentDate = date("Y-m-d");
 $formattedDate = date("F j, Y", strtotime($currentDate));
 
@@ -20,9 +46,10 @@ $query = $this->db->query("
         fund_cluster_code,
         reportno
     FROM tbl_rci_hd 
-    WHERE recid = '$recid'
-");
+    WHERE recid = ?
+", [$recid]);
 $headerData = $query->getRowArray();
+if (empty($headerData)) { echo 'Record not found.'; return; }
 
 $mds_branch = $headerData['mds_branch'] ?? 'LBP Bicutan';
 $mds_accountno = $headerData['mds_accountno'] ?? '2182-9006-16';
@@ -45,9 +72,9 @@ $query = $this->db->query("
         `tax_amount`,
         `net_amount`
     FROM tbl_rci_dt
-    WHERE hd_rid = '$recid'
+    WHERE hd_rid = ?
     ORDER BY recid ASC
-");
+", [$recid]);
 $data = $query->getResultArray();
 
 // If no data, use sample data from image
@@ -102,7 +129,7 @@ $firstCheck = !empty($data) ? $data[0]['ckno'] : '';
 $lastCheck = !empty($data) ? end($data)['ckno'] : '';
 
 // Create PDF in Landscape
-$pdf = new FPDF('L', 'mm', 'A4');
+$pdf = new RciPDF('L', 'mm', 'A4');
 $pdf->AliasNbPages();
 $pdf->AddPage();
 $pdf->SetTitle('Report of Checks Issued');

@@ -23,17 +23,17 @@ class MyDisbursementModel extends Model
         
         // Get user role from myua_user table - using correct column names
         $roleQuery = $this->db->query("
-            SELECT position as role_name 
-            FROM myua_user 
-            WHERE username = '{$this->cuser}'
+            SELECT position as role_name
+            FROM myua_user
+            WHERE username = ?
             LIMIT 1
-        ");
+        ", [$this->cuser]);
         $role = $roleQuery->getRowArray();
         $user_role = $role ? $role['role_name'] : 'Unknown';
-        
+
         // Get serialno if not provided
         if (empty($serialno)) {
-            $serialQuery = $this->db->query("SELECT serialno FROM tbl_disbursement_hd WHERE recid = '$transaction_id'");
+            $serialQuery = $this->db->query("SELECT serialno FROM tbl_disbursement_hd WHERE recid = ?", [$transaction_id]);
             $serialData = $serialQuery->getRowArray();
             $serialno = $serialData ? $serialData['serialno'] : null;
         }
@@ -72,23 +72,88 @@ class MyDisbursementModel extends Model
 
     // Method to get old data for comparison (for update tracking)
     private function getOldData($recid) {
-        $query = $this->db->query("SELECT * FROM tbl_disbursement_hd WHERE recid = '$recid'");
+        $query = $this->db->query("SELECT * FROM tbl_disbursement_hd WHERE recid = ?", [$recid]);
         return $query->getRowArray();
     }
 
     // GET TRANSACTION HISTORY - using correct column names
     public function getTransactionHistory($transaction_id) {
         $query = $this->db->query("
-            SELECT 
-                h.*,
-                u.full_name as user_full_name,
-                u.username as user_username
+            SELECT
+                h.`action_type`,
+                h.`action_status`,
+                h.`action_by`,
+                h.`action_by_role`,
+                h.`remarks`,
+                h.`field_changes`,
+                h.`date_created`,
+                u.full_name as user_full_name
             FROM tbl_disbursement_history h
             LEFT JOIN myua_user u ON u.username = h.action_by
-            WHERE h.transaction_id = '$transaction_id'
-            ORDER BY h.date_created DESC
-        ");
+            WHERE h.transaction_id = ?
+            ORDER BY h.date_created DESC, h.recid DESC
+        ", [$transaction_id]);
         return $query->getResultArray();
+    }
+
+    //DISBURSEMENT - ONE DV WITH ITS LINE ITEMS AND HISTORY (editor / review modals)
+    public function disbursement_load($recid) {
+        $hd = $this->db->query("SELECT * FROM tbl_disbursement_hd WHERE `recid` = ?", [$recid])->getRowArray();
+        if (empty($hd)) {
+            return null;
+        }
+        $hd['grids'] = [];
+        foreach (self::GRIDS as $key => $table) {
+            $hd['grids'][$key] = $this->db->query("
+                SELECT `recid`, `responsibility_code`, `mfopaps_code`, `amount`
+                FROM tbl_disbursement_{$table}
+                WHERE `project_id` = ?
+                ORDER BY `recid` ASC
+            ", [$recid])->getResultArray();
+        }
+        $hd['history'] = $this->getTransactionHistory($recid);
+        return $hd;
+    }
+
+    // Line tables per grid key (tbl_ors_*, tbl_burs_* and tbl_disbursement_* share the suffixes)
+    const GRIDS = [
+        'ps_direct'     => 'direct_ps_dt',
+        'ps_indirect'   => 'indirect_ps_dt',
+        'mooe_direct'   => 'direct_mooe_dt',
+        'mooe_indirect' => 'indirect_mooe_dt',
+        'co_direct'     => 'direct_co_dt',
+        'co_indirect'   => 'indirect_co_dt',
+    ];
+
+    //DISBURSEMENT - PREFILL FROM AN ORS / BURS (same fields the DV copied before,
+    //lines summed per responsibility code)
+    public function obligation_load($source, $id) {
+        $source = $source === 'BURS' ? 'burs' : 'ors';
+        $hd = $this->db->query("SELECT * FROM tbl_{$source}_hd WHERE `recid` = ?", [$id])->getRowArray();
+        if (empty($hd)) {
+            return null;
+        }
+        $out = [
+            'source' => strtoupper($source),
+            'serialno' => $hd['serialno'],
+            'disbursement_date' => $hd[$source . '_date'],
+        ];
+        foreach (['particulars', 'funding_source', 'payee_name', 'payee_office', 'payee_address', 'certified_a', 'position_a',
+                  'fund_cluster_code', 'is_vatable', 'vat_percent', 'ewt_percent', 'pt_percent', 'other_deductions', 'income_tax',
+                  'deduction_name', 'sss', 'hdmf', 'pagibig_mp2', 'pagibig_loan', 'hmo', 'wtax', 'category'] as $field) {
+            $out[$field] = $hd[$field];
+        }
+        $out['grids'] = [];
+        foreach (self::GRIDS as $key => $table) {
+            $out['grids'][$key] = $this->db->query("
+                SELECT `responsibility_code`, MIN(`mfopaps_code`) AS mfopaps_code, SUM(`amount`) AS amount
+                FROM tbl_{$source}_{$table}
+                WHERE `project_id` = ?
+                GROUP BY `responsibility_code`
+                ORDER BY MIN(`recid`)
+            ", [$id])->getResultArray();
+        }
+        return $out;
     }
 
 	public function disbursement_save() { 
@@ -169,6 +234,7 @@ class MyDisbursementModel extends Model
 		}
 
 		if (empty($recid)) {
+			fods_require_access(\Config\AccessCodes::DISBURSEMENT_ADD, 'Saving');
 			//INSERTING HD DATA
 			$query = $this->db->query("
 				INSERT INTO tbl_disbursement_hd (
@@ -414,7 +480,7 @@ class MyDisbursementModel extends Model
 				}
 			}
 
-			//UPDATING OF DVNO in ORS
+			//UPDATING OF DVNO in the ORS / BURS it was prepared from
 			$query = $this->db->query("
 				UPDATE tbl_ors_hd
 				SET
@@ -424,6 +490,7 @@ class MyDisbursementModel extends Model
 				$dvno,
 				$serialno
 			]);
+			$this->db->query("UPDATE tbl_burs_hd SET `dvno` = ? WHERE serialno = ?", [$dvno, $serialno]);
 
 			// LOG: Added new transaction
 			$this->logHistory(
@@ -435,12 +502,53 @@ class MyDisbursementModel extends Model
 				$serialno
 			);
 
-			$status = "Disbursement Saved Successfully!";
+			$status = "Disbursement saved successfully";
 			$color = "success";
 		}else{
+			fods_require_access(\Config\AccessCodes::DISBURSEMENT_UPDATE, 'Updating');
 			// Get old data before update
 			$oldData = $this->getOldData($recid);
-			
+			if (empty($oldData)) {
+				echo "
+				<script>
+				toastr.error('Disbursement not found', 'Oops!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2000,
+					});
+				</script>
+				";
+				die();
+			}
+
+			// Once accounting has approved it the DV is locked; a disapproved DV
+			// can be corrected and goes back for approval
+			$is_disapproved = $oldData['is_disapproved_certa'] == '1' || $oldData['is_disapproved_certb'] == '1';
+			if ($oldData['is_approved_certa'] == '1' && !$is_disapproved) {
+				echo "
+				<script>
+				toastr.error('This disbursement is already approved and can no longer be edited', 'Locked', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				</script>
+				";
+				die();
+			}
+			if ($is_disapproved) {
+				$this->db->query("
+					UPDATE tbl_disbursement_hd
+					SET
+						`is_pending` = '1',
+						`is_approved_certa` = '0',
+						`is_disapproved_certa` = '0',
+						`is_approved_certb` = '0',
+						`is_disapproved_certb` = '0'
+					WHERE `recid` = ?
+				", [$recid]);
+			}
+
 			$query = $this->db->query("
 				UPDATE tbl_disbursement_hd
 				SET
@@ -512,7 +620,7 @@ class MyDisbursementModel extends Model
 			$project_id = $recid;
 
 			if (!empty($budgetdtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_ps_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_ps_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetdtdata); $aa++){
 					$medata = explode("x|x",$budgetdtdata[$aa]); 
 					$responsibility_code = $medata[0]; 
@@ -539,11 +647,11 @@ class MyDisbursementModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_ps_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_ps_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetdtindirectdata)) {
-				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_ps_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_ps_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetdtindirectdata); $aa++){
 					$medata = explode("x|x",$budgetdtindirectdata[$aa]);
 					$responsibility_code = $medata[0]; 
@@ -570,11 +678,11 @@ class MyDisbursementModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_ps_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_ps_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetmooedtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_mooe_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_mooe_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetmooedtdata); $aa++){
 					$medata = explode("x|x",$budgetmooedtdata[$aa]);
 					$responsibility_code = $medata[0]; 
@@ -602,11 +710,11 @@ class MyDisbursementModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_mooe_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_mooe_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetmooeindirectdtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_mooe_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_mooe_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetmooeindirectdtdata); $aa++){
 					$medata = explode("x|x",$budgetmooeindirectdtdata[$aa]);
 					$responsibility_code = $medata[0]; 
@@ -634,11 +742,11 @@ class MyDisbursementModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_mooe_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_mooe_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetcodtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_co_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_co_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetcodtdata); $aa++){
 					$medata = explode("x|x",$budgetcodtdata[$aa]);
 					$responsibility_code = $medata[0]; 
@@ -666,11 +774,11 @@ class MyDisbursementModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_co_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_co_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			if (!empty($budgetindirectcodtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_co_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_co_dt WHERE `project_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($budgetindirectcodtdata); $aa++){
 					$medata = explode("x|x",$budgetindirectcodtdata[$aa]);
 					$responsibility_code = $medata[0]; 
@@ -698,7 +806,7 @@ class MyDisbursementModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_co_dt WHERE `project_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_disbursement_indirect_co_dt WHERE `project_id` = ?", [$project_id]);
 			}
 
 			// LOG: Updated transaction with field changes
@@ -722,7 +830,7 @@ class MyDisbursementModel extends Model
 				}
 			}
 
-			//UPDATING OF DVNO in ORS
+			//UPDATING OF DVNO in the ORS / BURS it was prepared from
 			$query = $this->db->query("
 				UPDATE tbl_ors_hd
 				SET
@@ -732,17 +840,18 @@ class MyDisbursementModel extends Model
 				$dvno,
 				$serialno
 			]);
+			$this->db->query("UPDATE tbl_burs_hd SET `dvno` = ? WHERE serialno = ?", [$dvno, $serialno]);
 			
 			$this->logHistory(
 				$project_id,
 				'UPDATED',
 				'PENDING',
-				'Transaction details updated',
+				$is_disapproved ? 'Corrected and resubmitted for approval' : 'Transaction details updated',
 				!empty($fieldChanges) ? $fieldChanges : null,
 				$serialno
 			);
 
-			$status = "Disbursement Updated Successfully!";
+			$status = $is_disapproved ? "Disbursement updated and sent back for approval" : "Disbursement updated successfully";
 			$color = "info";
 		}
 
@@ -770,222 +879,76 @@ class MyDisbursementModel extends Model
 		
 	}
 	
-	//CERTIFIED A APPROVAL
-	public function disbursement_certifya_approve() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
+	//ACCOUNTING APPROVAL / DISAPPROVAL (single step; stored in the certa columns)
+	public function disbursement_approve() { $this->disbursement_decide(true); }
+	public function disbursement_disapprove() { $this->disbursement_decide(false); }
 
-		$query = $this->db->query("
-			UPDATE tbl_disbursement_hd 
-			SET 
-				`is_pending` = '0', 
-				`is_approved_certa` = '1',
-				`is_disapproved_certa` = '0',
-				`certa_approver` = '$approver', 
-				`certa_remarks` = '$remarks'
-			WHERE `recid` = '$recid'
-		");
-		
-		if ($query) {
-			// LOG: Approved by Certified A
-			$this->logHistory(
-				$recid,
-				'APPROVED_CERTA',
-				'APPROVED',
-				$remarks,
-				['approver' => $approver]
-			);
-			
-			$status = "Disbursement Approved!";
+	private function disbursement_decide($approve) {
+		$recid = $this->request->getPostGet('recid');
+		$remarks = trim((string) $this->request->getPostGet('remarks'));
+		$approver = $this->cuser;
+
+		fods_require_access(\Config\AccessCodes::DISBURSEMENTAPPROVAL_APPROVE, $approve ? 'Approve' : 'Disapprove');
+
+		// Only a DV that is still waiting can be decided
+		$hd = $this->getOldData($recid);
+		if (empty($hd) || $hd['is_approved_certa'] == '1' || $hd['is_disapproved_certa'] == '1') {
 			echo "
 			<script>
-				toastr.success('{$status}!', 'Well Done!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2500,
-					});
-				setTimeout(function() {
-						window.location.href = 'mydisbursement?meaction=MAIN';
-					}, 2500);
+			toastr.error('This disbursement is not waiting for approval', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2500,
+				});
 			</script>
 			";
 			exit;
-		} else {
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
-			exit;
 		}
-	}
-
-	//CERTIFIED A DISAPPROVAL
-	public function disbursement_certifya_disapprove() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
-
-		$query = $this->db->query("
-			UPDATE tbl_disbursement_hd 
-			SET 
-				`is_pending` = '0', 
-				`is_approved_certa` = '0',
-				`is_disapproved_certa` = '1',
-				`certa_approver` = '$approver', 
-				`certa_remarks` = '$remarks' 
-			WHERE `recid` = '$recid'
-		");
-		
-		if ($query) {
-			// LOG: Disapproved by Certified A
-			$this->logHistory(
-				$recid,
-				'DISAPPROVED_CERTA',
-				'DISAPPROVED',
-				$remarks,
-				['approver' => $approver]
-			);
-			
-			$status = "Disbursement Disapproved!";
+		if (!$approve && $remarks === '') {
 			echo "
 			<script>
-				toastr.success('{$status}!', 'Well Done!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2500,
-					});
-				setTimeout(function() {
-						window.location.href = 'mydisbursement?meaction=MAIN';
-					}, 2500);
-			</script>
-			";
-			exit;
-		} else {
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
-			exit;
-		}
-	}
-
-	// CERTIFIED B APPROVAL
-	public function disbursement_certifyb_approve() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
-
-		$accessquery = $this->db->query("
-			SELECT `recid` FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2006' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
+			toastr.error('Remarks are required when disapproving', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2000,
 				});
 			</script>
 			";
-			die();
+			exit;
 		}
 
 		$query = $this->db->query("
-			UPDATE tbl_disbursement_hd 
-			SET 
-				`is_pending` = '0', 
-				`is_approved_certb` = '1', 
-				`is_disapproved_certb` = '0',
-				`certb_approver` = '$approver', 
-				`certb_remarks` = '$remarks' 
-			WHERE `recid` = '$recid'
-		");
-		
+			UPDATE tbl_disbursement_hd
+			SET
+				`is_pending` = '0',
+				`is_approved_certa` = ?,
+				`is_disapproved_certa` = ?,
+				`certa_approver` = ?,
+				`certa_remarks` = ?
+			WHERE `recid` = ?
+		", [$approve ? 1 : 0, $approve ? 0 : 1, $approver, mb_substr($remarks, 0, 100), $recid]);
+
 		if ($query) {
-			// LOG: Approved by Certified B
+			// LOG: decision
 			$this->logHistory(
 				$recid,
-				'APPROVED_CERTB',
-				'APPROVED',
+				$approve ? 'APPROVED' : 'DISAPPROVED',
+				$approve ? 'APPROVED' : 'DISAPPROVED',
 				$remarks,
 				['approver' => $approver]
 			);
-			
-			$status = "Disbursement Approved!";
+
+			$status = $approve ? "Disbursement approved" : "Disbursement disapproved";
+			$color = $approve ? "success" : "warning";
 			echo "
 			<script>
-				toastr.success('{$status}!', 'Well Done!', {
+				toastr.{$color}('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mydisbursementapproval?meaction=MAIN';
-					}, 2500);
-			</script>
-			";
-			exit;
-		} else {
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
-			exit;
-		}
-	}
-
-	// CERTIFIED B DISAPPROVAL
-	public function disbursement_certifyb_disapprove() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
-
-		$accessquery = $this->db->query("
-			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2006' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Disapprove Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
-		}
-
-		$query = $this->db->query("
-			UPDATE tbl_disbursement_hd 
-			SET 
-				`is_pending` = '0', 
-				`is_approved_certb` = '0',
-				`is_disapproved_certb` = '1',
-				`certb_approver` = '$approver', 
-				`certb_remarks` = '$remarks' 
-			WHERE `recid` = '$recid'
-		");
-		
-		if ($query) {
-			// LOG: Disapproved by Certified B
-			$this->logHistory(
-				$recid,
-				'DISAPPROVED_CERTB',
-				'DISAPPROVED',
-				$remarks,
-				['approver' => $approver]
-			);
-			
-			$status = "Disbursement Disapproved!";
-			echo "
-			<script>
-				toastr.success('{$status}!', 'Well Done!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2500,
-					});
-				setTimeout(function() {
-						window.location.href = 'mydisbursementapproval?meaction=MAIN';
+						window.location.href = 'mydisbursementapproval';
 					}, 2500);
 			</script>
 			";

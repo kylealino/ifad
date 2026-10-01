@@ -50,21 +50,7 @@ class MyPayeeModel extends Model
 
 
 		if (empty($recid)) {
-			$accessquery = $this->db->query("
-				SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '5002' AND `is_active` = '1'
-			");
-			if ($accessquery->getNumRows() == 0) {
-				echo "
-				<script>
-				toastr.error('Saving Access Denied! Please Contact the Administrator.', 'Oops!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2000,
-					});
-				</script>
-				";
-				die();
-			}
+			fods_require_access(\Config\AccessCodes::PAYEE_ADD, 'Saving');
 			$query = $this->db->query("
 				INSERT INTO `tbl_payee` (
 					`payee_name`, 
@@ -92,21 +78,7 @@ class MyPayeeModel extends Model
 			$status = "Payee Saved successfully";
 			$color = "success";
 		}else{
-			$accessquery = $this->db->query("
-				SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '5003' AND `is_active` = '1'
-			");
-			if ($accessquery->getNumRows() == 0) {
-				echo "
-				<script>
-				toastr.error('Updating Access Denied! Please Contact the Administrator.', 'Oops!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2000,
-					});
-				</script>
-				";
-				die();
-			}
+			fods_require_access(\Config\AccessCodes::PAYEE_UPDATE, 'Updating');
 			$query = $this->db->query("
 				UPDATE tbl_payee SET 
 				`payee_name` = ?,
@@ -162,26 +134,10 @@ class MyPayeeModel extends Model
 	public function payee_delete() { 
 		$recid = $this->request->getPostGet('recid');
 
-		$accessquery = $this->db->query("
-			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '5004' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Deleting Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
-		}
+		fods_require_access(\Config\AccessCodes::PAYEE_DELETE, 'Deleting');
 
 
-		$query = $this->db->query("
-			DELETE FROM `tbl_payee` WHERE `recid` = '$recid'
-		");
+		$query = $this->db->query("DELETE FROM `tbl_payee` WHERE `recid` = ?", [$recid]);
 		$status = "Payee deleted successfully";
 		
 		if ($query) {

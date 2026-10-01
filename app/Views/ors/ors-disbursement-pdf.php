@@ -158,55 +158,56 @@ SELECT
 FROM
     `tbl_ors_hd`
 WHERE 
-    `recid` = '$recid'"
-);
+    `recid` = ?"
+, [$recid]);
 
-$data = $query->getRowArray();
-$serialno = $data['serialno'];
-$particulars = $data['particulars'];
-$funding_source = $data['funding_source'];
-$payee_name = $data['payee_name'];
-$payee_office = $data['payee_office'];
-$payee_address = $data['payee_address'];
+$data = $query->getRowArray() ?? [];
+if (empty($data)) { echo 'Record not found.'; return; }
+$serialno = $data['serialno'] ?? '';
+$particulars = $data['particulars'] ?? '';
+$funding_source = $data['funding_source'] ?? '';
+$payee_name = $data['payee_name'] ?? '';
+$payee_office = $data['payee_office'] ?? '';
+$payee_address = $data['payee_address'] ?? '';
 
-$certified_a = $data['certified_a'];
-$position_a = $data['position_a'];
-$certified_b = $data['certified_b'];
-$position_b = $data['position_b'];
+$certified_a = $data['certified_a'] ?? '';
+$position_a = $data['position_a'] ?? '';
+$certified_b = $data['certified_b'] ?? '';
+$position_b = $data['position_b'] ?? '';
 
-$is_pending = $data['is_pending'];
-$is_approved_certa = $data['is_approved_certa'];
-$is_disapproved_certa = $data['is_disapproved_certa'];
-$is_approved_certb = $data['is_approved_certb'];
-$is_disapproved_certb = $data['is_disapproved_certb'];
+$is_pending = $data['is_pending'] ?? '';
+$is_approved_certa = $data['is_approved_certa'] ?? '';
+$is_disapproved_certa = $data['is_disapproved_certa'] ?? '';
+$is_approved_certb = $data['is_approved_certb'] ?? '';
+$is_disapproved_certb = $data['is_disapproved_certb'] ?? '';
 
-$certa_remarks = $data['certa_remarks'];
-$certb_remarks = $data['certb_remarks'];
+$certa_remarks = $data['certa_remarks'] ?? '';
+$certb_remarks = $data['certb_remarks'] ?? '';
 
-$certa_approver = $data['certa_approver'];
-$certb_approver = $data['certb_approver'];
+$certa_approver = $data['certa_approver'] ?? '';
+$certb_approver = $data['certb_approver'] ?? '';
 
-$added_at = $data['added_at'];
-$added_by = $data['added_by'];
+$added_at = $data['added_at'] ?? '';
+$added_by = $data['added_by'] ?? '';
 
-$ors_date = $data['ors_date'];
-$dvno = $data['dvno'];
-$fund_cluster_code = $data['fund_cluster_code'];
+$ors_date = $data['ors_date'] ?? '';
+$dvno = $data['dvno'] ?? '';
+$fund_cluster_code = $data['fund_cluster_code'] ?? '';
 
-$is_vatable = $data['is_vatable'];
-$vat_percent = $data['vat_percent'];
-$ewt_percent = $data['ewt_percent'];
-$pt_percent = $data['pt_percent'];
-$income_tax = $data['income_tax'];
-$deduction_name = $data['deduction_name'];
-$other_deductions = $data['other_deductions'];
-$sss = $data['sss'];
-$hdmf = $data['hdmf'];
-$pagibig_mp2 = $data['pagibig_mp2'];
-$pagibig_loan = $data['pagibig_loan'];
-$hmo = $data['hmo'];
-$wtax = $data['wtax'];
-$category = $data['category'];
+$is_vatable = $data['is_vatable'] ?? '';
+$vat_percent = $data['vat_percent'] ?? '';
+$ewt_percent = $data['ewt_percent'] ?? '';
+$pt_percent = $data['pt_percent'] ?? '';
+$income_tax = $data['income_tax'] ?? '';
+$deduction_name = $data['deduction_name'] ?? '';
+$other_deductions = $data['other_deductions'] ?? '';
+$sss = $data['sss'] ?? '';
+$hdmf = $data['hdmf'] ?? '';
+$pagibig_mp2 = $data['pagibig_mp2'] ?? '';
+$pagibig_loan = $data['pagibig_loan'] ?? '';
+$hmo = $data['hmo'] ?? '';
+$wtax = $data['wtax'] ?? '';
+$category = $data['category'] ?? '';
 
 //certify a division
 $query = $this->db->query("
@@ -215,10 +216,10 @@ SELECT
 FROM
     `myua_user`
 WHERE 
-    `full_name` = '$certified_a'"
-);
-$data = $query->getRowArray();
-$position_a = $data['position'];
+    `full_name` = ?"
+, [$certified_a]);
+$data = $query->getRowArray() ?? [];
+$position_a = $data['position'] ?? '';
 
 $query = $this->db->query("
 SELECT
@@ -226,10 +227,10 @@ SELECT
 FROM
     `tbl_payee`
 WHERE 
-    `payee_name` = '$payee_name'"
-);
-$data = $query->getRowArray();
-$payee_tin = $data['payee_tin'];
+    `payee_name` = ?"
+, [$payee_name]);
+$data = $query->getRowArray() ?? [];
+$payee_tin = $data['payee_tin'] ?? '';
 
 
 $pdf = new FPDF('P', 'mm', 'A4');

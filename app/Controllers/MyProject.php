@@ -21,10 +21,7 @@ class MyProject extends BaseController
     
         switch ($meaction) {
             case 'MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '6001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+                if (fods_has_access(\Config\AccessCodes::PROJECT_VIEW)) {
                     return $this->loadMainView();
                     break;
                 }else {
@@ -55,6 +52,8 @@ class MyProject extends BaseController
             a.`division_id`,
             c.`division_name`,
             a.`responsibility_code`,
+            a.`project_leader`,
+            a.`mfopaps_code`,
             a.`project_title`
         FROM
             `tbl_reference_project` a
@@ -98,11 +97,23 @@ class MyProject extends BaseController
         ");
         $mfopapsdata = $mfopapsquery->getResultArray();
     
+        $byCluster = [];
+        foreach ($projectdata as $row) {
+            $byCluster[$row['fund_cluster_code']] = ($byCluster[$row['fund_cluster_code']] ?? 0) + 1;
+        }
+        ksort($byCluster);
+
         return view('project/project-main', [
             'projectdata' => $projectdata,
             'divisiondata' => $divisiondata,
             'fundclusterdata' => $fundclusterdata,
             'mfopapsdata' => $mfopapsdata,
+            'byCluster' => $byCluster,
+            'perms' => [
+                'add' => fods_has_access(\Config\AccessCodes::PROJECT_ADD),
+                'edit' => fods_has_access(\Config\AccessCodes::PROJECT_UPDATE),
+                'del' => false,
+            ],
         ]);
     }
     

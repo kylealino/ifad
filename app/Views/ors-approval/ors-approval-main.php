@@ -1,336 +1,196 @@
 <?php
-$this->request = \Config\Services::request();
-$this->db = \Config\Database::connect();
-$recid = $this->request->getPostGet('recid');
-$this->session = session();
-$this->cuser = $this->session->get('__xsys_myuserzicas__');
-
-$totalquery = $this->db->query("
-SELECT
-    COALESCE(COUNT(recid), 0) AS total_transactions
-FROM
-    `tbl_ors_hd`
-");
-
-$totaldata = $totalquery->getRowArray();
-$total_transactions = $totaldata['total_transactions'];
-
-$pendingquery = $this->db->query("
-SELECT
-    COALESCE(COUNT(recid), 0) AS total_pending
-FROM
-    `tbl_ors_hd`
-WHERE 
-    `is_pending` = '1'
-");
-
-$pendingdata = $pendingquery->getRowArray();
-$total_pending = $pendingdata['total_pending'];
-
-$approvedquery = $this->db->query("
-SELECT
-    COALESCE(COUNT(recid), 0) AS total_approved_certa
-FROM
-    `tbl_ors_hd`
-WHERE 
-    `is_approved_certa` = '1'
-");
-
-$approveddata = $approvedquery->getRowArray();
-$total_approved_certa = $approveddata['total_approved_certa'];
-
-$disapprovedquery = $this->db->query("
-SELECT
-    COALESCE(COUNT(recid), 0) AS total_disapproved_certa
-FROM
-    `tbl_ors_hd`
-WHERE 
-    `is_disapproved_certa` = '1'
-");
-
-$disapproveddata = $disapprovedquery->getRowArray();
-$total_disapproved_certa = $disapproveddata['total_disapproved_certa'];
-
-
-
-
 echo view('templates/myheader.php');
 ?>
+<head>
+<style>
+.rev-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:.9rem 1.5rem; }
+.rev-field .lbl { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--fods-muted); margin-bottom:.15rem; }
+.rev-field .val { color:var(--fods-text); font-size:.88rem; overflow-wrap:anywhere; }
+.rev-field.wide { grid-column:1 / -1; }
+.rev-totals { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:.75rem; }
+.rev-total { border:1px solid var(--fods-border); background:#fff; padding:.75rem .9rem; border-radius:12px; }
+.rev-total .lbl { font-size:.72rem; color:var(--fods-muted); }
+.rev-total .amt { font-weight:700; color:var(--fods-text); font-variant-numeric:tabular-nums; }
+.rev-total.grand { border-color:var(--fods-teal); background:var(--fods-teal-soft); }
+.rev-class { margin-top:1.25rem; }
+.rev-class-title { font-weight:700; color:var(--fods-text); margin-bottom:.5rem; display:flex; justify-content:space-between; gap:1rem; }
+.rev-table-wrap { overflow-x:auto; border:1px solid var(--fods-border); background:#fff; margin-bottom:.75rem; border-radius:12px; }
+.rev-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.rev-table caption { caption-side:top; padding:.5rem .75rem; font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--fods-muted); background:#fafbfc; border-bottom:1px solid var(--fods-border); }
+.rev-table th { font-size:.68rem; text-transform:uppercase; letter-spacing:.04em; color:var(--fods-muted); font-weight:600; padding:.45rem .75rem; border-bottom:1px solid var(--fods-border); white-space:nowrap; text-align:left; }
+.rev-table td { padding:.45rem .75rem; border-bottom:1px solid #f1f4f8; color:var(--fods-text); }
+.rev-table .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.rev-table tfoot td { font-weight:700; background:#fafbfc; border-bottom:0; }
+.rev-steps { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:.75rem; }
+.rev-step { border:1px solid var(--fods-border); background:#fff; border-radius:12px; padding:.8rem 1rem; }
+.rev-step.is-current { border-color:var(--fods-teal); box-shadow:0 0 0 3px var(--fods-teal-soft); }
+.rev-step-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+.rev-step-box { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--fods-muted); }
+.rev-step-name { font-weight:600; color:var(--fods-text); margin-top:.35rem; }
+.rev-step-note { font-size:.78rem; color:var(--fods-muted); margin-top:.2rem; overflow-wrap:anywhere; }
+.rev-confirm { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
+@media (max-width: 991.98px) { .rev-totals { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+@media (max-width: 575.98px) { .rev-totals { grid-template-columns:repeat(2, minmax(0,1fr)); } .rev-steps { grid-template-columns:1fr; } }
+@media (min-width: 1200px) { .rev-dialog { max-width:min(1200px, calc(100vw - 4rem)); } }
+</style>
+</head>
 <div class="container-fluid">
-    <div class="row">
-        <div class="col-sm-12 mb-3">
-            <div class="row">
-                <div class="col-lg-3 col-md-6">
-                    <div class="card overflow-hidden">
-                        <div class="d-flex flex-row">
-                            <div class="p-3 bg-info-subtle d-flex align-items-center">
-                                <h3 class="text-info box mb-0">
-                                <i class="ti ti-list"></i>
-                                </h3>
-                            </div>
-                            <div class="p-3">
-                                <h3 class="text-info mb-0 fs-9"><?=$total_transactions;?></h3>
-                                <span>Total Projects</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="card overflow-hidden">
-                        <div class="d-flex flex-row">
-                            <div class="p-3 bg-warning-subtle d-flex align-items-center">
-                                <h3 class="text-warning box mb-0">
-                                <i class="ti ti-flag"></i>
-                                </h3>
-                            </div>
-                            <div class="p-3">
-                                <h3 class="text-warning mb-0 fs-9"><?=$total_pending;?></h3>
-                                <span>Pending</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="card overflow-hidden">
-                        <div class="d-flex flex-row">
-                            <div class="p-3 bg-success-subtle d-flex align-items-center">
-                                <h3 class="text-success box mb-0">
-                                <i class="ti ti-check"></i>
-                                </h3>
-                            </div>
-                            <div class="p-3">
-                                <h3 class="text-success mb-0 fs-9"><?=$total_approved_certa;?></h3>
-                                <span>Approved</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="card overflow-hidden">
-                        <div class="d-flex flex-row">
-                            <div class="p-3 bg-danger-subtle d-flex align-items-center">
-                                <h3 class="text-danger box mb-0">
-                                <i class="ti ti-x"></i>
-                                </h3>
-                            </div>
-                            <div class="p-3">
-                                <h3 class="text-danger mb-0 fs-9"><?=$total_disapproved_certa;?></h3>
-                                <span>Disapproved</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <input type="hidden" id="__siteurl" data-mesiteurl="<?=site_url();?>" />
+    <div class="row me-outp-msg mx-0"></div>
+
+    <div class="fods-page-head">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="#">ORS</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">ORS Approval</li>
+                </ol>
+            </nav>
+            <h1 class="fods-page-title">ORS Approval</h1>
+            <p class="fods-page-sub">Certify obligation requests: Box A by the requesting office, then Box B by budget.</p>
+        </div>
+        <div class="fods-page-actions d-flex">
+            <select class="form-select form-select-sm fods-year" id="approvalYear" aria-label="Year"></select>
+        </div>
+    </div>
+
+    <!-- Stat cards (filled by myorsapproval.js for the selected year) -->
+    <div class="row g-3 mb-4" id="approvalTableCards">
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="approvalTable" data-filter="mine">
+                <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="approvalTable" data-filter="disapproved">
+                <div class="fods-stat-icon tone-red"><i class="ti ti-arrow-back-up"></i></div>
+                <div><div class="fods-stat-value" data-card-value="returned">0</div><div class="fods-stat-label" data-card-label="returned">Returned</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="approvalTable" data-filter="approved">
+                <div class="fods-stat-icon tone-green"><i class="ti ti-circle-check"></i></div>
+                <div><div class="fods-stat-value" data-card-value="approved">0</div><div class="fods-stat-label" data-card-label="approved">Approved</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="approvalTable" data-filter="all">
+                <div class="fods-stat-icon tone-teal"><i class="ti ti-cash"></i></div>
+                <div><div class="fods-stat-value" data-card-value="total">₱0.00</div><div class="fods-stat-label" data-card-label="total">Total amount</div></div>
+            </button>
+        </div>
+    </div>
+
+    <div class="fods-card">
+        <div class="fods-card-head">
+            <div class="fods-filter" id="approvalTableFilter">
+                <button type="button" class="active" data-filter="mine">Waiting for you</button>
+                <button type="button" data-filter="pending_a">Box A</button>
+                <button type="button" data-filter="pending_b">Box B</button>
+                <button type="button" data-filter="disapproved">Returned</button>
+                <button type="button" data-filter="approved">Approved</button>
+                <button type="button" data-filter="all">All</button>
+            </div>
+            <div class="fods-search">
+                <i class="ti ti-search"></i>
+                <input type="search" class="form-control form-control-sm" id="approvalTableSearch" placeholder="Search serial no., payee, particulars...">
             </div>
         </div>
-
-        <div class="col-lg-12">
-            <div class="card">
-                <div class="card-body">
-                    <h4 class="card-title">Requesting Office Approval</h4>
-                    <p class="card-subtitle">List of pending transactions</p>
-                    <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Serial No.</th>
-                                <th>Particulars</th>
-                                <th>Amount</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="align-middle">
-                            <?php if(!empty($certifyadata)):
-                                
-                                foreach ($certifyadata as $data):
-                                    $recid = $data['recid'];
-                                    $particulars = $data['particulars'];
-                                    $serialno = $data['serialno'];
-                                    $amount = $data['amount'];
-                            ?>
-                            <tr>
-                                <td class="text-center"><?=$serialno;?></td>
-                                <td class="text-center"><?=$particulars;?></td>
-                                <td class="text-center"><?= '₱'. number_format($amount,2);?></td>
-                                <td class="text-center align-middle">
-                                    <a class="text-info nav-icon-hover fs-6" href="myors?meaction=MAIN&recid=<?= $recid?>&action=certifya_appr_pending" title="View Transaction">
-                                        <i class="ti ti-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <?php endforeach; endif;?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <div class="fods-card-body fods-dt">
+            <table id="approvalTable" class="table fods-table fods-table-stack w-100">
+                <thead>
+                    <tr>
+                        <th>ORS</th>
+                        <th class="d-none d-md-table-cell">Payee</th>
+                        <th class="text-end">Amount</th>
+                        <th>Status</th>
+                        <th class="d-none d-lg-table-cell">Submitted</th>
+                        <th class="d-none d-xl-table-cell">Decided by</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+            </table>
         </div>
-
-        <div class="col-lg-12">
-            <div class="card">
-                <div class="card-body">
-                    <h4 class="card-title">Budget Division Approval</h4>
-                    <p class="card-subtitle">List of pending transactions</p>
-                    
-                    <table id="datatablesSimple2" class="table table-bordered table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Particulars</th>
-                                <th>Amount</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="align-middle">
-                            <?php if(!empty($certifybdata)):
-                                
-                                foreach ($certifybdata as $data):
-                                    $recid = $data['recid'];
-                                    $particulars = $data['particulars'];
-                                    $amount = $data['amount'];
-                            ?>
-                            <tr>
-                                <td class="text-center"><?=$particulars;?></td>
-                                <td class="text-center"><?= '₱'. number_format($amount,2);?></td>
-                                <td class="text-center align-middle">
-                                    <a class="text-info nav-icon-hover fs-6" title="View Transaction" href="myors?meaction=MAIN&recid=<?= $recid?>&action=certifyb_appr_pending">
-                                        <i class="ti ti-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <?php endforeach; endif;?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-12">
-            <div class="card">
-                <div class="card-body">
-                    <h4 class="card-title">Approval History</h4>
-                    <table id="datatablesSimple3" class="table table-bordered table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Particulars</th>
-                                <th>Amount</th>
-                                <th>Requesting Office Approval</th>
-                                <th>Budget Division Approval</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="align-middle">
-                            <?php if(!empty($transactiondata)):
-                                $office_status="";
-                                $budget_status="";
-                                $remarks="";
-                                $approver="";
-                                $color="";
-                                foreach ($transactiondata as $data):
-                                    $recid = $data['recid'];
-                                    $particulars = $data['particulars'];
-                                    $amount = $data['amount'];
-                                    $is_approved_certa = $data['is_approved_certa'];
-                                    $is_disapproved_certa = $data['is_disapproved_certa'];
-                                    $is_approved_certb = $data['is_approved_certb'];
-                                    $is_disapproved_certb = $data['is_disapproved_certb'];
-                                    $certa_remarks = $data['certa_remarks'];
-                                    $certa_approver = $data['certa_approver'];
-                                    $certb_remarks = $data['certb_remarks'];
-                                    $certb_approver = $data['certb_approver'];
-
-                                    if ($is_approved_certa == '1' && $is_disapproved_certa == '0') {
-                                        $office_status = '<i class="ti ti-flag"></i>&nbsp;' . 'Approved';
-                                        $color="text-success";
-                                    }elseif($is_approved_certa == '0' && $is_disapproved_certa == '1'){
-                                        $office_status = '<i class="ti ti-flag"></i>&nbsp;' . 'Disapproved';
-                                        $color="text-danger";
-                                    }else{
-                                        $office_status = '<i class="ti ti-flag"></i>&nbsp;' . 'Pending';
-                                        $color="text-primary";
-                                    }
-
-                                    if($is_approved_certa == '1' && $is_disapproved_certa == '0' && $is_approved_certb == '1' && $is_disapproved_certb == '0'){
-                                        $budget_status = '<i class="ti ti-flag"></i>&nbsp;' . 'Approved';
-                                        $budget_color="text-success";
-                                    }elseif($is_approved_certa == '1' && $is_disapproved_certa == '0' && $is_approved_certb == '0' && $is_disapproved_certb == '1'){
-                                        $budget_status = '<i class="ti ti-flag"></i>&nbsp;' . 'Disapproved';
-                                        $budget_color="text-danger";
-                                    }else{
-                                        $budget_status = '<i class="ti ti-flag"></i>&nbsp;' . 'Pending';
-                                        $budget_color="text-primary";
-                                    }
-                            ?>
-                            <tr>
-                                <td class="text-center"><?=$particulars;?></td>
-                                <td class="text-center"><?= '₱'. number_format($amount,2);?></td>
-                                <td class="text-center <?=$color;?>">
-                                    <?=$office_status;?>
-                                </td>
-                                <td class="text-center <?=$budget_color;?>">
-                                    <?=$budget_status;?>
-                                </td>
-                                <td class="text-center align-middle">
-                                    <a class="text-info nav-icon-hover fs-6" title="View Transaction" href="myors?meaction=MAIN&recid=<?= $recid?>&action=transaction_viewing">
-                                        <i class="ti ti-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <?php endforeach; endif;?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
     </div>
 </div>
 
+<!-- ============================= REVIEW ============================= -->
+<div class="modal fade fods-modal" id="reviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down rev-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <div class="d-flex align-items-center" style="min-width:0">
+                    <div class="fods-modal-icon tone-teal"><i class="ti ti-file-search"></i></div>
+                    <div style="min-width:0">
+                        <h5 class="modal-title text-truncate" id="reviewTitle">Review ORS</h5>
+                        <div class="fods-modal-sub" id="reviewSub"></div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
+                    <button type="button" class="btn btn-sm btn-fods-ghost" id="reviewPrintBtn"><i class="ti ti-printer me-1"></i>Print ORS</button>
+                    <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+            <div class="modal-body" style="background:var(--fods-bg);">
+                <div id="reviewBanner" class="alert d-none mb-3"></div>
+
+                <div class="rev-steps mb-3" id="reviewSteps"></div>
+
+                <div class="fods-card mb-3"><div class="fods-card-body pt-3">
+                    <div class="fods-section mt-0">Obligation</div>
+                    <div class="rev-grid" id="reviewFields"></div>
+                </div></div>
+
+                <div class="rev-totals" id="reviewTotals"></div>
+
+                <div id="reviewItems"></div>
+
+                <div class="fods-card mt-3" id="reviewDecisionCard"><div class="fods-card-body pt-3">
+                    <div class="fods-section mt-0" id="reviewDecisionTitle">Your decision</div>
+                    <label class="form-label" for="reviewRemarks">Remarks</label>
+                    <textarea class="form-control" id="reviewRemarks" rows="3" maxlength="100" placeholder="Optional for approval — explain what needs to change when disapproving"></textarea>
+                </div></div>
+            </div>
+
+            <div class="modal-footer justify-content-between">
+                <span class="small text-muted" id="reviewFooterNote"></span>
+                <div id="reviewActions" class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-sm btn-danger px-3" id="reviewDisapproveBtn" style="border-radius:10px;"><i class="ti ti-x me-1"></i>Disapprove</button>
+                    <button type="button" class="btn btn-sm btn-success px-4" id="reviewApproveBtn" style="border-radius:10px;"><i class="ti ti-check me-1"></i>Certify</button>
+                </div>
+                <div id="reviewConfirm" class="rev-confirm d-none">
+                    <span class="fw-semibold" id="reviewConfirmText"></span>
+                    <button type="button" class="btn btn-sm btn-fods-ghost px-3" id="reviewConfirmCancel">Cancel</button>
+                    <button type="button" class="btn btn-sm px-4" id="reviewConfirmYes" style="border-radius:10px;"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ORS print preview -->
+<div class="modal fade fods-modal" id="approvalPrintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-md-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">ORS — print preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="approvalPrintFrame" src="about:blank" style="width:100%; height:80vh; border:0;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    $(document).ready(function () {
-        $('#datatablesSimple').DataTable({
-            pageLength: 5,
-            lengthChange: false,
-            language: {
-            search: "Search:"
-            }
-        });
-
-        $('#datatablesSimple2').DataTable({
-            pageLength: 5,
-            lengthChange: false,
-            language: {
-            search: "Search:"
-            }
-        });
-
-        $('#datatablesSimple3').DataTable({
-            pageLength: 5,
-            lengthChange: false,
-            language: {
-            search: "Search:"
-            }
-        });
-
-        $('#approved_table').DataTable({
-            pageLength: 5,
-            lengthChange: false,
-            language: {
-            search: "Search:"
-            }
-        });
-
-        $('#disapproved_table').DataTable({
-            pageLength: 5,
-            lengthChange: false,
-            language: {
-            search: "Search:"
-            }
-        });
-  
-    });
+    var __approval_data = <?= json_encode($orsdata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __approval_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __approval_perms = <?= json_encode($perms) ?>;
 </script>
-<?php
-    echo view('templates/myfooter.php');
-?>
+<script src="<?=base_url('assets/js/ors/myorsapproval.js?v=4');?>"></script>
+<?php echo view('templates/myfooter.php'); ?>

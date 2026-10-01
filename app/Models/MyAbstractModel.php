@@ -46,21 +46,7 @@ class MyAbstractModel extends Model
 		
 
 		if (empty($recid)) {
-			// $accessquery = $this->db->query("
-			// 	SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '10002' AND `is_active` = '1'
-			// ");
-			// if ($accessquery->getNumRows() == 0) {
-			// 	echo "
-			// 	<script>
-			// 	toastr.error('Saving Access Denied! Please Contact the Administrator.', 'Oops!', {
-			// 			progressBar: true,
-			// 			closeButton: true,
-			// 			timeOut:2000,
-			// 		});
-			// 	</script>
-			// 	";
-			// 	die();
-			// }
+			fods_require_access(\Config\AccessCodes::ABSTRACT_ADD, 'Saving');
 			//INSERTING HD DATA
 			$query = $this->db->query("
 				INSERT INTO `tbl_abstract_hd`(
@@ -144,21 +130,7 @@ class MyAbstractModel extends Model
 			$status = "Abstract Saved Successfully!";
 			$color = "success";
 		}else{
-			// $accessquery = $this->db->query("
-			// 	SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '10003' AND `is_active` = '1'
-			// ");
-			// if ($accessquery->getNumRows() == 0) {
-			// 	echo "
-			// 	<script>
-			// 	toastr.error('Updating Access Denied! Please Contact the Administrator.', 'Oops!', {
-			// 			progressBar: true,
-			// 			closeButton: true,
-			// 			timeOut:2000,
-			// 		});
-			// 	</script>
-			// 	";
-			// 	die();
-			// }
+			fods_require_access(\Config\AccessCodes::ABSTRACT_UPDATE, 'Updating');
 			$query = $this->db->query("
 				UPDATE
 					`tbl_abstract_hd`

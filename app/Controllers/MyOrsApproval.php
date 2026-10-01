@@ -9,105 +9,110 @@ class MyOrsApproval extends BaseController
     public function __construct()
 	{
 		$this->request = \Config\Services::request();
-        $this->myorsapproval = model('App\Models\MyOrsApprovalModel');
+        $this->myors = model('App\Models\MyOrsModel');
         $this->db = \Config\Database::connect();
         $this->session = session();
         $this->cuser = $this->session->get('__xsys_myuserzicas__');
 	}
 
     public function index() {
-        $accessQuery = $this->db->query("
-            SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2004' AND `is_active` = '1'
-        ");
-        if ($accessQuery->getNumRows() > 0) {
-            return $this->loadMainView();
-        }else {
-            return view('errors/html/access-restricted');
+        $meaction = $this->request->getPostGet('meaction');
+        $canView = fods_has_access(\Config\AccessCodes::ORSAPPROVAL_VIEW);
+
+        switch ($meaction) {
+            // One ORS with its line items, for the review modal
+            case 'MAIN-LOAD':
+                if (!$canView) {
+                    return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
+                }
+                $record = $this->myors->ors_load($this->request->getGet('recid'));
+                if ($record === null) {
+                    return $this->response->setStatusCode(404)->setJSON(['error' => 'ORS not found']);
+                }
+                return $this->response->setJSON($record);
+
+            // Box A - requesting office
+            case 'MAIN-APPROVE-A':
+                $this->myors->ors_certifya_approve();
+                return redirect()->to('myorsapproval');
+
+            case 'MAIN-DISAPPROVE-A':
+                $this->myors->ors_certifya_disapprove();
+                return redirect()->to('myorsapproval');
+
+            // Box B - budget
+            case 'MAIN-APPROVE-B':
+                $this->myors->ors_certifyb_approve();
+                return redirect()->to('myorsapproval');
+
+            case 'MAIN-DISAPPROVE-B':
+                $this->myors->ors_certifyb_disapprove();
+                return redirect()->to('myorsapproval');
+
+            // Same ORS printout as ORS Entry, for certifiers
+            case 'PRINT-ORS':
+                if (!$canView) { return view('errors/html/access-restricted'); }
+                return view('ors/ors-pdf');
+
+            default:
+                if ($canView) {
+                    return $this->loadMainView();
+                }
+                return view('errors/html/access-restricted');
         }
     }
-    
+
 
     private function loadMainView() {
 
-        //certify a table fetching
-        $certifyaquery = $this->db->query("
-        SELECT 
+        $orsdata = $this->db->query("
+        SELECT
             a.`recid`,
-            a.`particulars`,
             a.`serialno`,
-            (
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_direct_ps_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_indirect_ps_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_direct_mooe_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_indirect_mooe_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_direct_co_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_indirect_co_dt` WHERE project_id = a.recid), 0)
-            ) AS amount
-        FROM
-            tbl_ors_hd a
-        WHERE 
-            is_pending = '1'
-        ORDER BY a.`recid` DESC
-        ");
-        $certifyadata = $certifyaquery->getResultArray();
-
-        //certify b table fetching
-        $certifybquery = $this->db->query("
-        SELECT 
-            a.`recid`,
             a.`particulars`,
-            (
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_direct_ps_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_indirect_ps_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_direct_mooe_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_indirect_mooe_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_direct_co_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_indirect_co_dt` WHERE project_id = a.recid), 0)
-            ) AS amount
-        FROM
-            tbl_ors_hd a
-        WHERE
-            is_approved_certa = '1' AND is_approved_certb = '0'
-        ORDER BY a.`recid` DESC
-        ");
-        $certifybdata = $certifybquery->getResultArray();
-
-        //transaction history
-        $transactionquery = $this->db->query("
-        SELECT 
-            a.`recid`,
-            a.`particulars`,
-            a.`is_pending`,
+            a.`payee_name`,
+            a.`funding_source`,
+            a.`ors_date`,
+            a.`certified_a`,
+            a.`certified_b`,
             a.`is_approved_certa`,
             a.`is_disapproved_certa`,
             a.`is_approved_certb`,
             a.`is_disapproved_certb`,
-            a.`certa_remarks`,
-            a.`certb_remarks`,
             a.`certa_approver`,
             a.`certb_approver`,
-            (
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_direct_ps_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_indirect_ps_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_direct_mooe_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_indirect_mooe_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_direct_co_dt` WHERE project_id = a.recid), 0) +
-                IFNULL((SELECT SUM(`amount`) FROM `tbl_ors_indirect_co_dt` WHERE project_id = a.recid), 0)
-            ) AS amount
-        FROM
-            tbl_ors_hd a
-        WHERE 
-            `is_pending` = '0'
+            a.`added_at`,
+            a.`added_by`,
+            IFNULL(ps.amount,0) + IFNULL(ips.amount,0) + IFNULL(m.amount,0) +
+            IFNULL(im.amount,0) + IFNULL(co.amount,0) + IFNULL(ico.amount,0) AS amount
+        FROM tbl_ors_hd a
+        LEFT JOIN (SELECT project_id, SUM(amount) amount FROM tbl_ors_direct_ps_dt GROUP BY project_id) ps ON ps.project_id = a.recid
+        LEFT JOIN (SELECT project_id, SUM(amount) amount FROM tbl_ors_indirect_ps_dt GROUP BY project_id) ips ON ips.project_id = a.recid
+        LEFT JOIN (SELECT project_id, SUM(amount) amount FROM tbl_ors_direct_mooe_dt GROUP BY project_id) m ON m.project_id = a.recid
+        LEFT JOIN (SELECT project_id, SUM(amount) amount FROM tbl_ors_indirect_mooe_dt GROUP BY project_id) im ON im.project_id = a.recid
+        LEFT JOIN (SELECT project_id, SUM(amount) amount FROM tbl_ors_direct_co_dt GROUP BY project_id) co ON co.project_id = a.recid
+        LEFT JOIN (SELECT project_id, SUM(amount) amount FROM tbl_ors_indirect_co_dt GROUP BY project_id) ico ON ico.project_id = a.recid
         ORDER BY a.`recid` DESC
-        ");
-        $transactiondata = $transactionquery->getResultArray();
+        ")->getResultArray();
+
+        foreach ($orsdata as &$row) {
+            $row['status'] = MyOrs::statusOf($row);
+            // who decided last, for the list
+            $row['decided_by'] = $row['certb_approver'] !== '' && $row['status'] !== 'pending_b' ? $row['certb_approver'] : $row['certa_approver'];
+            unset($row['is_approved_certa'], $row['is_disapproved_certa'], $row['is_approved_certb'], $row['is_disapproved_certb'], $row['certa_approver'], $row['certb_approver']);
+        }
+        unset($row);
+
 
         return view('ors-approval/ors-approval-main', [
-            'certifyadata' => $certifyadata,
-            'certifybdata' => $certifybdata,
-            'transactiondata' => $transactiondata,
+            'orsdata' => $orsdata,
+            'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that review directly
+            'perms' => [
+                'a' => fods_has_access(\Config\AccessCodes::ORSAPPROVAL_APPROVE),
+                'b' => fods_has_access(\Config\AccessCodes::ORSAPPROVAL_APPROVE),
+            ],
         ]);
     }
-    
-    
+
+
 }

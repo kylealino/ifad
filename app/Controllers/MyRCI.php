@@ -16,131 +16,106 @@ class MyRCI extends BaseController
 	}
 
     public function index() {
-        
+
         $meaction = $this->request->getPostGet('meaction');
-    
+
         switch ($meaction) {
-            case 'MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '15001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+            case 'MAIN':
+                if (fods_has_access(\Config\AccessCodes::RCI_VIEW)) {
                     return $this->loadMainView();
-                    break;
                 }else {
                     return view('errors/html/access-restricted');
                 }
-            case 'MAIN-SAVE': 
+
+            // One report with its lines, for the editor modal
+            case 'MAIN-LOAD':
+                if (!fods_has_access(\Config\AccessCodes::RCI_VIEW)) {
+                    return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
+                }
+                $record = $this->myrci->rci_load($this->request->getGet('recid'));
+                if ($record === null) {
+                    return $this->response->setStatusCode(404)->setJSON(['error' => 'RCI not found']);
+                }
+                return $this->response->setJSON($record);
+
+            // One line per DV of the picked LDDAP-ADA
+            case 'LDDAPADA-LINES':
+                if (!fods_has_any_access([\Config\AccessCodes::RCI_ADD, \Config\AccessCodes::RCI_UPDATE])) {
+                    return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
+                }
+                return $this->response->setJSON($this->myrci->lddapada_lines($this->request->getGet('id')));
+
+            case 'MAIN-SAVE':
                 $this->myrci->rci_save();
                 return redirect()->to('myrci?meaction=MAIN');
                 break;
-            case 'PRINT-RCI': 
+
+            case 'PRINT-RCI':
+                if (!fods_has_access(\Config\AccessCodes::RCI_VIEW)) { return view('errors/html/access-restricted'); }
                 return view('cashier/rci-pdf');
                 break;
         }
     }
-    
+
 
     private function loadMainView() {
 
-        //serialno lookup
-        $rciquery = $this->db->query("
+        // Reports with the LDDAP-ADAs, DVs and amounts they cover
+        $rcidata = $this->db->query("
         SELECT
-            `recid`,
-            `mds_branch`,
-            `mds_accountno`,
-            `fund_cluster_code`,
-            `reportno`
-        FROM
-            `tbl_rci_hd`
-        ORDER BY `recid` DESC
-        ");
-        $rcidata = $rciquery->getResultArray();
+            a.`recid`,
+            a.`reportno`,
+            a.`mds_branch`,
+            a.`mds_accountno`,
+            a.`fund_cluster_code`,
+            a.`created_at`,
+            a.`created_by`,
+            COUNT(d.`recid`) AS dv_count,
+            GROUP_CONCAT(DISTINCT d.`lddapadano` ORDER BY d.`lddapadano` SEPARATOR ', ') AS lddapadanos,
+            COUNT(DISTINCT NULLIF(d.`lddapadano`, '')) AS lddapada_count,
+            COALESCE(SUM(d.`gross_amount`), 0) AS gross_amount,
+            COALESCE(SUM(d.`net_amount`), 0) AS net_amount
+        FROM `tbl_rci_hd` a
+        LEFT JOIN `tbl_rci_dt` d ON d.`hd_rid` = a.`recid`
+        GROUP BY a.`recid`
+        ORDER BY a.`recid` DESC
+        ")->getResultArray();
 
-        $lddapadaquery = $this->db->query("
-            SELECT
-                a.lddapadano,
-                a.lddapada_date,
-                a.ckno,
-                b.dvno,
-                b.serialno,
-                
-                x.responsibility_code,
-                b.payee_name,
-                c.particulars,
-                b.gross_amount,
-                '0' AS philhealth_amount,
-                b.total_deduction AS tax_amount,
-                b.net_amount
-            FROM tbl_lddapada_hd a
-
-            JOIN tbl_lddapada_dt b
-                ON a.recid = b.lddapada_id
-
-            JOIN tbl_ors_hd c
-                ON b.serialno = c.serialno
-
-            JOIN (
-
-                SELECT
-                    project_id,
-                    responsibility_code,
-                    amount
-                FROM tbl_ors_direct_ps_dt
-
-                UNION ALL
-
-                SELECT
-                    project_id,
-                    responsibility_code,
-                    amount
-                FROM tbl_ors_direct_co_dt
-
-                UNION ALL
-
-                SELECT
-                    project_id,
-                    responsibility_code,
-                    amount
-                FROM tbl_ors_direct_mooe_dt
-
-                UNION ALL
-
-                SELECT
-                    project_id,
-                    responsibility_code,
-                    amount
-                FROM tbl_ors_indirect_ps_dt
-
-                UNION ALL
-
-                SELECT
-                    project_id,
-                    responsibility_code,
-                    amount
-                FROM tbl_ors_indirect_co_dt
-
-                UNION ALL
-
-                SELECT
-                    project_id,
-                    responsibility_code,
-                    amount
-                FROM tbl_ors_indirect_mooe_dt
-
-            ) x
-
-            ON c.recid = x.project_id
-            ORDER BY a.recid DESC
-        
-        ");
-        $lddapadadata = $lddapadaquery->getResultArray();
+        // LDDAP-ADAs to pick from (newest first), with the report each is already on
+        $lddapadas = $this->db->query("
+        SELECT
+            a.`recid` AS id,
+            a.`lddapadano`,
+            a.`lddapada_date`,
+            a.`ckno`,
+            a.`fund_cluster_code`,
+            COUNT(d.`recid`) AS dv_count,
+            COALESCE(SUM(d.`net_amount`), 0) AS net_amount,
+            (SELECT GROUP_CONCAT(DISTINCT h.`reportno` SEPARATOR ', ')
+               FROM `tbl_rci_dt` r JOIN `tbl_rci_hd` h ON h.`recid` = r.`hd_rid`
+              WHERE r.`lddapadano` = a.`lddapadano`) AS on_rci
+        FROM `tbl_lddapada_hd` a
+        LEFT JOIN `tbl_lddapada_dt` d ON d.`lddapada_id` = a.`recid`
+        GROUP BY a.`recid`
+        ORDER BY a.`recid` DESC
+        ")->getResultArray();
 
         return view('cashier/rci-main', [
-            'lddapadadata' => $lddapadadata,
             'rcidata' => $rcidata,
+            'lookups' => [
+                'lddapadas' => $lddapadas,
+                'fund_clusters' => ['01', '07'],
+                // MDS sub-account per fund cluster, as on LDDAP-ADA
+                'mds_accounts' => ['01' => '2182-9001-36', '07' => '2182-9006-16'],
+                'mds_branch' => 'Land Bank of the Philippines - DOST Branch',
+            ],
+            'perms' => [
+                'add' => fods_has_access(\Config\AccessCodes::RCI_ADD),
+                'edit' => fods_has_access(\Config\AccessCodes::RCI_UPDATE),
+            ],
+            'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that report directly
         ]);
     }
-    
-    
+
+
 }

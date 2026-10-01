@@ -26,22 +26,21 @@ class MyProductsModel extends Model
 		$quantity = $this->request->getPostGet('quantity');
 		$remarks = $this->request->getPostGet('remarks');
 
+		if (trim((string) $product_desc) === '') {
+			echo "
+			<script>
+			toastr.error('Item description is required!', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			</script>
+			";
+			die();
+		}
+
 		if (empty($recid)) {
-			$accessquery = $this->db->query("
-				SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '10002' AND `is_active` = '1'
-			");
-			if ($accessquery->getNumRows() == 0) {
-				echo "
-				<script>
-				toastr.error('Saving Access Denied! Please Contact the Administrator.', 'Oops!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2000,
-					});
-				</script>
-				";
-				die();
-			}
+			fods_require_access(\Config\AccessCodes::SUPPLIES_ADD, 'Saving');
 			//INSERTING HD DATA
 			$query = $this->db->query("
 				INSERT INTO `mst_products`(
@@ -65,24 +64,10 @@ class MyProductsModel extends Model
 				]
 			);
 
-			$status = "Product Saved Successfully!";
+			$status = "Product Saved Successfully";
 			$color = "success";
 		}else{
-			$accessquery = $this->db->query("
-				SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '10003' AND `is_active` = '1'
-			");
-			if ($accessquery->getNumRows() == 0) {
-				echo "
-				<script>
-				toastr.error('Updating Access Denied! Please Contact the Administrator.', 'Oops!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2000,
-					});
-				</script>
-				";
-				die();
-			}
+			fods_require_access(\Config\AccessCodes::SUPPLIES_UPDATE, 'Updating');
 			$query = $this->db->query("
 				UPDATE
 					`mst_products`
@@ -104,7 +89,7 @@ class MyProductsModel extends Model
 				$recid
 			]);
 
-			$status = "Product Updated Successfully!";
+			$status = "Product Updated Successfully";
 			$color = "info";
 		}
 

@@ -16,165 +16,130 @@ class MyLDDAPADA extends BaseController
 	}
 
     public function index() {
-        
+
         $meaction = $this->request->getPostGet('meaction');
-    
+
         switch ($meaction) {
-            case 'MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '14001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+            case 'MAIN':
+                if (fods_has_access(\Config\AccessCodes::LDDAPADA_VIEW)) {
                     return $this->loadMainView();
-                    break;
                 }else {
                     return view('errors/html/access-restricted');
                 }
-    
-            case 'MAIN-SAVE': 
+
+            // One LDDAP-ADA with its DV lines, for the editor modal
+            case 'MAIN-LOAD':
+                if (!fods_has_access(\Config\AccessCodes::LDDAPADA_VIEW)) {
+                    return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
+                }
+                $record = $this->mylddapada->lddapada_load($this->request->getGet('recid'));
+                if ($record === null) {
+                    return $this->response->setStatusCode(404)->setJSON(['error' => 'LDDAP-ADA not found']);
+                }
+                return $this->response->setJSON($record);
+
+            case 'MAIN-SAVE':
                 $this->mylddapada->lddapada_save();
                 return redirect()->to('mylddapada?meaction=MAIN');
                 break;
 
-            case 'PRINT-LDDAPADA': 
+            case 'PRINT-LDDAPADA':
+                if (!fods_has_access(\Config\AccessCodes::LDDAPADA_VIEW)) { return view('errors/html/access-restricted'); }
                 return view('cashier/lddapada-pdf');
                 break;
 
+            // A line for each picked DV (payee, account no., amounts, allotment class)
             case 'LOAD-DV':
-            // Get the selected DV numbers
-            $dvno = $this->request->getPostGet('dvno');
-            
-            // Debug: Log received values
-            log_message('debug', 'LOAD-DV called - dvno: ' . print_r($dvno, true));
-            
-            // Validate input
-            if (empty($dvno)) {
-                echo json_encode(['error' => 'No DV numbers selected']);
-                exit;
-            }
-            
-            // Prepare DVNO list for IN clause
-            if (is_array($dvno)) {
-                $escapedDvnos = array_map([$this->db, 'escapeString'], $dvno);
-                $in = "'" . implode("','", $escapedDvnos) . "'";
-            } else {
-                $in = "'" . $this->db->escapeString($dvno) . "'";
-            }
-            
-            // STEP 1: Get serialno and project_id from the selected DVNO
-            // Assuming tbl_disbursement_hd has serialno field that links to tbl_ors_hd
-            $dvquery = $this->db->query("
-                SELECT DISTINCT
-                    a.serialno,
-                    b.recid AS project_id
-                FROM tbl_disbursement_hd a
-                LEFT JOIN tbl_ors_hd b ON b.serialno = a.serialno
-                WHERE a.dvno IN ($in)
-                LIMIT 1
-            ");
-            
-            $dvdata = $dvquery->getRowArray();
-            
-            if (!$dvdata) {
-                echo json_encode(['error' => 'No data found for selected DV numbers']);
-                exit;
-            }
-            
-            $serialno = $dvdata['serialno'];
-            $project_id = $dvdata['project_id'];
-            
-            // Debug: Log found values
-            log_message('debug', 'Found serialno: ' . $serialno . ', project_id: ' . $project_id);
-            
-            // STEP 2: Get UACS code for the project_id
-            $uacsSubquery = "
-                SELECT uacs_code FROM (
-                    SELECT uacs_code, amount FROM tbl_ors_direct_ps_dt WHERE project_id = '$project_id'
-                    UNION ALL
-                    SELECT uacs_code, amount FROM tbl_ors_direct_mooe_dt WHERE project_id = '$project_id'
-                    UNION ALL
-                    SELECT uacs_code, amount FROM tbl_ors_direct_co_dt WHERE project_id = '$project_id'
-                    UNION ALL
-                    SELECT uacs_code, amount FROM tbl_ors_indirect_ps_dt WHERE project_id = '$project_id'
-                    UNION ALL
-                    SELECT uacs_code, amount FROM tbl_ors_indirect_mooe_dt WHERE project_id = '$project_id'
-                    UNION ALL
-                    SELECT uacs_code, amount FROM tbl_ors_indirect_co_dt WHERE project_id = '$project_id'
-                ) AS all_uacs
-                ORDER BY amount DESC
-                LIMIT 1
-            ";
-            
-            // STEP 3: Main query
-            $query = $this->db->query("
-                SELECT
-                    a.payee_name,
-                    a.dvno,
-                    (SELECT payee_account_num 
-                    FROM tbl_payee 
-                    WHERE payee_name = a.payee_name) AS payee_account_num,
-                    a.serialno,
-                    COALESCE(($uacsSubquery), '') AS uacs_code,
-                    a.gross_amount,
-                    a.total_deduction,
-                    a.net_amount,
-                    a.dvno
-                FROM tbl_disbursement_hd a
-                WHERE a.dvno IN ($in)
-            ");
-            
-            $results = $query->getResultArray();
-            
-            // Add the project_id to each result (optional)
-            foreach ($results as &$row) {
-                $row['project_id'] = $project_id;
-            }
-            
-            echo json_encode($results);
-            exit;
-            break;
-            
+                if (!fods_has_access(\Config\AccessCodes::LDDAPADA_VIEW)) {
+                    return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
+                }
+                $dvno = $this->request->getPostGet('dvno');
+                if (empty($dvno)) {
+                    return $this->response->setJSON(['error' => 'No DV numbers selected']);
+                }
+                return $this->response->setJSON($this->mylddapada->dv_lines($dvno));
+
         }
     }
-    
+
 
     private function loadMainView() {
 
-        //serialno lookup
-        $dvquery = $this->db->query("
-        SELECT
-            `recid`,
-            `dvno`
-        FROM
-            `tbl_disbursement_hd`
-        ORDER BY `recid` DESC
-        ");
-        $dvdata = $dvquery->getResultArray();
-
-        $dvhdquery = $this->db->query("
+        // LDDAP-ADAs with their DV count and amounts
+        $lddapdata = $this->db->query("
         SELECT
             a.`recid`,
             a.`lddapadano`,
+            a.`ckno`,
             a.`mds_branch`,
             a.`mds_accountno`,
             a.`lddapada_date`,
             a.`fund_cluster_code`,
-            a.`funding_source`
-        FROM
-            `tbl_lddapada_hd` a
-        ORDER BY recid DESC
-        ");
-        $dvhddata = $dvhdquery->getResultArray();
+            a.`funding_source`,
+            a.`is_ci`,
+            a.`is_approved`,
+            a.`is_disapproved`,
+            a.`added_at`,
+            a.`added_by`,
+            COUNT(d.`recid`) AS dv_count,
+            COALESCE(SUM(d.`gross_amount`), 0) AS gross_amount,
+            COALESCE(SUM(d.`net_amount`), 0) AS net_amount
+        FROM `tbl_lddapada_hd` a
+        LEFT JOIN `tbl_lddapada_dt` d ON d.`lddapada_id` = a.`recid`
+        GROUP BY a.`recid`
+        ORDER BY a.`recid` DESC
+        ")->getResultArray();
 
-        $approverquery = $this->db->query("SELECT * FROM myua_user WHERE ada_tag = '1' ORDER BY recid DESC");
-        $adaapprover = $approverquery->getResultArray();
+        foreach ($lddapdata as &$row) {
+            $row['status'] = self::statusOf($row);
+            unset($row['is_approved'], $row['is_disapproved']);
+        }
+        unset($row);
+
+        // DVs to pick from (newest first), with the LDDAP-ADA each is already on
+        $dvdata = $this->db->query("
+        SELECT
+            a.`dvno`,
+            a.`payee_name`,
+            a.`net_amount`,
+            (SELECT GROUP_CONCAT(DISTINCT h.`lddapadano` SEPARATOR ', ')
+               FROM `tbl_lddapada_dvno` v JOIN `tbl_lddapada_hd` h ON h.`recid` = v.`lddapada_id`
+              WHERE v.`dvno` = a.`dvno`) AS on_lddapada
+        FROM `tbl_disbursement_hd` a
+        WHERE a.`dvno` <> ''
+        ORDER BY a.`recid` DESC
+        ")->getResultArray();
+
+        $adaapprover = $this->db->query("SELECT `full_name`, `position` FROM myua_user WHERE ada_tag = '1' AND is_active = 1 ORDER BY `full_name` ASC")->getResultArray();
 
         return view('cashier/lddapada-main', [
-            'dvdata' => $dvdata,
-            'dvhddata' => $dvhddata,
-            'adaapprover' => $adaapprover,
+            'lddapdata' => $lddapdata,
+            'lookups' => [
+                'dvs' => $dvdata,
+                'approvers' => $adaapprover,
+                'fund_clusters' => ['01', '07'],
+                // MDS sub-account per fund cluster, as on the previous form
+                'mds_accounts' => ['01' => '2182-9001-36', '07' => '2182-9006-16'],
+                'mds_branch' => 'Land Bank of the Philippines - DOST Branch',
+            ],
+            'perms' => [
+                'add' => fods_has_access(\Config\AccessCodes::LDDAPADA_ADD),
+                'edit' => fods_has_access(\Config\AccessCodes::LDDAPADA_UPDATE),
+            ],
+            'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that LDDAP-ADA directly
         ]);
     }
-    
-    
+
+    // Single approval step
+    public static function statusOf(array $hd) {
+        if ($hd['is_disapproved'] == '1') {
+            return 'disapproved';
+        }
+        if ($hd['is_approved'] == '1') {
+            return 'approved';
+        }
+        return 'pending';
+    }
+
+
 }

@@ -55,7 +55,7 @@ public function auth()
     }
 
     public function Verify_User($cuser='') { 
-		$q = $this->db->query("select `username`,`hash_password` FROM myua_user where username = ? limit 1 ",[$cuser]);
+		$q = $this->db->query("select `username`,`hash_password` FROM myua_user where username = ? and `is_active` = 1 limit 1 ",[$cuser]);
 		return $q;
 	}
 

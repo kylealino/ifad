@@ -1,807 +1,260 @@
 <?php
-$this->request = \Config\Services::request();
-$this->db = \Config\Database::connect();
-$this->mylddapada = model('App\Models\MylddapadaModel');
-$action = $this->request->getPostGet('action');
-$recid = $this->request->getPostGet('recid');
-
-$lddapadano = '';
-$mds_branch = '';
-$mds_accountno = '';
-$ckno ='';
-$fund_cluster_code = '';
-$funding_source = '';
-$is_ci = '';
-$ada_approver = '';
-$dv_list = [];
-
-$lddapada_date = date('Y-m-d');
-
-
-if((!empty($recid) || !is_null($recid)) ) { 
-    $query = $this->db->query("
-        SELECT
-            `recid`,
-            `lddapadano`,
-            `mds_branch`,
-            `mds_accountno`,
-            `ckno`,
-            `lddapada_date`,
-            `fund_cluster_code`,
-            `funding_source`,
-            `is_ci`,
-            `ada_approver`
-        FROM
-            `tbl_lddapada_hd`
-        WHERE 
-            `recid` = '$recid'
-        "
-    );
-
-    $data = $query->getRowArray();
-    $lddapadano        = $data['lddapadano'];
-    $mds_branch        = $data['mds_branch'];
-    $mds_accountno     = $data['mds_accountno'];
-    $ckno     = $data['ckno'];
-    $lddapada_date     = $data['lddapada_date'];
-    $fund_cluster_code = $data['fund_cluster_code'];
-    $funding_source = $data['funding_source'];
-    $is_ci = $data['is_ci'];
-    $ada_approver = $data['ada_approver'];
-}
-
-    $query_dvno = $this->db->query("
-        SELECT dvno 
-        FROM tbl_lddapada_dvno 
-        WHERE lddapada_id = '$recid'
-    ");
-
-    $result_dvno = $query_dvno->getResultArray();
-
-    foreach($result_dvno as $row){
-        $dv_list[] = $row['dvno'];
-    }
-
-
 echo view('templates/myheader.php');
 ?>
+<head>
 <style>
-    #dv_line_items input,
-    #dv_line_items textarea {
-        width: 100%;
-        box-sizing: border-box;
-    }
+/* DV lines grid */
+.ld-grid-card { border:1px solid var(--fods-border); background:#fff; border-radius:12px; overflow:hidden; }
+.ld-grid-wrap { overflow-x:auto; scrollbar-width:thin; }
+.ld-grid { width:max-content; min-width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:.85rem; }
+.ld-grid col.c-no { width:44px; }
+.ld-grid col.c-dv { width:150px; }
+.ld-grid col.c-payee { width:260px; }
+.ld-grid col.c-acct { width:150px; }
+.ld-grid col.c-serial { width:200px; }
+.ld-grid col.c-uacs { width:140px; }
+.ld-grid col.c-amt { width:140px; }
+.ld-grid col.c-remarks { width:200px; }
+.ld-grid col.c-act { width:52px; }
+.ld-grid th { background:#f8fafc; color:var(--fods-muted); font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:.6rem .5rem; border-bottom:1px solid var(--fods-border); white-space:nowrap; text-align:left; }
+.ld-grid th.num, .ld-grid td.num { text-align:right; }
+.ld-grid td { padding:.4rem .5rem; border-bottom:1px solid #f1f4f8; vertical-align:middle; background:#fff; }
+.ld-grid input { width:100%; height:34px; border:1px solid var(--fods-border); background:#fff; padding:.3rem .55rem; font-size:.84rem; color:var(--fods-text); border-radius:8px; text-overflow:ellipsis; }
+.ld-grid input:focus { outline:none; border-color:var(--fods-teal); box-shadow:0 0 0 3px var(--fods-teal-soft); }
+.ld-grid input[type=number] { text-align:right; font-variant-numeric:tabular-nums; }
+.ld-grid input.g-net { font-weight:600; }
+.ld-grid input:disabled, .ld-grid input[readonly] { color:#475569; background:#f1f4f8; border-color:transparent; }
+.ld-grid tfoot td { font-weight:600; background:#fafbfc; border-top:1px solid var(--fods-border); border-bottom:0; padding:.6rem .5rem; font-variant-numeric:tabular-nums; }
+.ld-grid .sticky-l { position:sticky; left:0; z-index:1; }
+.ld-grid .sticky-r { position:sticky; right:0; z-index:1; box-shadow:-8px 0 8px -8px rgba(15,23,42,.18); }
+.ld-grid th.sticky-l, .ld-grid th.sticky-r { background:#f8fafc; z-index:2; }
+.ld-grid tfoot .sticky-l, .ld-grid tfoot .sticky-r { background:#fafbfc; }
+.ld-empty { padding:1.25rem; text-align:center; color:var(--fods-muted); font-size:.82rem; }
+.ld-chips { display:flex; flex-wrap:wrap; gap:.35rem; min-height:36px; align-items:center; }
+.ld-chip { display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .55rem; border-radius:999px; background:var(--fods-teal-soft); color:var(--fods-teal); font-size:.78rem; font-weight:600; }
+.ld-chip button { border:0; background:transparent; color:inherit; padding:0; line-height:1; font-size:.95rem; }
+.ld-totals { display:flex; flex-wrap:wrap; gap:1.25rem; align-items:center; font-size:.82rem; color:var(--fods-muted); }
+.ld-totals b { color:var(--fods-text); font-size:.95rem; font-variant-numeric:tabular-nums; }
+@media (min-width: 1200px) { .ld-dialog { max-width: min(1320px, calc(100vw - 4rem)); } }
+.ui-autocomplete { z-index:2000 !important; max-height:280px; overflow-y:auto; overflow-x:hidden; font-size:.82rem; }
+.ui-autocomplete .ors-ac-sub { display:block; font-size:.72rem; color:var(--fods-muted); }
+@media (max-width: 767.98px) { .ld-totals { gap:.5rem 1rem; width:100%; } }
 </style>
+</head>
 <div class="container-fluid">
-    <div class="row me-mylddapadaburs-appr-outp-msg mx-0">
-    </div>
-    
     <input type="hidden" id="__siteurl" data-mesiteurl="<?=site_url();?>" />
-    <div class="row mb-2 mt-0">
-        <h4 class="fw-semibold mb-8">LDDAP-ADA</h4>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a class="text-muted text-decoration-none" href="<?=site_url();?>"><i class="ti ti-home fs-5"></i></a>
-            </li>
-            <li class="breadcrumb-item" aria-current="page">Cashier</li>
-            <li class="breadcrumb-item" aria-current="page"><span class="form-label fw-bold">LDDAP-ADA</span></li>
-            </ol>
-        </nav>
+    <div class="row me-outp-msg mx-0"></div>
+
+    <div class="fods-page-head">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="#">Cashier</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">LDDAP-ADA</li>
+                </ol>
+            </nav>
+            <h1 class="fods-page-title">LDDAP-ADA</h1>
+            <p class="fods-page-sub">List of due and demandable accounts payable with advice to debit account — group DVs for payment, then send for approval.</p>
+        </div>
+        <div class="fods-page-actions d-flex">
+            <select class="form-select form-select-sm fods-year" id="ldYear" aria-label="Year"></select>
+            <?php if ($perms['add']): ?>
+                <button type="button" class="btn btn-fods btn-sm px-3 py-2" id="ldTableAdd"><i class="ti ti-plus me-1"></i> New LDDAP-ADA</button>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <div class="card rounded">
-        <div class="row mylddapada-outp-msg mx-0">
-
+    <!-- Stat cards (filled by mylddapada.js for the selected year) -->
+    <div class="row g-3 mb-4" id="ldTableCards">
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="ldTable" data-filter="pending">
+                <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+            </button>
         </div>
-        <div class="card-header   bg-info p-1">
-            <div class="row d-flex align-items-center">
-                <div class="col-sm-6 d-flex align-items-center text-start">
-                    <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                        <i class="ti ti-pencil fs-5 me-1"></i>
-                        <span class="pt-1">Entry</span>
-                    </h6>
-                </div>
-                <div class="col-sm-6 text-end">
-                </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="ldTable" data-filter="disapproved">
+                <div class="fods-stat-icon tone-red"><i class="ti ti-arrow-back-up"></i></div>
+                <div><div class="fods-stat-value" data-card-value="returned">0</div><div class="fods-stat-label" data-card-label="returned">Returned</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="ldTable" data-filter="approved">
+                <div class="fods-stat-icon tone-green"><i class="ti ti-circle-check"></i></div>
+                <div><div class="fods-stat-value" data-card-value="approved">0</div><div class="fods-stat-label" data-card-label="approved">Approved</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="ldTable" data-filter="all">
+                <div class="fods-stat-icon tone-teal"><i class="ti ti-cash"></i></div>
+                <div><div class="fods-stat-value" data-card-value="total">₱0.00</div><div class="fods-stat-label" data-card-label="total">Total amount</div></div>
+            </button>
+        </div>
+    </div>
+
+    <div class="fods-card">
+        <div class="fods-card-head">
+            <div class="fods-filter" id="ldTableFilter">
+                <button type="button" class="active" data-filter="all">All</button>
+                <button type="button" data-filter="pending">Pending</button>
+                <button type="button" data-filter="disapproved">Returned</button>
+                <button type="button" data-filter="approved">Approved</button>
             </div>
-        </div>						
-        <div class="card-body p-0 px-4 py-2 my-2">
-            <form action="<?=site_url();?>mylddapada?meaction=MAIN-SAVE" method="post" class="mylddapada-validation">
-                <input type="hidden" class="form-control form-control-sm" id="recid" name="recid" value="<?=$recid;?>"/>
+            <div class="fods-search">
+                <i class="ti ti-search"></i>
+                <input type="search" class="form-control form-control-sm" id="ldTableSearch" placeholder="Search LDDAP-ADA no., check no....">
+            </div>
+        </div>
+        <div class="fods-card-body fods-dt">
+            <table id="ldTable" class="table fods-table fods-table-stack w-100">
+                <thead>
+                    <tr>
+                        <th>LDDAP-ADA</th>
+                        <th class="d-none d-md-table-cell">Date</th>
+                        <th class="d-none d-lg-table-cell">Fund cluster</th>
+                        <th class="text-end">Net amount</th>
+                        <th>Status</th>
+                        <th class="d-none d-xl-table-cell">Encoded</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+</div>
 
-                <div class="row">
-                    <div class="col-sm-6">
-                        <div class="row">
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span class="fw-bold">MDS-GSB BRANCH:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="text" id="mds_branch" name="mds_branch" value="<?= !empty($recid) ? $mds_branch : 'Land Bank of the Philippines - DOST Branch';?>" class="form-control form-control-sm" disabled/>
-                                </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span class="fw-bold">MDS SUB ACCOUNT NO.:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="text" id="mds_accountno" name="mds_accountno" value="<?= !empty($recid) ? $mds_accountno : '';?>" class="form-control form-control-sm" disabled/>
-                                </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span class="fw-bold">LDDAP-ADA No.:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="text" 
-                                        name="lddapadano" 
-                                        id="lddapadano"
-                                        class="form-control form-control-sm lddapadano"
-                                        value="<?= $lddapadano;?>"
-                                        >
-                                </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span class="fw-bold">Check No.:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="text" id="ckno" name="ckno" value="<?=$ckno;?>" class="form-control form-control-sm"/>
-                                </div>
-                            </div>
-                            <input type="hidden" id="funding_source" name="funding_source" value="<?=$funding_source;?>" class="form-control form-control-sm"/>
+<!-- ============================= EDITOR ============================= -->
+<div class="modal fade fods-modal" id="ldModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down ld-dialog">
+        <div class="modal-content">
+            <form id="ldForm" novalidate>
+                <div class="modal-header border-bottom">
+                    <div class="d-flex align-items-center" style="min-width:0">
+                        <div class="fods-modal-icon tone-teal"><i class="ti ti-building-bank"></i></div>
+                        <div style="min-width:0">
+                            <h5 class="modal-title text-truncate" id="ldModalTitle">New LDDAP-ADA</h5>
+                            <div class="fods-modal-sub" id="ldModalSub">Fill in the account details, then add the DVs to pay.</div>
                         </div>
                     </div>
-                    <div class="col-sm-6">
-                        <div class="col-sm-12">
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>Date</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="date" name="lddapada_date" id="lddapada_date" value="<?=$lddapada_date;?>" class="form form-control form-control-sm">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-sm-12">
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>Fund Cluster:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <select name="" id="fund_cluster_code" class="form-select form-select-sm">
-                                    <?php if(!empty($recid)):?>
-                                        <option value="<?=$fund_cluster_code;?>"><?=$fund_cluster_code;?></option>
-                                    <?php else:?>
-                                        <option value="">Choose...</option>
-                                    <?php endif;?>
-                                        <option value="01">01</option>
-                                        <option value="07">07</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-sm-12">
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>Internal Creditor?</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" 
-                                            type="checkbox" 
-                                            id="is_ci" 
-                                            name="is_ci" 
-                                            value="1"
-                                            <?= (isset($is_ci) && $is_ci == 1) ? 'checked' : '' ?>>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <hr>
-
-                <div class="col-sm-12">
-                    <div class="row mb-3 align-items-end">
-
-                        <!-- LEFT SIDE -->
-                        <div class="col-sm-6">
-                            <label class="fw-bold mb-1">Voucher No.</label>
-                            <div class="input-group input-group-sm">
-                                <select id="dv_lookup" class="form-control">
-                                    <option value="">-- Select Voucher --</option>
-                                    <?php
-                                    $query = $this->db->query("SELECT dvno FROM tbl_disbursement_hd ORDER BY recid DESC");
-                                    $result = $query->getResultArray();
-                                    foreach($result as $row):
-                                    ?>
-                                        <option value="<?=$row['dvno'];?>"><?=$row['dvno'];?></option>
-                                    <?php endforeach;?>
-                                </select>
-
-                                <button type="button" id="btn_add_dv" class="btn btn-primary">
-                                    <i class="ti ti-plus"></i> Add
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- RIGHT SIDE -->
-                        <div class="col-sm-6">
-                            <label class="fw-bold mb-1">Selected DVNO</label>
-                            <div id="selected_dvno_list" class="form-control form-control-sm d-flex flex-wrap gap-1" style="min-height:30px;">
-                                
-                            </div>
-                        </div>
-
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="ldPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="col-sm-12">
-                    <div class="row mb-2">
-                        <div class="table-responsive pe-2 ps-0">
-                            <div class="col-md-12 mb-2">
-                                <table id="dv_line_items" class="table-sm table-striped dvdata-list">
-                                    <colgroup>
-                                        <col style="width:40px;">
-                                        <col style="width:140px;">   <!-- # -->
-                                        <col style="width:500px;">  <!-- Payee -->
-                                        <col style="width:300px;">
-                                        <col style="width:300px;">  
-                                        <col style="width:140px;">
-                                        <col style="width:140px;">
-                                        <col style="width:140px;">
-                                        <col style="width:140px;">
-                                        <col style="width:200px;"> <!-- Remarks -->
-                                    </colgroup>
-                                    <thead>
-                                        <th class="text-center align-middle">#</th>
-                                        <th class="text-center align-middle">DV No.</th>
-                                        <th class="text-center align-middle">Payee</th>
-                                        <th class="text-center align-middle">Account No.</th>
-                                        <th class="text-center align-middle">Serial No.</th>
-                                        <th class="text-center align-middle">Allotment Class</th>
-                                        <th class="text-center align-middle">Gross Amount</th>
-                                        <th class="text-center align-middle">Withholding Tax</th>
-                                        <th class="text-center align-middle">Net Amount</th>
-                                        <th class="text-center align-middle">Remarks</th>
-                                    </thead>
-                                    <tbody>
-                                        <tr style="display:none;">
-                                            <td class="text-center align-middle"></td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text"  value="" name="dvno" class="dvno text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text"  value="" name="payee_name" class="payee_name text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text"  value="" name="payee_account_num" class="payee_account_num text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text"  value="" name="serialno" class="serialno text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="text" value="" name="allotment_class" class="allotment_class text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="number" value="" step="any"  name="gross_amount" class="gross_amount text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="number"  value="" step="any"  name="total_deduction" data-dtid=""  class="total_deduction text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <input type="number"  value="" step="any" name="net_amount" data-dtid="" class="net_amount text-center"/>
-                                            </td>
-                                            <td class="text-center align-middle" nowrap>
-                                                <textarea name="remarks" placeholder="" rows="1"  class="form-control form-control-sm border-black text-black remarks"></textarea>
-                                            </td>
-                                        </tr>
-                                            <?php if(!empty($recid)):
-                                                $query = $this->db->query("
-                                                SELECT
-                                                    `recid`,
-                                                    `lddapada_id`,
-                                                    `dvno`,
-                                                    `payee_name`,
-                                                    `payee_account_num`,
-                                                    `serialno`,
-                                                    `uacs_code`,
-                                                    `gross_amount`,
-                                                    `total_deduction`,
-                                                    `net_amount`,
-                                                    `remarks`,
-                                                    `added_by`,
-                                                    `added_at`
-                                                FROM
-                                                    `tbl_lddapada_dt`
-                                                WHERE
-                                                    `lddapada_id` = '$recid'
-                                                ");
-                                                $result = $query->getResultArray();
-                                                foreach ($result as $data):
-                                                    $dt_id = $data['recid'];
-                                                    $dvno = $data['dvno'];
-                                                    $payee_name = $data['payee_name'];
-                                                    $payee_account_num = $data['payee_account_num'];
-                                                    $serialno = $data['serialno'];
-                                                    $uacs_code = $data['uacs_code'];
-                                                    $gross_amount = $data['gross_amount'];
-                                                    $total_deduction = $data['total_deduction'];
-                                                    $net_amount = $data['net_amount'];
-                                                    $remarks = $data['remarks'];
-                                            ?>
-                                            <tr>
-                                                <td class="text-center align-middle"></td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text"  value="<?=$dvno;?>" name="dvno" class="dvno text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text"  value="<?=$payee_name;?>" name="payee_name" class="payee_name text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text"  value="<?=$payee_account_num;?>" name="payee_account_num" class="payee_account_num text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text"  value="<?=$serialno;?>" name="serialno" class="serialno text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="text" value="<?=$uacs_code;?>" name="allotment_class" class="allotment_class text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="number" value="<?=$gross_amount;?>" step="any"  name="gross_amount" class="gross_amount text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="number"  value="<?=$total_deduction;?>" step="any"  name="total_deduction" data-dtid=""  class="total_deduction text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <input type="number"  value="<?=$net_amount;?>" step="any" name="net_amount" data-dtid="" class="net_amount text-center"/>
-                                                </td>
-                                                <td class="text-center align-middle" nowrap>
-                                                    <textarea name="remarks" placeholder="" rows="1"  class="form-control form-control-sm border-black text-black remarks"><?=$remarks;?></textarea>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; endif;?>
+                <div class="modal-body" style="background:var(--fods-bg);">
+                    <input type="hidden" id="recid" name="recid">
+                    <input type="hidden" id="funding_source" name="funding_source">
 
-                                    </tbody>
-                                </table>
+                    <div id="ldBanner" class="alert d-none mb-3"></div>
+
+                    <div class="fods-card mb-3"><div class="fods-card-body pt-3">
+                        <div class="fods-section mt-0">LDDAP-ADA</div>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="lddapadano">LDDAP-ADA no.</label>
+                                <input type="text" class="form-control" id="lddapadano" name="lddapadano">
                             </div>
-                        </div>
-                    </div>
-
-                    <hr>
-                    <div class="row mb-3 align-items-center justify-content-center">
-
-                        <div class="col-sm-6">
-                            <div class="row">
-                                <div class="col-sm-12">
-                                    <div class="row mb-2">
-                                        <div class="col-sm-4">
-                                            <span class="fw-bold">ADA Approver:</span>
-                                        </div>
-                                        <div class="col-sm-8">
-                                            <?php if(!empty($recid)):?>
-                                                <select name="ada_approver" id="ada_approver" class="form-control select2 form-select-sm show-tick">
-                                                    <option selected value="<?=$ada_approver;?>"><?=$ada_approver;?></option>
-                                                    <?php foreach($adaapprover as $data): ?>
-                                                        <option 
-                                                            value="<?= $data['full_name'] ?>"
-                                                            data-position="<?= $data['position'] ?>"
-                                                        >
-                                                            <?= $data['full_name'] ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            <?php else:?>
-                                                <select name="ada_approver" id="ada_approver" class="form-control select2 form-select-sm show-tick">
-                                                    <option selected value="">Choose...</option>
-                                                    <?php foreach($adaapprover as $data): ?>
-                                                        <option 
-                                                            value="<?= $data['full_name'] ?>"
-                                                            data-position="<?= $data['position'] ?>"
-                                                        >
-                                                            <?= $data['full_name'] ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            <?php endif;?>
-                                        </div>
-                                    </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label" for="ckno">Check no.</label>
+                                <input type="text" class="form-control" id="ckno" name="ckno">
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label" for="lddapada_date">Date</label>
+                                <input type="date" class="form-control" id="lddapada_date" name="lddapada_date" required>
+                                <div class="invalid-feedback">Date is required.</div>
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label class="form-label" for="fund_cluster_code">Fund cluster</label>
+                                <select class="form-select" id="fund_cluster_code" name="fund_cluster_code" required></select>
+                                <div class="invalid-feedback">Required.</div>
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label" for="mds_branch">MDS-GSB branch</label>
+                                <input type="text" class="form-control" id="mds_branch" name="mds_branch" readonly>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <label class="form-label" for="mds_accountno">MDS sub-account no.</label>
+                                <input type="text" class="form-control" id="mds_accountno" name="mds_accountno" readonly>
+                            </div>
+                            <div class="col-md-3 col-6 d-flex align-items-end">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="is_ci" value="1">
+                                    <label class="form-check-label" for="is_ci">Internal creditor</label>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="col-sm-6">
-                            <div class="row align-items-center">
-                                
-                                <div class="col-sm-6 d-flex align-items-center justify-content-end">
-                                    <span class="fw-semibold me-2">Net Amount Payable:</span>
-                                </div>
-
-                                <div class="col-sm-6">
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text">₱</span>
-                                        <input type="text" id="net_amount_payable"
-                                            class="form-control text-end fw-bolder"
-                                            readonly>
-                                    </div>
-                                </div>
-
+                            <div class="col-md-6">
+                                <label class="form-label" for="ada_approver">ADA approver</label>
+                                <select class="form-select" id="ada_approver" name="ada_approver"></select>
+                                <div class="form-text" id="ada_approver_position"></div>
                             </div>
                         </div>
+                    </div></div>
 
+                    <div class="fods-card mb-3"><div class="fods-card-body pt-3">
+                        <div class="fods-section mt-0">Disbursement vouchers</div>
+                        <div class="row g-3 align-items-start">
+                            <div class="col-lg-5">
+                                <label class="form-label" for="dv_lookup">Add a DV</label>
+                                <input type="text" class="form-control" id="dv_lookup" placeholder="Type or pick a DV no. / payee" autocomplete="off">
+                            </div>
+                            <div class="col-lg-7">
+                                <label class="form-label">Selected DVs</label>
+                                <div class="ld-chips" id="ldChips"></div>
+                            </div>
+                        </div>
+                    </div></div>
+
+                    <div class="ld-grid-card">
+                        <div class="ld-grid-wrap">
+                            <table class="ld-grid" id="ldGrid">
+                                <colgroup><col class="c-no"><col class="c-dv"><col class="c-payee"><col class="c-acct"><col class="c-serial"><col class="c-uacs"><col class="c-amt"><col class="c-amt"><col class="c-amt"><col class="c-remarks"><col class="c-act"></colgroup>
+                                <thead><tr><th class="sticky-l">#</th><th>DV no.</th><th>Payee</th><th>Account no.</th><th>ORS / BURS no.</th><th>Allotment class</th><th class="num">Gross</th><th class="num">Withholding tax</th><th class="num">Net amount</th><th>Remarks</th><th class="sticky-r"></th></tr></thead>
+                                <tbody></tbody>
+                                <tfoot><tr><td class="sticky-l"></td><td colspan="5">Total</td><td class="num" data-sum="gross"></td><td class="num" data-sum="tax"></td><td class="num" data-sum="net"></td><td></td><td class="sticky-r"></td></tr></tfoot>
+                            </table>
+                        </div>
+                        <div class="ld-empty d-none" id="ldEmpty">No DVs yet — pick one above.</div>
                     </div>
                 </div>
-                <hr>
-                <div class="row mb-2">  
-                    <div class="col-sm-12 text-end">
-                        <button type="submit" id="submitBtn" class="btn bg-<?= empty($recid) ? 'success' : 'info' ?>-subtle text-<?= empty($recid) ? 'success' : 'info' ?> btn-sm"><i class="ti ti-brand-doctrine mt-1 fs-4 me-1"></i>
-                            <?= empty($recid) ? 'Save' : 'Update' ?>
-                        </button>
+
+                <div class="modal-footer justify-content-between">
+                    <div class="ld-totals">
+                        <span>DVs <b id="ldFootCount">0</b></span>
+                        <span>Gross <b id="ldFootGross">₱0.00</b></span>
+                        <span>Net payable <b id="ldFootNet">₱0.00</b></span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Save</button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
-
-    <div class="row mb-2">
-    <div class="col-sm-12">
-        <div class="card">
-            <div class="card-header bg-info p-1">
-                <div class="row">
-                    <div class="col-sm-6 d-flex align-items-center text-start">
-                        <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                            <i class="ti ti-list fs-5 me-1"></i>
-                            <span class="pt-1">List</span>
-                        </h6>
-                    </div>
-                </div>
-            </div>						
-            <div class="card-body p-0 px-4 py-2 my-2">
-                <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th class="text-center">Action</th>
-                            <th class="text-center" style="width:250px;">LDDAP-ADA No.</th>
-                            <th class="text-center">MDS Branch</th>
-                            <th class="text-center">MDS Account No.</th>
-                            <th class="text-center">Fund Cluster</th>
-                            <th class="text-center">LDDAP-ADA Date</th>
-                        </tr>
-                    </thead>
-                    <tbody class="align-middle">
-                        <?php if(!empty($dvhddata)):
-                            foreach ($dvhddata as $data):
-                                $dt_recid = $data['recid'];
-                                $lddapadano = $data['lddapadano'];
-                                $mds_branch = $data['mds_branch'];
-                                $mds_accountno = $data['mds_accountno'];
-                                $lddapada_date = $data['lddapada_date'];
-                                $fund_cluster_code = $data['fund_cluster_code'];
-
-                        ?>
-                        <tr>
-                            <td class="text-center align-middle">
-                                <div class="d-flex justify-content-center gap-2">
-                                    <a class="text-info nav-icon-hover fs-6" 
-                                    href="mylddapada?meaction=MAIN&recid=<?= $dt_recid ?>" 
-                                    title="Edit Transaction">
-                                    <i class="ti ti-edit"></i>
-                                    </a>
-                                    <button class="btn btn-sm fs-6 text-warning p-0 border-0 bg-transparent" 
-                                            onclick="__mysys_lddapada_ent.__showPdfInModal('<?= base_url('mylddapada?meaction=PRINT-LDDAPADA&recid='.$dt_recid) ?>')" 
-                                            title="Print LDDAPADA">
-                                    <i class="ti ti-printer"></i>
-                                    </button>
-                                </div>
-                            </td>
-                            <td class="text-center"><?=$lddapadano;?></td>
-                            <td class="text-center"><?=$mds_branch;?></td>
-                            <td class="text-center"><?=$mds_accountno;?></td>
-                            <td class="text-center"><?=$fund_cluster_code;?></td>
-                            <td class="text-center"><?=$lddapada_date;?></td>
-                        </tr>
-                        <?php endforeach; endif;?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
 </div>
 
-
-
-<!-- PDF Modal -->
-<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+<!-- Print preview -->
+<div class="modal fade fods-modal" id="ldPrintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-md-down">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Printing Preview</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title">LDDAP-ADA — print preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <iframe id="pdfFrame" src="" style="width: 100%; height: 80vh;" frameborder="0"></iframe>
+            <div class="modal-body p-0">
+                <iframe id="ldPrintFrame" src="about:blank" style="width:100%; height:80vh; border:0;"></iframe>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
-<script src="<?=base_url('assets/js/cashier/lddapada.js?v=1');?>"></script>
-<script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
-
-
 <script>
-
-var selectedDV = <?= json_encode($dv_list); ?>;
-
-$(document).ready(function() {
-
-    // =========================================
-    // IF EDIT MODE (WITH RECID)
-    // DO NOT RELOAD FROM AJAX
-    // JUST COMPUTE EXISTING ROWS
-    // =========================================
-    <?php if(!empty($recid)): ?>
-
-        renderSelectedDV();
-        renumberRows();
-        computeTotals();
-
-    <?php else: ?>
-
-        // =========================================
-        // NEW RECORD
-        // =========================================
-        if (selectedDV.length > 0) {
-
-            renderSelectedDV();
-
-            var baseUrl = $('#__siteurl').data('mesiteurl');
-            loadDVItems(baseUrl);
-        }
-
-    <?php endif; ?>
-
-});
-
-// ===============================
-// ADD DV
-// ===============================
-$(document).on('click', '#btn_add_dv', function() {
-
-    var baseUrl = $('#__siteurl').data('mesiteurl');
-    var dv = $('#dv_lookup').val();
-
-    if (!dv) {
-        alert('Select DV first');
-        return;
-    }
-
-    // prevent duplicate
-    if (selectedDV.includes(dv)) {
-        alert('Already added');
-        return;
-    }
-
-    // Add to array
-    selectedDV.push(dv);
-
-    renderSelectedDV();
-    loadDVItems(baseUrl);
-});
-
-// ===============================
-// RENDER BADGES
-// ===============================
-function renderSelectedDV() {
-
-    var html = '';
-
-    selectedDV.forEach(function(dv) {
-
-        html += `
-            <span class="badge bg-primary me-1" data-dvno="${dv}">
-                ${dv}
-                <a href="javascript:void(0)" 
-                   onclick="removeDV('${dv}')" 
-                   class="ms-1 text-white text-decoration-none">
-                   &times;
-                </a>
-            </span>
-        `;
-    });
-
-    $('#selected_dvno_list').html(html);
-}
-
-// ===============================
-// REMOVE DV
-// ===============================
-function removeDV(dv) {
-
-    selectedDV = selectedDV.filter(p => p !== dv);
-
-    renderSelectedDV();
-
-    // remove existing row
-    $('#dv_line_items tbody tr').each(function() {
-
-        let rowDV = $(this).find('.dvno').val();
-
-        if (rowDV == dv) {
-            $(this).remove();
-        }
-
-    });
-
-    renumberRows();
-    computeTotals();
-}
-
-// ===============================
-// RENUMBER TABLE ROWS
-// ===============================
-function renumberRows() {
-
-    $('#dv_line_items tbody tr:visible').each(function(index) {
-
-        $(this).find('td:eq(0)').html('<b>' + (index + 1) + '</b>');
-
-    });
-}
-
-// ===============================
-// COMPUTE TOTALS
-// ===============================
-function computeTotals() {
-
-    let totalNet = 0;
-
-    $('#dv_line_items tbody tr:visible').each(function() {
-
-        let net = parseFloat($(this).find('.net_amount').val()) || 0;
-
-        totalNet += net;
-
-    });
-
-    $('#net_amount_payable').val(
-        totalNet.toLocaleString('en-PH', {
-            minimumFractionDigits: 2
-        })
-    );
-}
-
-// ===============================
-// LOAD DV ITEMS
-// ===============================
-function loadDVItems(baseUrl) {
-
-    if (selectedDV.length === 0) {
-
-        $('#dv_line_items tbody tr:visible').remove();
-
-        computeTotals();
-
-        return;
-    }
-
-    $.ajax({
-
-        url: baseUrl + 'mylddapada?meaction=LOAD-DV',
-
-        type: 'POST',
-
-        data: {
-            dvno: selectedDV,
-        },
-
-        dataType: 'json',
-
-        success: function(res) {
-
-            // clear rows except template
-            $('#dv_line_items tbody tr:visible').remove();
-
-            var rowTemplate = $('#dv_line_items tbody tr:first');
-
-            // map
-            var dataMap = {};
-
-            $.each(res, function(i, row) {
-
-                dataMap[row.dvno] = row;
-
-            });
-
-            // preserve order
-            $.each(selectedDV, function(i, dvNumber) {
-
-                var row = dataMap[dvNumber];
-
-                if (row) {
-
-                    var newRow = rowTemplate.clone().show();
-
-                    newRow.find('.dvno').val(row.dvno);
-                    newRow.find('.payee_name').val(row.payee_name);
-                    newRow.find('.payee_account_num').val(row.payee_account_num);
-                    newRow.find('.serialno').val(row.serialno);
-                    newRow.find('.allotment_class').val(row.uacs_code);
-                    newRow.find('.gross_amount').val(row.gross_amount);
-                    newRow.find('.total_deduction').val(row.total_deduction);
-                    newRow.find('.net_amount').val(row.net_amount);
-
-                    $('#dv_line_items tbody').append(newRow);
-                }
-
-            });
-
-            renumberRows();
-            computeTotals();
-        },
-
-        error: function(xhr) {
-
-            console.log(xhr.responseText);
-
-            alert('Error loading DV items');
-
-        }
-    });
-}
-
-// ===============================
-// AUTO COMPUTE
-// ===============================
-$(document).on('input', '.net_amount', function() {
-
-    computeTotals();
-
-});
-
-function updateMdsAccountNo() {
-    const fundClusterSelect = document.getElementById('fund_cluster_code');
-    const mdsAccountInput = document.getElementById('mds_accountno');
-    
-    const accountMapping = {
-        '01': '2182-9001-36',
-        '07': '2182-9006-16'
-    };
-    
-    const selectedValue = fundClusterSelect.value;
-    
-    if (accountMapping[selectedValue]) {
-        mdsAccountInput.value = accountMapping[selectedValue];
-    }
-}
-
-// Attach the event listener when the DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    const fundClusterSelect = document.getElementById('fund_cluster_code');
-    
-    // Add change event listener
-    fundClusterSelect.addEventListener('change', updateMdsAccountNo);
-    
-    // Optional: Trigger on page load if a value is already selected
-    if (fundClusterSelect.value) {
-        updateMdsAccountNo();
-    }
-});
-
+    var __ld_data = <?= json_encode($lddapdata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __ld_lookups = <?= json_encode($lookups, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __ld_perms = <?= json_encode($perms) ?>;
+    var __ld_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-
-<script>
-    __mysys_lddapada_ent.__lddapada_saving();
-</script>
-
-<?php
-    echo view('templates/myfooter.php');
-?>
-
-
+<script src="<?=base_url('assets/js/cashier/mylddapada.js?v=1');?>"></script>
+<?php echo view('templates/myfooter.php'); ?>

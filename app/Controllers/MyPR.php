@@ -21,10 +21,7 @@ class MyPR extends BaseController
     
         switch ($meaction) {
             case 'PR-MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '8001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+                if (fods_has_access(\Config\AccessCodes::PR_VIEW)) {
                     return $this->loadPRView();
                     break;
                 }else {
@@ -32,10 +29,12 @@ class MyPR extends BaseController
                 }
     
 			case 'PR-PRINT':
+				if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) { return view('errors/html/access-restricted'); }
 				return view('procurement/pr/pr-pdf');
 				break;
 
             case 'RFQ-PRINT':
+				if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) { return view('errors/html/access-restricted'); }
 				return view('procurement/pr/rfq-pdf');
 				break;
 
@@ -50,6 +49,7 @@ class MyPR extends BaseController
                 break;
 
             case 'LOAD-PPMP':
+if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) { return view('errors/html/access-restricted'); }
 
                 $ppmpnos = $this->request->getPost('ppmpno');
 

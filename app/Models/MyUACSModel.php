@@ -73,6 +73,7 @@ class MyUACSModel extends Model
 		}
 
 		if (empty($recid)) {
+			fods_require_access(\Config\AccessCodes::UACS_ADD, 'Saving');
 			$query = $this->db->query("
 				INSERT INTO `mst_uacs`(
 					`allotment_class`,
@@ -82,28 +83,22 @@ class MyUACSModel extends Model
 					`added_at`,
 					`added_by`
 				)
-				VALUES(
-					'$allotment_class',
-					'$object_code',
-					'$sub_object_code',
-					'$uacs_code',
-					NOW(),
-					'{$this->cuser}'
-				)
-			");
+				VALUES(?, ?, ?, ?, NOW(), ?)
+			", [$allotment_class, $object_code, $sub_object_code, $uacs_code, $this->cuser]);
 			$status = "UACS Saved successfully";
 			$color = "success";
 		}else{
+			fods_require_access(\Config\AccessCodes::UACS_UPDATE, 'Updating');
 			$query = $this->db->query("
 				UPDATE
 					`mst_uacs`
 				SET
-					`allotment_class` = '$allotment_class',
-					`object_code` = '$object_code',
-					`sub_object_code` = '$sub_object_code',
-					`uacs_code` = '$uacs_code'
-				WHERE `recid` = '$recid'
-			");
+					`allotment_class` = ?,
+					`object_code` = ?,
+					`sub_object_code` = ?,
+					`uacs_code` = ?
+				WHERE `recid` = ?
+			", [$allotment_class, $object_code, $sub_object_code, $uacs_code, $recid]);
 			$status = "UACS Updated successfully";
 			$color = "info";
 		}

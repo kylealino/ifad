@@ -1,263 +1,143 @@
-<?php
-$this->request = \Config\Services::request();
-$this->mybudgetallotment = model('App\Models\MyBudgetAllotmentModel');
-$this->db = \Config\Database::connect();
-$recid = $this->request->getPostGet('recid');
-
-$product_code = '';
-$product_desc = '';
-$uom = '';
-$price = '';
-$quantity = '';
-$remarks = '';
-
-if(!empty($recid) || !is_null($recid)) { 
-    $query = $this->db->query("
-    SELECT
-        `recid`,
-        `product_code`,
-        `product_desc`,
-        `uom`,
-        `price`,
-        `quantity`,
-        `remarks`
-    FROM
-        `mst_products`
-    WHERE 
-        `recid` = '$recid'"
-    );
-
-    $data = $query->getRowArray();
-    $product_code = $data['product_code'];
-    $product_desc = $data['product_desc'];
-    $uom = $data['uom'];
-    $price = $data['price'];
-    $quantity = $data['quantity'];
-    $remarks = $data['remarks'];
-}
-
-echo view('templates/myheader.php');
-?>
-<head>
-<style>
-#datatablesSimple td {
-    white-space: normal !important;
-    word-wrap: break-word;
-    word-break: break-word;
-}
-#datatablesSimple thead th {
-        text-align: center;
-    }
-
-</style>
-
-</head>
+<?php echo view('templates/myheader.php'); ?>
 <div class="container-fluid">
     <input type="hidden" id="__siteurl" data-mesiteurl="<?=site_url();?>" />
-    <div class="row mb-2 mt-0">
-        <h4 class="fw-semibold mb-8">Supplies</h4>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a class="text-muted text-decoration-none" href="<?=site_url();?>"><i class="ti ti-home fs-5"></i></a>
-            </li>
-            <li class="breadcrumb-item" aria-current="page">Maintenance</li>
-            <li class="breadcrumb-item" aria-current="page"><span class="form-label fw-bold">Supplies</span></li>
-            </ol>
-        </nav>
+    <div class="row me-outp-msg mx-0"></div>
+
+    <div class="fods-page-head">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="#">Maintenance</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Supplies</li>
+                </ol>
+            </nav>
+            <h1 class="fods-page-title">Supplies</h1>
+            <p class="fods-page-sub">Supply items used in PPMP, purchase requests and abstracts — with unit, price and stock.</p>
+        </div>
+        <?php if ($perms['add']): ?>
+        <div class="fods-page-actions d-flex">
+            <button type="button" class="btn btn-fods btn-sm px-3 py-2" id="productsTableAdd"><i class="ti ti-plus me-1"></i> Add Item</button>
+        </div>
+        <?php endif; ?>
     </div>
-    <div class="row">
-        <div class="col-sm-12">
-            <div class="card">
-                <div class="row myproducts-outp-msg mx-0">
 
-                </div>
-                <div class="card-header bg-info p-1">
-                    <div class="row">
-                        <div class="col-sm-6 d-flex align-items-center text-start">
-                            <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                                <i class="ti ti-pencil fs-5 me-1"></i>
-                                <span class="pt-1">Entry</span>
-                            </h6>
-                        </div>
-                        <div class="col-sm-6 text-end ">
-
-                        </div>
-                    </div>
-                </div>						
-                <div class="card-body p-0 px-4 py-2 my-2">
-                    <form action="<?=site_url();?>myproducts?meaction=PRODUCTS-SAVE" method="post" class="myproducts-validation">
-                        <div class="row mb-2">
-                            <div class="col-sm-6">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Product Code:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="hidden" id="recid" name="recid" value="<?=$recid;?>" class="form-control form-control-sm"/>
-                                        <input type="text" id="product_code" name="product_code" value="<?=$product_code;?>" class="form-control form-control-sm"/>
-                                    </div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">UOM:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="text" id="uom" name="uom" value="<?=$uom;?>" class="form-control form-control-sm"/>
-                                    </div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Price:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="number" id="price" name="price" value="<?=$price;?>" class="form-control form-control-sm"/>
-                                    </div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Quantity:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="number" id="quantity" name="quantity" value="<?=$quantity;?>" class="form-control form-control-sm"/>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-6">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Product Description:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <textarea name="product_desc" id="product_desc" placeholder="" rows="3" class="form-control form-control-sm"><?=$product_desc;?></textarea>
-                                    </div>
-                                </div>
-                            <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Remarks:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <textarea name="remarks" id="remarks" placeholder="" rows="3" class="form-control form-control-sm"><?=$remarks;?></textarea>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                        </div>
-                        <div class="row mb-2">  
-                            <div class="col-sm-12 text-end">
-                                <button type="submit" id="submitBtn" class="btn bg-<?= empty($recid) ? 'success' : 'info' ?>-subtle text-<?= empty($recid) ? 'success' : 'info' ?> btn-sm"><i class="ti ti-brand-doctrine mt-1 fs-4 me-1"></i>
-                                    <?= empty($recid) ? 'Save' : 'Update' ?>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <button type="button" class="fods-stat" data-table="productsTable" data-filter="all">
+                <div class="fods-stat-icon tone-teal"><i class="ti ti-package"></i></div>
+                <div><div class="fods-stat-value"><?= number_format($stats['total']) ?></div><div class="fods-stat-label">Supply items</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-lg-3">
+            <button type="button" class="fods-stat" data-table="productsTable" data-filter="out">
+                <div class="fods-stat-icon tone-amber"><i class="ti ti-package-off"></i></div>
+                <div><div class="fods-stat-value"><?= number_format($stats['out_of_stock']) ?></div><div class="fods-stat-label">Out of stock</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="fods-stat">
+                <div class="fods-stat-icon tone-indigo"><i class="ti ti-ruler-measure"></i></div>
+                <div><div class="fods-stat-value"><?= number_format($stats['uoms']) ?></div><div class="fods-stat-label">Units of measure</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="fods-stat">
+                <div class="fods-stat-icon tone-green"><i class="ti ti-coin"></i></div>
+                <div><div class="fods-stat-value" title="₱<?= number_format($stats['value'], 2) ?>">₱<?= number_format($stats['value'] >= 1e6 ? $stats['value'] / 1e6 : $stats['value'] / 1e3, 1) . ($stats['value'] >= 1e6 ? 'M' : 'K') ?></div><div class="fods-stat-label">Stock value</div></div>
             </div>
         </div>
     </div>
 
-    <div class="row mb-2">
-        <div class="col-sm-12">
-            <div class="card">
-                <div class="card-header bg-info p-1">
-                    <div class="row">
-                        <div class="col-sm-6 d-flex align-items-center text-start">
-                            <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                                <i class="ti ti-list fs-5 me-1"></i>
-                                <span class="pt-1">List</span>
-                            </h6>
-                        </div>
-                    </div>
-                </div>						
-                <div class="card-body p-0 px-4 py-2 my-2">
-                    <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Action</th>
-                                <th>Product Code</th>
-                                <th>Description</th>
-                                <th>UOM</th>
-                                <th>Price</th>
-                                <th>Quantity</th>
-                                <th>Remarks</th>
-                            </tr>
-                        </thead>
-                        <tbody class="align-middle">
-                            <?php if(!empty($productsdata)):
-                                foreach ($productsdata as $data):
-                                    $dt_recid = $data['recid'];
-                                    $product_code = $data['product_code'];
-                                    $product_desc = $data['product_desc'];
-                                    $uom = $data['uom'];
-                                    $price = $data['price'];
-                                    $quantity = $data['quantity'];
-                                    $remarks = $data['remarks'];
-                            ?>
-                            <tr>
-                                <td class="text-center align-middle">
-                                    <div class="d-flex justify-content-center gap-2">
-                                        <a class="text-info nav-icon-hover fs-6" 
-                                        href="myproducts?meaction=MAIN&recid=<?= $dt_recid ?>" 
-                                        title="Edit Transaction">
-                                        <i class="ti ti-edit"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                                <td class="text-center"><?=$product_code;?></td>
-                                <td class="text-center"><?=$product_desc;?></td>
-                                <td class="text-center"><?=$uom;?></td>
-                                <td class="text-center"><?= 'P'. number_format($price,2);?></td>
-                                <td class="text-center"><?=$quantity;?></td>
-                                <td class="text-center"><?=$remarks;?></td>
-                            </tr>
-                            <?php endforeach; endif;?>
-                        </tbody>
-                    </table>
-                </div>
+    <div class="fods-card">
+        <div class="fods-card-head">
+            <div class="fods-filter" id="productsTableFilter">
+                <button type="button" class="active" data-filter="all">All</button>
+                <button type="button" data-filter="in">In stock</button>
+                <button type="button" data-filter="out">Out of stock</button>
+            </div>
+            <div class="fods-search">
+                <i class="ti ti-search"></i>
+                <input type="search" class="form-control form-control-sm" id="productsTableSearch" placeholder="Search code, description...">
             </div>
         </div>
-    </div>
-
-
-    <div class="row me-myua-access-outp-msg mx-0">
+        <div class="fods-card-body fods-dt">
+            <table id="productsTable" class="table fods-table fods-table-stack w-100">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th class="d-none d-md-table-cell">Unit</th>
+                        <th class="text-end">Unit price</th>
+                        <th class="text-end">Stock</th>
+                        <th class="d-none d-xl-table-cell">Remarks</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
     </div>
 </div>
-<!-- Modal -->
-<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-xl">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="pdfModalLabel">PRODUCTS Preview</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <iframe id="pdfFrame" src="" style="width: 100%; height: 80vh;" frameborder="0"></iframe>
-      </div>
+
+<!-- Add / edit -->
+<div class="modal fade fods-modal" id="productsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <form id="productsForm" novalidate>
+                <div class="modal-header">
+                    <div class="d-flex align-items-center">
+                        <div class="fods-modal-icon tone-teal"><i class="ti ti-package"></i></div>
+                        <div>
+                            <h5 class="modal-title" id="productsModalTitle">Add Item</h5>
+                            <div class="fods-modal-sub" id="productsModalSub">A supply item and its unit price.</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="recid">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label" for="product_code">Item code</label>
+                            <input type="text" class="form-control" id="product_code" name="product_code">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label" for="product_desc">Description</label>
+                            <input type="text" class="form-control" id="product_desc" name="product_desc" required>
+                            <div class="invalid-feedback">Description is required.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="uom">Unit of measure</label>
+                            <input type="text" class="form-control" id="uom" name="uom" list="uomList" placeholder="e.g. piece, ream, box">
+                            <datalist id="uomList">
+                                <?php foreach ($uoms as $u): ?><option value="<?= esc($u, 'attr') ?>"><?php endforeach; ?>
+                            </datalist>
+                        </div>
+                        <div class="col-md-4 col-6">
+                            <label class="form-label" for="price">Unit price (₱)</label>
+                            <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" data-default="0">
+                        </div>
+                        <div class="col-md-4 col-6">
+                            <label class="form-label" for="quantity">Stock quantity</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" step="1" min="0" data-default="0">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="remarks">Remarks</label>
+                            <textarea class="form-control" id="remarks" name="remarks" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Create</button>
+                </div>
+            </form>
+        </div>
     </div>
-  </div>
 </div>
-
-
-
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
-
-<script src="<?=base_url('assets/js/products/myproducts.js?v=1');?>"></script>
-<script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
-
 
 <script>
-    __mysys_products_ent.__products_saving();
+    var __products_data = <?= json_encode($productsdata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __products_perms = <?= json_encode($perms) ?>;
 </script>
-
-
-
-<?php
-    echo view('templates/myfooter.php');
-?>
-
-
+<script src="<?=base_url('assets/js/products/myproducts.js?v=3');?>"></script>
+<?php echo view('templates/myfooter.php'); ?>

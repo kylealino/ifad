@@ -21,10 +21,7 @@ class MyPayee extends BaseController
     
         switch ($meaction) {
             case 'MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '5001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+                if (fods_has_access(\Config\AccessCodes::PAYEE_VIEW)) {
                     return $this->loadMainView();
                     break;
                 }else {
@@ -46,11 +43,39 @@ class MyPayee extends BaseController
 
     private function loadMainView() {
 
-        $query = $this->db->query("SELECT * FROM tbl_payee");
+        $query = $this->db->query("
+            SELECT `recid`, `payee_name`, `payee_account_num`, `payee_office`, `payee_tin`,
+                   `contact_no`, `payee_address`, `disb_method`, `currency`
+            FROM tbl_payee
+            ORDER BY `payee_name` ASC
+        ");
         $results = $query->getResultArray();
-    
+
+        // Standard methods first, then any other value already used in the data
+        $methods = ['LDDAP-ADA', 'LDDAP-IC', 'ADA', 'CHECK'];
+        foreach ($this->db->query("SELECT DISTINCT `disb_method` FROM tbl_payee WHERE `disb_method` <> '' ORDER BY `disb_method`")->getResultArray() as $row) {
+            if (!in_array($row['disb_method'], $methods, true)) {
+                $methods[] = $row['disb_method'];
+            }
+        }
+
+        $blank = fn ($v) => trim((string) $v) === '';
+        $stats = [
+            'total' => count($results),
+            'no_account' => count(array_filter($results, fn ($r) => $blank($r['payee_account_num']))),
+            'no_tin' => count(array_filter($results, fn ($r) => $blank($r['payee_tin']))),
+            'lddap' => count(array_filter($results, fn ($r) => $r['disb_method'] === 'LDDAP-ADA')),
+        ];
+
         return view('payee/payee-main', [
-            'results' => $results
+            'results' => $results,
+            'methods' => $methods,
+            'stats' => $stats,
+            'perms' => [
+                'add' => fods_has_access(\Config\AccessCodes::PAYEE_ADD),
+                'edit' => fods_has_access(\Config\AccessCodes::PAYEE_UPDATE),
+                'del' => fods_has_access(\Config\AccessCodes::PAYEE_DELETE),
+            ],
         ]);
     }
     

@@ -73,6 +73,7 @@ class MyRCIModel extends Model
 		// SAVE
 		// =========================================================
 		if (empty($recid)) {
+			fods_require_access(\Config\AccessCodes::RCI_ADD, 'Saving');
 
 			// INSERT HD
 			$query = $this->db->query("
@@ -152,10 +153,11 @@ class MyRCIModel extends Model
 				}
 			}
 
-			$status = "RCI Saved Successfully!";
+			$status = "RCI saved successfully";
 			$color = "success";
 
 		}else{
+			fods_require_access(\Config\AccessCodes::RCI_UPDATE, 'Updating');
 
 			// UPDATE HD
 			$query = $this->db->query("
@@ -178,7 +180,7 @@ class MyRCIModel extends Model
 
 			// RE-INSERT DT
 			if (!empty($rcidtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_rci_dt WHERE `hd_rid` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_rci_dt WHERE `hd_rid` = ?", [$project_id]);
 				for($aa = 0; $aa < count($rcidtdata); $aa++){
 
 					$medata = explode("x|x",$rcidtdata[$aa]);
@@ -233,10 +235,10 @@ class MyRCIModel extends Model
 
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_rci_dt WHERE `hd_rid` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_rci_dt WHERE `hd_rid` = ?", [$project_id]);
 			}
 
-			$status = "RCI Updated Successfully!";
+			$status = "RCI updated successfully";
 			$color = "info";
 		}
 
@@ -277,67 +279,71 @@ class MyRCIModel extends Model
 
 	}
 	
-	//CERTIFIED A APPROVAL/DISAPPROVAL
-	public function disbursement_certifya_approve() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
-		$serialno = $this->request->getPostGet('serialno');
-		$funding_source = $this->request->getPostGet('funding_source');
-
-		// $cseqn =  $this->get_ctr_lddapada('01',$funding_source,'CTRL_NO01');//TRANSACTION NO
-		// $trx = empty($serialno) ? $cseqn : $serialno;
-
-		$accessquery = $this->db->query("
-			SELECT `recid` FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
+	//RCI - ONE REPORT WITH ITS LINES (editor modal)
+	public function rci_load($recid) {
+		$hd = $this->db->query("SELECT * FROM tbl_rci_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		if (empty($hd)) {
+			return null;
 		}
+		$hd['lines'] = $this->db->query("
+			SELECT `recid`, `lddapadano`, `lddapada_date`, `ckno`, `dvno`, `serialno`, `responsibility_code`,
+				`payee_name`, `particulars`, `gross_amount`, `philhealth_amount`, `tax_amount`, `net_amount`
+			FROM tbl_rci_dt
+			WHERE `hd_rid` = ?
+			ORDER BY `recid` ASC
+		", [$recid])->getResultArray();
+		return $hd;
+	}
 
-		$query = $this->db->query("
-			UPDATE tbl_disbursement_hd 
-			SET 
-				`is_pending` = '0', 
-				`is_approved_certa` = '1',
-				`is_disapproved_certa` = '0',
-				`certa_approver` = '$approver', 
-				`certa_remarks` = '$remarks'
-			WHERE `recid` = '$recid'
-		");
-		$status = "disbursement approved!";
-		
-		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
-			echo "
-			<script>
-				toastr.success('{$status}!', 'Well Done!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2500,
-					});
-				setTimeout(function() {
-						window.location.href = 'mydisbursementapproval?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
-			</script>
-			";
-			exit; // Stop further PHP execution after the toast
-		} else {
-			// If there's an error, show an alert message
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
-			exit;
+	//RCI - ONE LINE PER DV OF AN LDDAP-ADA: its check, DV and amounts, the
+	//nature of payment from the DV's ORS / BURS, and the responsibility code
+	//of that ORS / BURS's largest line
+	public function lddapada_lines($lddapada_id) {
+		$rows = $this->db->query("
+			SELECT
+				a.`lddapadano`,
+				a.`lddapada_date`,
+				a.`ckno`,
+				b.`dvno`,
+				b.`serialno`,
+				b.`payee_name`,
+				b.`gross_amount`,
+				0 AS philhealth_amount,
+				b.`total_deduction` AS tax_amount,
+				b.`net_amount`
+			FROM tbl_lddapada_hd a
+			JOIN tbl_lddapada_dt b ON b.`lddapada_id` = a.`recid`
+			WHERE a.`recid` = ?
+			ORDER BY b.`recid` ASC
+		", [$lddapada_id])->getResultArray();
+
+		foreach ($rows as &$row) {
+			$row['particulars'] = '';
+			$row['responsibility_code'] = '';
+			foreach (['ors', 'burs'] as $src) {
+				$ob = $this->db->query("SELECT `recid`, `particulars` FROM tbl_{$src}_hd WHERE `serialno` = ? ORDER BY `recid` DESC LIMIT 1", [$row['serialno']])->getRowArray();
+				if (empty($ob)) {
+					continue;
+				}
+				$top = $this->db->query("
+					SELECT responsibility_code FROM (
+						SELECT responsibility_code, amount FROM tbl_{$src}_direct_ps_dt WHERE project_id = ?
+						UNION ALL SELECT responsibility_code, amount FROM tbl_{$src}_direct_mooe_dt WHERE project_id = ?
+						UNION ALL SELECT responsibility_code, amount FROM tbl_{$src}_direct_co_dt WHERE project_id = ?
+						UNION ALL SELECT responsibility_code, amount FROM tbl_{$src}_indirect_ps_dt WHERE project_id = ?
+						UNION ALL SELECT responsibility_code, amount FROM tbl_{$src}_indirect_mooe_dt WHERE project_id = ?
+						UNION ALL SELECT responsibility_code, amount FROM tbl_{$src}_indirect_co_dt WHERE project_id = ?
+					) x
+					ORDER BY amount DESC
+					LIMIT 1
+				", array_fill(0, 6, $ob['recid']))->getRowArray();
+				$row['particulars'] = $ob['particulars'];
+				$row['responsibility_code'] = $top['responsibility_code'] ?? '';
+				break;
+			}
 		}
+		unset($row);
+		return $rows;
 	}
 
 	public function get_ctr_lddapada($fund_cluster,$funding_source,$mfld='') { 

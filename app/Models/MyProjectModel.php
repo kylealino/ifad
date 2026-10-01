@@ -90,6 +90,7 @@ class MyProjectModel extends Model
 
 
 		if (empty($recid)) {
+			fods_require_access(\Config\AccessCodes::PROJECT_ADD, 'Saving');
 			$query = $this->db->query("
 				INSERT INTO tbl_reference_project (
 					fundcluster_id,
@@ -117,6 +118,7 @@ class MyProjectModel extends Model
 			$status = "Project Saved successfully";
 			$color = "success";
 		} else {
+			fods_require_access(\Config\AccessCodes::PROJECT_UPDATE, 'Updating');
 			$query = $this->db->query("
 				UPDATE tbl_reference_project
 				SET

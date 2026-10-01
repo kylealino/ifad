@@ -16,22 +16,23 @@ SELECT
 FROM
     `tbl_ors_hd`
 WHERE 
-    `recid` = '$recid'"
-);
+    `recid` = ?"
+, [$recid]);
 
-$data = $query->getRowArray();
-$particulars = $data['particulars'];
-$funding_source = $data['funding_source'];
-$payee_name = $data['payee_name'];
-$payee_office = $data['payee_office'];
-$payee_address = $data['payee_address'];
-$certified_a = $data['certified_a'];
-$position_a = $data['position_a'];
-$certified_b = $data['certified_b'];
-$position_b = $data['position_b'];
-$serialno = $data['serialno'];
-$ors_date = $data['ors_date'];
-$fund_cluster_code = $data['fund_cluster_code'];
+$data = $query->getRowArray() ?? [];
+if (empty($data)) { echo 'Record not found.'; return; }
+$particulars = $data['particulars'] ?? '';
+$funding_source = $data['funding_source'] ?? '';
+$payee_name = $data['payee_name'] ?? '';
+$payee_office = $data['payee_office'] ?? '';
+$payee_address = $data['payee_address'] ?? '';
+$certified_a = $data['certified_a'] ?? '';
+$position_a = $data['position_a'] ?? '';
+$certified_b = $data['certified_b'] ?? '';
+$position_b = $data['position_b'] ?? '';
+$serialno = $data['serialno'] ?? '';
+$ors_date = $data['ors_date'] ?? '';
+$fund_cluster_code = $data['fund_cluster_code'] ?? '';
 
 //certify a division
 $query = $this->db->query("
@@ -40,10 +41,10 @@ SELECT
 FROM
     `myua_user`
 WHERE 
-    `full_name` = '$certified_a'"
-);
-$data = $query->getRowArray();
-$division_a = $data['division'];
+    `full_name` = ?"
+, [$certified_a]);
+$data = $query->getRowArray() ?? [];
+$division_a = $data['division'] ?? '';
 
 //certify b section
 $query = $this->db->query("
@@ -52,10 +53,10 @@ SELECT
 FROM
     `myua_user`
 WHERE 
-    `full_name` = '$certified_b'"
-);
-$data = $query->getRowArray();
-$section_a = $data['section'];
+    `full_name` = ?"
+, [$certified_b]);
+$data = $query->getRowArray() ?? [];
+$section_a = $data['section'] ?? '';
 
     
 $pdf = new FPDF('P', 'mm', 'A4');
@@ -192,11 +193,11 @@ SELECT
 FROM
     `tbl_ors_hd`
 WHERE
-    `recid` = '$recid'
+    `recid` = ?
 "
-);
-$data = $query->getRowArray();
-$particulars = $data['particulars'];
+, [$recid]);
+$data = $query->getRowArray() ?? [];
+$particulars = $data['particulars'] ?? '';
 $total_amount = 0;
 
 $YP = 84;
@@ -436,8 +437,8 @@ SELECT
 FROM
     `tbl_ors_direct_ps_dt`
 WHERE
-    `project_id` = '$recid'
-");
+    `project_id` = ?
+", [$recid]);
 
 $data = $query->getResultArray();
 
@@ -517,7 +518,7 @@ foreach ($data as $row) {
 $pdf->SetFont('Times', '', 10);
 
 if ($DPS >= 85) {
-    $IDPS = $DPS;
+    $IDPS = $DPS + 3; // direct PS rows print 3mm below $DPS; start below the last one
 } else {
     $IDPS = $pdf->GetY();
 }
@@ -537,8 +538,8 @@ SELECT
 FROM
     `tbl_ors_indirect_ps_dt`
 WHERE
-    `project_id` = '$recid'
-");
+    `project_id` = ?
+", [$recid]);
 
 $data = $query->getResultArray();
 
@@ -638,8 +639,8 @@ SELECT
 FROM
     `tbl_ors_direct_mooe_dt`
 WHERE
-    `project_id` = '$recid'
-");
+    `project_id` = ?
+", [$recid]);
 
 $data = $query->getResultArray();
 
@@ -755,8 +756,8 @@ SELECT
 FROM
     `tbl_ors_indirect_mooe_dt`
 WHERE
-    `project_id` = '$recid'
-");
+    `project_id` = ?
+", [$recid]);
 
 $data = $query->getResultArray();
 
@@ -856,8 +857,8 @@ SELECT
 FROM
     `tbl_ors_direct_co_dt`
 WHERE
-    `project_id` = '$recid'
-");
+    `project_id` = ?
+", [$recid]);
 
 $data = $query->getResultArray();
 
@@ -957,8 +958,8 @@ SELECT
 FROM
     `tbl_ors_indirect_co_dt`
 WHERE
-    `project_id` = '$recid'
-");
+    `project_id` = ?
+", [$recid]);
 
 $data = $query->getResultArray();
 

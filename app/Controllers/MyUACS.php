@@ -21,10 +21,7 @@ class MyUACS extends BaseController
     
         switch ($meaction) {
             case 'MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '9001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+                if (fods_has_access(\Config\AccessCodes::UACS_VIEW)) {
                     return $this->loadMainView();
                     break;
                 }else {
@@ -57,13 +54,21 @@ class MyUACS extends BaseController
             `added_by`
         FROM
             `mst_uacs`
-        ORDER BY recid DESC
+        ORDER BY `uacs_code` ASC
         ");
         $uacsdata = $uacsquery->getResultArray();
 
     
+        $byClass = array_count_values(array_column($uacsdata, 'allotment_class'));
+
         return view('uacs/uacs-main', [
             'uacsdata' => $uacsdata,
+            'byClass' => $byClass,
+            'perms' => [
+                'add' => fods_has_access(\Config\AccessCodes::UACS_ADD),
+                'edit' => fods_has_access(\Config\AccessCodes::UACS_UPDATE),
+                'del' => false,
+            ],
         ]);
     }
     

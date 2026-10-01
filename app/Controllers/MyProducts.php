@@ -21,10 +21,7 @@ class MyProducts extends BaseController
     
         switch ($meaction) {
             case 'MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '10001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+                if (fods_has_access(\Config\AccessCodes::SUPPLIES_VIEW)) {
                     return $this->loadProductsView();
                     break;
                 }else {
@@ -52,93 +49,32 @@ class MyProducts extends BaseController
 
     private function loadProductsView() {
 
-        $productsdataquery = $this->db->query("
-            SELECT
-                `recid`,
-                `product_code`,
-                `product_desc`,
-                `uom`,
-                `price`,
-                `quantity`,
-                `remarks`
-            FROM
-                `mst_products`
-            ORDER BY
-                `recid` DESC
-        ");
-        $productsdata = $productsdataquery->getResultArray();
+        $productsdata = $this->db->query("
+            SELECT `recid`, `product_code`, `product_desc`, `uom`, `price`, `quantity`, `remarks`
+            FROM `mst_products`
+            ORDER BY `product_desc` ASC
+        ")->getResultArray();
 
-        // //hd lookup data
-        // $fundclusterquery = $this->db->query("SELECT `fund_cluster_code` FROM tbl_fundcluster");
-        // $fundclusterdata = $fundclusterquery->getResultArray();
+        $uoms = array_column($this->db->query("
+            SELECT DISTINCT `uom` FROM `mst_products` WHERE `uom` <> '' ORDER BY `uom`
+        ")->getResultArray(), 'uom');
 
-        // $divisionquery = $this->db->query("SELECT `division_name` FROM tbl_division");
-        // $divisiondata = $divisionquery->getResultArray();
-
-        // $psuacsquery = $this->db->query("SELECT * FROM mst_uacs WHERE allotment_class = 'Personnel Services' ORDER BY TRIM(sub_object_code) ASC");
-        // $psuacsdata = $psuacsquery->getResultArray();
-
-        // $psobjectquery = $this->db->query("SELECT DISTINCT object_code FROM mst_uacs WHERE allotment_class = 'Personnel Services'  ORDER BY TRIM(object_code) ASC");
-        // $psobjectdata = $psobjectquery->getResultArray();
-
-        // $mooeuacsquery = $this->db->query("SELECT * FROM mst_uacs WHERE allotment_class = 'Maintenance and Other Operating Expenses' ORDER BY TRIM(sub_object_code) ASC");
-        // $mooeuacsdata = $mooeuacsquery->getResultArray();
-
-        // $mooeobjectquery = $this->db->query("SELECT DISTINCT object_code FROM mst_uacs WHERE allotment_class = 'Maintenance and Other Operating Expenses' ORDER BY TRIM(object_code) ASC");
-        // $mooeobjectdata = $mooeobjectquery->getResultArray();
-        // $mooeobjectdata[] = ['object_code' => 'General Services'];
-
-        // $couacsquery = $this->db->query("SELECT * FROM mst_uacs WHERE allotment_class = 'Capital Outlay' ORDER BY TRIM(sub_object_code) ASC");
-        // $couacsdata = $couacsquery->getResultArray();
-
-        // $coobjectquery = $this->db->query("SELECT DISTINCT object_code FROM mst_uacs WHERE allotment_class = 'Capital Outlay' ORDER BY TRIM(object_code) ASC");
-        // $coobjectdata = $coobjectquery->getResultArray();
-
-        // $programtitlequery = $this->db->query("SELECT program_title FROM tbl_budget_hd WHERE fund_cluster_code = '01'  GROUP BY program_title ORDER BY recid DESC");
-        // $programtitledata = $programtitlequery->getResultArray();
-
-        // $saobhdquery = $this->db->query("SELECT * FROM tbl_saob_hd ORDER BY recid DESC");
-        // $saobhddata = $saobhdquery->getResultArray();
-
-
-        //reference/project title lookup
-        // $projectquery = $this->db->query("
-        //     SELECT
-        //         a.`fundcluster_id`,
-        //         b.`fund_cluster_code`,
-        //         a.`division_id`,
-        //         c.`division_name`,
-        //         a.`responsibility_code`,
-        //         a.`project_title`
-        //     FROM
-        //         `tbl_reference_project` a
-        //     JOIN
-        //         `tbl_fundcluster`b
-        //     ON 
-        //         a.fundcluster_id = b.`recid`
-        //     JOIN
-        //         `tbl_division` c
-        //     ON
-        //         a.`division_id` = c.recid
-        //     ORDER BY a.`project_title` ASC
-        // ");
-        // $projectdata = $projectquery->getResultArray();
+        $stats = [
+            'total' => count($productsdata),
+            'out_of_stock' => count(array_filter($productsdata, fn ($r) => (float) $r['quantity'] <= 0)),
+            'uoms' => count($uoms),
+            'value' => array_sum(array_map(fn ($r) => (float) $r['price'] * max(0, (float) $r['quantity']), $productsdata)),
+        ];
 
         return view('products/products-main', [
-            // 'fundclusterdata' => $fundclusterdata,
-            // 'divisiondata' => $divisiondata,
-            // 'psobjectdata' => $psobjectdata,
-            // 'mooeobjectdata' => $mooeobjectdata,
-            // 'coobjectdata' => $coobjectdata,
-            // 'psuacsdata' => $psuacsdata,
-            // 'mooeuacsdata' => $mooeuacsdata,
-            // 'couacsdata' => $couacsdata,
-            // 'budgetdtdata' => $budgetdtdata,
-            // 'projectdata' => $projectdata,
-            // // 'programtitledata' => $programtitledata,
-            'productsdata' => $productsdata
+            'productsdata' => $productsdata,
+            'uoms' => $uoms,
+            'stats' => $stats,
+            'perms' => [
+                'add' => fods_has_access(\Config\AccessCodes::SUPPLIES_ADD),
+                'edit' => fods_has_access(\Config\AccessCodes::SUPPLIES_UPDATE),
+                'del' => false,
+            ],
         ]);
     }
-    
-    
 }

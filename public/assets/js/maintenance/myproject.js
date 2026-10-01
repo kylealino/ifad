@@ -1,164 +1,170 @@
 var __mysys_project_ent = new __mysys_project_ent();
-function __mysys_project_ent() {  
-	const mesiteurl = $('#__siteurl').attr('data-mesiteurl');
+function __mysys_project_ent() {
+	const mesiteurl = document.getElementById('__siteurl').getAttribute('data-mesiteurl');
+	const perms = window.__project_perms || {};
+	const rows = window.__project_data || [];
+	const byId = {};
+	rows.forEach(function (r) { byId[r.recid] = r; });
 
-	this.__project_saving = function() { 
-		'use strict' 
-		// Fetch all the forms we want to apply custom Bootstrap validation styles to
-		var forms = document.querySelectorAll('.myproject-validation')
-		// Loop over them and prevent submission
-		Array.prototype.slice.call(forms)
-		.forEach(function (form) {
-			form.addEventListener('submit', function (event) {
-				if (!form.checkValidity()) {
-					event.preventDefault()
-					event.stopPropagation()
-				}
-				try {
-					event.preventDefault();
-					event.stopPropagation();
+	let table = null;
+	let filter = 'all';
 
-					var recid = document.getElementById("recid");
-					var project_title = document.getElementById("project_title");
-					var fund_cluster_code = document.getElementById("selFundcluster");
-					var fundcluster_id = document.getElementById("fundcluster_id");
-					var division_name = document.getElementById("selDivision");
-					var division_id = document.getElementById("division_id");
-					var responsibility_code = document.getElementById("responsibility_code");
-					var project_leader = document.getElementById("project_leader");
-					var mfopaps_code = document.getElementById("mfopaps_code");
+	// One tone per fund cluster, in order of appearance
+	const FC_TONES = ['tone-indigo', 'tone-amber', 'tone-green', 'tone-slate'];
+	const fcTone = {};
+	rows.forEach(function (r) {
+		if (!(r.fund_cluster_code in fcTone)) { fcTone[r.fund_cluster_code] = FC_TONES[Object.keys(fcTone).length % FC_TONES.length]; }
+	});
 
-					
-					var mparam = { 
-						recid: recid.value,
-						project_title: project_title.value,
-						fund_cluster_code: fund_cluster_code.value,
-						fundcluster_id: fundcluster_id.value,
-						division_name: division_name.value,
-						division_id: division_id.value,
-						responsibility_code: responsibility_code.value,
-						project_leader: project_leader.value,
-						mfopaps_code: mfopaps_code.value,
-						meaction: 'MAIN-SAVE'
+	function blank(v) { return v == null || String(v).trim() === ''; }
+
+	function esc(s) {
+		return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+			return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+		});
+	}
+
+	function dash(v) { return blank(v) ? '<span class="text-muted">—</span>' : esc(v); }
+
+	function selectedText(form, name) {
+		var sel = form.elements[name];
+		return sel && sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].text : '';
+	}
+
+	//PROJECT - TABLE (search, fund-cluster pills, stat tiles)
+	this.__project_table = function () {
+		var $ = window.jQuery;
+
+		// filter keys are "fc:<fund cluster code>"
+		$.fn.dataTable.ext.search.push(function (settings, data, idx) {
+			if (settings.nTable.id !== 'projectTable' || filter === 'all') { return true; }
+			return 'fc:' + settings.aoData[idx]._aData.fund_cluster_code === filter;
+		});
+
+		table = $('#projectTable').DataTable({
+			data: rows,
+			deferRender: true,
+			pageLength: 10,
+			lengthChange: false,
+			autoWidth: false,
+			order: [[0, 'asc']],
+			dom: 't<"d-flex flex-wrap justify-content-between align-items-center"ip>',
+			language: {
+				info: 'Showing _START_–_END_ of _TOTAL_',
+				infoEmpty: 'Nothing to show',
+				infoFiltered: '',
+				zeroRecords: '<div class="text-center text-muted py-4"><i class="ti ti-search fs-6 d-block mb-1"></i>No matches found</div>',
+				paginate: { previous: '<i class="ti ti-chevron-left"></i>', next: '<i class="ti ti-chevron-right"></i>' }
+			},
+			columns: [
+				{
+					data: 'project_title', className: 'cell-primary',
+					render: function (v, type, r) {
+						if (type !== 'display') { return (v || '') + ' ' + (r.responsibility_code || ''); }
+						return '<div style="min-width:0"><div class="fw-semibold text-dark" style="overflow-wrap:anywhere">' + esc(v) + '</div>'
+							+ '<div class="small text-muted">' + esc(r.responsibility_code || '') + '</div></div>';
 					}
+				},
+				{
+					data: 'fund_cluster_code', className: 'cell-left',
+					render: function (v, type) { return type === 'display' ? '<span class="fods-chip ' + (fcTone[v] || 'tone-slate') + '">FC ' + esc(v) + '</span>' : v; }
+				},
+				{ data: 'division_name', className: 'cell-right', render: function (v, type) { return type === 'display' ? dash(v) : (v || ''); } },
+				{ data: 'project_leader', className: 'd-none d-lg-table-cell', render: function (v, type) { return type === 'display' ? dash(v) : (v || ''); } },
+				{ data: 'mfopaps_code', className: 'd-none d-xl-table-cell', render: function (v, type) { return type === 'display' ? dash(v) : (v || ''); } },
+				{
+					data: null, orderable: false, searchable: false, className: 'cell-actions text-end',
+					render: function (v, type, r) {
+						return perms.edit
+							? '<div class="d-flex justify-content-end"><button type="button" class="fods-icon-btn is-teal project-edit" data-recid="' + r.recid + '" title="Edit"><i class="ti ti-pencil"></i></button></div>'
+							: '';
+					}
+				}
+			]
+		});
 
-					jQuery.ajax({ // default declaration of ajax parameters
-						type: "POST",
-						url: mesiteurl + 'myproject',
-						context: document.body,
-						data: eval(mparam),
-						global: false,
-						cache: false,
-						success: function(data) { //display html using divID
-							jQuery('.project-outp-msg').html(data);
-							return false;
-						},
-						error: function(xhr, status, error) { // display global error on the menu function
-							alert(error.message)
-							return false;
-						} 
-					}); 
+		$('#projectTableSearch').on('input', function () { table.search(this.value).draw(); });
 
-				} catch(err) { 
-					alert(err.message)
-					return false;
-				} //end try 
-			}, false)
-		}); //end forEach		
-	}; //
+		function applyFilter(key) {
+			filter = key;
+			$('#projectTableFilter button').removeClass('active').filter('[data-filter="' + key + '"]').addClass('active');
+			$('.fods-stat[data-table="projectTable"]').removeClass('is-active');
+			if (key !== 'all') { $('.fods-stat[data-table="projectTable"][data-filter="' + key + '"]').addClass('is-active'); }
+			table.draw();
+		}
+		$(document).on('click', '#projectTableFilter button', function () { applyFilter($(this).data('filter')); });
+		$(document).on('click', '.fods-stat[data-table="projectTable"]', function () { applyFilter($(this).data('filter')); });
+	};
 
-	// this.__delete_payee = function() {
-	// 	const deleteBtn = document.getElementById('btn_delete');
-	// 	const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-	
-	// 	let recid = null; // store recid for use after confirmation
-	
-	// 	deleteBtn.addEventListener('click', function () {
-	// 		recid = document.getElementById("recid").value;
-	
-	// 		// Show the modal
-	// 		const deleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
-	// 		deleteModal.show();
-	// 	});
-	
-	// 	confirmDeleteBtn.addEventListener('click', function () {
-	// 		if (!recid) return;
-	
-	// 		const mparam = {
-	// 			recid: recid,
-	// 			meaction: 'MAIN-DELETE'
-	// 		};
-	
-	// 		jQuery.ajax({
-	// 			type: "POST",
-	// 			url: mesiteurl + 'mypayee',
-	// 			context: document.body,
-	// 			data: mparam,
-	// 			global: false,
-	// 			cache: false,
-	// 			success: function(data) {
-	// 				jQuery('.me-mypayee-outp-msg').html(data);
-	// 			},
-	// 			error: function(xhr, status, error) {
-	// 				toastr.error('[MYPAYEE-ENT', "Hello, Error Loading Page..." + error, {
-	// 					closeButton: true,
-	// 				});
-	// 			}
-	// 		});
-	
-	// 		// Close the modal
-	// 		const deleteModal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
-	// 		deleteModal.hide();
-	// 	});
-	// };
-	
-	
-	// this.__delete_payee = function() {
-    //     document.getElementById('btn_delete').addEventListener('click', function (event) { 
-	// 		try { 
-	// 			var recid = document.getElementById("recid");
-	// 			var fname = document.getElementById("fname");
-	// 			var lname = document.getElementById("lname");
-				
-	// 			var mparam = { 
-	// 				recid: recid.value,
-	// 				fname: fname.value,
-	// 				lname: lname.value,
-	// 				meaction: 'MAIN-DELETE'
-	// 			}
+	//PROJECT - ADD / EDIT MODAL (filled from the row, no page reload)
+	this.__project_modal = function () {
+		var $ = window.jQuery;
+		var form = document.getElementById('projectForm');
+		var modalEl = document.getElementById('projectModal');
 
-	// 			jQuery.ajax({ // default declaration of ajax parameters
-	// 				type: "POST",
-	// 				url: mesiteurl + 'mycrud',
-	// 				context: document.body,
-	// 				data: eval(mparam),
-	// 				global: false,
-	// 				cache: false,
-	// 				success: function(data) { //display html using divID
-	// 					jQuery('.me-mycrud-outp-msg').html(data);
-	// 					return false;
-	// 				},
-	// 				error: function(xhr, status, error) { // display global error on the menu function
-	// 					//__mysys_apps.mybs_simple_toast('memsgtoastcont','metoastmsglang','align-items-center text-bg-danger border-0','Hello, Error Loading Page [TRXMGT-AP-ITEM-TAXDED-ENT]' + error);
-	// 					toastr.error('[MYCRUD-ENT', "Hello, Error Loading Page..." + error, {
-	// 					closeButton: true,
-	// 					});
-	// 					return false;
-	// 				} 
-	// 			});  
-                            
-    //             } catch(err) {
-    //                 var mtxt = 'There was an error on this page.\n';
-    //                 mtxt += 'Error description: ' + err.message;
-    //                 mtxt += '\nClick OK to continue.';
-    //                 alert(mtxt);
-                    
-    //                 return false;
-        
-    //             }  //end try	
-	// 	}); 
-    // }
+		function setField(name, value) {
+			var el = form.elements[name];
+			if (!el) { return; }
+			value = value == null ? '' : String(value);
+			if (el.tagName === 'SELECT' && value !== '' && !Array.prototype.some.call(el.options, function (op) { return op.value === value; })) {
+				el.add(new Option(value, value));
+			}
+			el.value = value;
+		}
 
-}; //end main
+		function open(row) {
+			form.reset();
+			form.classList.remove('was-validated');
+			Array.prototype.forEach.call(form.elements, function (el) {
+				if (el.name) { setField(el.name, row ? row[el.name] : ''); }
+			});
+			document.getElementById('projectModalTitle').textContent = row ? row.project_title : 'Add Project';
+			document.getElementById('projectModalSub').textContent = row
+				? 'Responsibility code ' + (row.responsibility_code || '—')
+				: 'A reference project for budget and obligations.';
+			document.getElementById('submitBtn').textContent = row ? 'Save changes' : 'Create';
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
 
-// __mysys_project_ent.__delete_payee();
+		modalEl.addEventListener('shown.bs.modal', function () { document.getElementById('project_title').focus(); });
+		$(document).on('click', '#projectTableAdd', function () { open(null); });
+		$(document).on('click', '#projectTable .project-edit', function () { open(byId[$(this).data('recid')]); });
+	};
+
+	//PROJECT - SAVE
+	this.__project_saving = function () {
+		var $ = window.jQuery;
+		var form = document.getElementById('projectForm');
+
+		form.addEventListener('submit', function (e) {
+			e.preventDefault();
+			if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+
+			var params = $(form).serializeArray();
+			// the model validates and stores the names alongside the ids
+			params.push({ name: 'fund_cluster_code', value: selectedText(form, 'fundcluster_id') });
+			params.push({ name: 'division_name', value: selectedText(form, 'division_id') });
+			params.push({ name: 'meaction', value: 'MAIN-SAVE' });
+
+			var $btn = $('#submitBtn'), label = $btn.html();
+			$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+			$.ajax({
+				type: 'POST',
+				url: mesiteurl + 'myproject',
+				data: params,
+				global: false,
+				cache: false,
+				success: function (data) { $('.me-outp-msg').html(data); },
+				error: function (xhr, status, error) { toastr.error('[PROJECT]', 'Error loading page...' + error, { closeButton: true }); },
+				complete: function () { setTimeout(function () { $btn.prop('disabled', false).html(label); }, 1200); }
+			});
+		});
+	};
+}
+
+// jQuery, DataTables and Bootstrap load in the footer, after this file
+document.addEventListener('DOMContentLoaded', function () {
+	__mysys_project_ent.__project_table();
+	__mysys_project_ent.__project_modal();
+	__mysys_project_ent.__project_saving();
+});

@@ -24,10 +24,7 @@ class MySaobReport extends BaseController
     
         switch ($meaction) {
             case 'MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '3001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+                if (fods_has_access(\Config\AccessCodes::SAOB_VIEW)) {
                     return $this->loadMainView();
                     break;
                 }else {
@@ -35,6 +32,7 @@ class MySaobReport extends BaseController
                 }
     
 			case 'SAOB-PDF':
+				if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
 				return view('report/saob-pdf');
 				break;
 
@@ -49,6 +47,7 @@ class MySaobReport extends BaseController
                 break;
 
             case 'SAVINGS-PRINT': 
+                if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
                 return view('report/saob-savings-pdf');
                 break;
                 

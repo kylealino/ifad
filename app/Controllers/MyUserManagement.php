@@ -12,80 +12,117 @@ class MyUserManagement extends BaseController
         $this->myua = model('App\Models\MyUserManagementModel');
         $this->db = \Config\Database::connect();
         $this->session = session();
-        $this->db = \Config\Database::connect();
         $this->cuser = $this->session->get('__xsys_myuserzicas__');
 	}
 
     public function index() {
-        
+
         $meaction = $this->request->getPostGet('meaction');
-    
+
         switch ($meaction) {
-            case 'MAIN': 
-                $accessQuery = $this->db->query("
-                    SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '4001' AND `is_active` = '1'
-                ");
-                if ($accessQuery->getNumRows() > 0) {
+            case 'MAIN':
+                if (fods_has_access(\Config\AccessCodes::USERMGMT_VIEW)) {
                     return $this->loadMainView();
                     break;
                 }else {
                     return view('errors/html/access-restricted');
                 }
-    
-            case 'MAIN-SAVE': 
+
+            case 'MAIN-SAVE':
                 $this->myua->user_save();
                 return redirect()->to('myua?meaction=MAIN');
                 break;
-            
-            case 'MAIN-ACCESS-SAVE': 
-                $this->myua->user_access_save();
+
+            case 'USER-TOGGLE-ACTIVE':
+                $this->myua->user_toggle_active();
                 return redirect()->to('myua?meaction=MAIN');
                 break;
 
+            case 'ROLE-SAVE':
+                $this->myua->role_save();
+                return redirect()->to('myua?meaction=MAIN');
+                break;
 
-            //  case 'MAIN-APPROVE': 
-            //     $this->myua->budget_approve();
-            //     return redirect()->to('myua?meaction=MAIN');
-            //     break;
+            case 'ROLE-TOGGLE-ACTIVE':
+                $this->myua->role_toggle_active();
+                return redirect()->to('myua?meaction=MAIN');
+                break;
 
-            //   case 'MAIN-DISAPPROVE': 
-            //     $this->myua->budget_disapprove();
-            //     return redirect()->to('myua?meaction=MAIN');
-            //     break;
+            case 'ROLE-DELETE':
+                $this->myua->role_delete();
+                return redirect()->to('myua?meaction=MAIN');
+                break;
+
+            case 'ROLE-ACCESS-SAVE':
+                $this->myua->role_access_save();
+                return redirect()->to('myua?meaction=MAIN');
+                break;
         }
     }
-    
+
 
     private function loadMainView() {
-        $recid = $this->request->getPostGet('recid');
-        $myuaquery = $this->db->query("SELECT * FROM myua_user");
+
+        $myuaquery = $this->db->query("
+            SELECT u.*, r.role_name
+            FROM myua_user u
+            LEFT JOIN tbl_roles r ON r.recid = u.role_id
+            ORDER BY u.full_name ASC
+        ");
         $myuadata = $myuaquery->getResultArray();
 
-        $myuserquery = $this->db->query("SELECT `username` FROM myua_user WHERE recid ='$recid' ");
-        if ($myuserquery->getNumRows()>0) {
-            $rw = $myuserquery->getRowArray();
-            $username = $rw['username'];
-        }else{
-            $username ="";
-        }
-        
-        $accessquery = $this->db->query("
-        SELECT 
-        a.`recid`,
-        a.`access_name`,
-        a.access_code,
-        COALESCE(ua.is_active, 0) AS is_active
-        FROM tbl_access_modules a
-        LEFT JOIN tbl_user_access ua 
-        ON ua.access_code = a.access_code AND ua.username = '$username'
+        $rolesquery = $this->db->query("
+            SELECT r.*,
+                (SELECT COUNT(*) FROM myua_user u WHERE u.role_id = r.recid) AS user_count,
+                (SELECT GROUP_CONCAT(ra.access_code) FROM tbl_role_access ra WHERE ra.role_id = r.recid) AS access_codes
+            FROM tbl_roles r
+            ORDER BY r.role_name ASC
         ");
-        $accessdata = $accessquery->getResultArray();
+        $rolesdata = $rolesquery->getResultArray();
+
+        $modulesquery = $this->db->query("SELECT `access_code`, `access_name` FROM tbl_access_modules ORDER BY `access_code` ASC");
+        $modulesdata = $modulesquery->getResultArray();
+
+        // Group codes by module family (the code minus its 3-digit action
+        // suffix, e.g. 26001..26004 => family "26" = ORS) so the permission
+        // editor shows one card per module, in sidebar order. Names are
+        // "<Module> - <Action>": the module names the card, the action
+        // labels each checkbox.
+        $modulefamilies = [];
+        foreach ($modulesdata as $mod) {
+            $code = $mod['access_code'];
+            $family = substr($code, 0, -3);
+            [$module, $action] = array_pad(explode(' - ', $mod['access_name'], 2), 2, '');
+            if (!isset($modulefamilies[$family])) {
+                $modulefamilies[$family] = [
+                    'label' => trim($module),
+                    'items' => [],
+                ];
+            }
+            $mod['action'] = $action !== '' ? trim($action) : $mod['access_name'];
+            $modulefamilies[$family]['items'][] = $mod;
+        }
+        // Show the groups in sidebar order (Budget Approval, family 36, sits
+        // right after Budget Allotment); anything not in the sidebar goes last
+        $navOrder = [];
+        foreach (config(\Config\Navigation::class)->groups as $group) {
+            foreach ($group['items'] as $item) {
+                foreach ((array) $item['access'] as $code) {
+                    $navOrder[substr($code, 0, -3)] ??= count($navOrder);
+                }
+            }
+        }
+        uksort($modulefamilies, fn ($a, $b) => [$navOrder[$a] ?? PHP_INT_MAX, (int) $a] <=> [$navOrder[$b] ?? PHP_INT_MAX, (int) $b]);
+
+        $tab = $this->request->getPostGet('tab');
 
         return view('user-management/ua-main', [
             'myuadata' => $myuadata,
-            'accessdata' => $accessdata,
+            'rolesdata' => $rolesdata,
+            'modulefamilies' => $modulefamilies,
+            'active_tab' => ($tab === 'roles') ? 'roles' : 'users',
         ]);
     }
-    
-    
+
+
 }

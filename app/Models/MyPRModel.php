@@ -35,6 +35,7 @@ class MyPRModel extends Model
 
 
 		if (empty($recid)) {
+fods_require_access(\Config\AccessCodes::PR_ADD, 'Saving');
 
 			//INSERTING HD DATA
 			$query = $this->db->query("
@@ -130,6 +131,7 @@ class MyPRModel extends Model
 			$status = "PR Saved Successfully!";
 			$color = "success";
 		}else{
+			fods_require_access(\Config\AccessCodes::PR_UPDATE, 'Updating');
 			$query = $this->db->query("
 				UPDATE
 					`tbl_pr_hd`
@@ -256,6 +258,7 @@ class MyPRModel extends Model
 	}
 
 	public function pr_rfq_save() { 
+		fods_require_access(\Config\AccessCodes::PR_UPDATE, 'Updating');
 		$recid = $this->request->getPostGet('recid');
 		$prno = $this->request->getPostGet('prno');
 		$quotation_no = $this->request->getPostGet('quotation_no');

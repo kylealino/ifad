@@ -1,2277 +1,389 @@
 <?php
-$this->request = \Config\Services::request();
-$this->db = \Config\Database::connect();
-$this->myors = model('App\Models\MyOrsModel');
-$action = $this->request->getPostGet('action');
-$recid = $this->request->getPostGet('recid');
-
-$ors_date = '';
-$particulars = '';
-$funding_source = '';
-$payee_name = '';
-$payee_office = '';
-$payee_address = '';
-$certified_a = '';
-$certified_b = '';
-$position_a = '';
-$position_b = '';
-$serialno = '';
-$is_pending = '';
-$is_approved_certa = '';
-$is_disapproved_certa = '';
-$is_approved_certb = '';
-$is_disapproved_certb = '';
-$certa_remarks = '';
-$certb_remarks = '';
-$MDL_jsscript = "";
-$status_color= "";
-$status_msg = "";
-$status_color_b= "";
-$status_msg_b = "";
-
-$is_vatable = "";
-$vat_percent = "";
-$ewt_percent = "";
-$pt_percent = "";
-$other_deductions = "";
-$income_tax = "";
-$category = "";
-
-$deduction_name = "";
-$sss = "";
-$hdmf = "";
-$pagibig_mp2 = "";
-$pagibig_loan = "";
-$hmo = "";
-$wtax = "";
-
-$fund_cluster_code = "";
-$dvno = "";
-
-if(!empty($recid) || !is_null($recid)) { 
-    $query = $this->db->query("
-    SELECT
-        `ors_date`,
-        `particulars`,
-        `funding_source`,
-        `payee_name`,
-        `payee_office`,
-        `payee_address`,
-        `certified_a`,
-        `certified_b`,
-        `position_a`,
-        `position_b`,
-        `serialno`,
-        `is_pending`,
-        `is_approved_certa`,
-        `is_disapproved_certa`,
-        `is_approved_certb`,
-        `is_disapproved_certb`,
-        `certa_remarks`,
-        `certb_remarks`,
-        `certa_approver`,
-        `certb_approver`,
-        `is_vatable`,
-        `vat_percent`,
-        `ewt_percent`,
-        `pt_percent`,
-        `other_deductions`,
-        `income_tax`,
-        `deduction_name`,
-        `sss`,
-        `hdmf`,
-        `pagibig_mp2`,
-        `pagibig_loan`,
-        `hmo`,
-        `wtax`,
-        `category`,
-        `fund_cluster_code`,
-        `dvno`
-    FROM
-        `tbl_ors_hd`
-    WHERE 
-        `recid` = '$recid'"
-    );
-
-    $data = $query->getRowArray();
-    $ors_date = $data['ors_date'];
-    $particulars = $data['particulars'];
-    $funding_source = $data['funding_source'];
-    $payee_name = $data['payee_name'];
-    $payee_office = $data['payee_office'];
-    $payee_address = $data['payee_address'];
-    $certified_a = $data['certified_a'];
-    $position_a = $data['position_a'];
-    $certified_b = $data['certified_b'];
-    $position_b = $data['position_b'];
-    $serialno = $data['serialno'];
-    $is_pending = $data['is_pending'];
-    $is_approved_certa = $data['is_approved_certa'];
-    $is_disapproved_certa = $data['is_disapproved_certa'];
-    $is_approved_certb = $data['is_approved_certb'];
-    $is_disapproved_certb = $data['is_disapproved_certb'];
-    $certa_remarks = $data['certa_remarks'];
-    $certb_remarks = $data['certb_remarks'];
-    $certa_approver = $data['certa_approver'];
-    $certb_approver = $data['certb_approver'];
-    $is_vatable = $data['is_vatable'];
-    $vat_percent = $data['vat_percent'];
-    $ewt_percent = $data['ewt_percent'];
-    $pt_percent = $data['pt_percent'];
-    $other_deductions = $data['other_deductions'];
-    $income_tax = $data['income_tax'];
-    $deduction_name = $data['deduction_name'];
-    $sss = $data['sss'];
-    $hdmf = $data['hdmf'];
-    $pagibig_mp2 = $data['pagibig_mp2'];
-    $pagibig_loan = $data['pagibig_loan'];
-    $hmo = $data['hmo'];
-    $wtax = $data['wtax'];
-    $category = $data['category'];
-    $fund_cluster_code = $data['fund_cluster_code'];
-    $dvno = $data['dvno'];
-
-    if ($action == 'certifya_appr_pending') {
-        $MDL_jsscript = "
-        <script>
-            __mysys_ors_ent.__approve_certa();
-            __mysys_ors_ent.__disapprove_certa();
-        </script>
-       ";	
-    }elseif ($action == 'is_disapproved_certa') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_ors_ent.__disapprove_certa();
-        </script>
-       ";	
-    }elseif ($action == 'is_approved_certa') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_ors_ent.__approve_certa();
-        </script>
-       ";	
-    }elseif ($action == 'certifyb_appr_pending') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_ors_ent.__approve_certb();
-           __mysys_ors_ent.__disapprove_certb();
-        </script>
-       ";
-    }elseif ($action == 'is_disapproved_certb') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_ors_ent.__disapprove_certb();
-        </script>
-       ";	
-    }elseif ($action == 'is_approved_certb') {
-        $MDL_jsscript = "
-        <script>
-           __mysys_ors_ent.__approve_certb();
-        </script>
-       ";	
-    }else{
-        $MDL_jsscript = "
-
-       ";	
-    }
-
-}
-
-if ($action == 'certifya_appr_pending') {
-    $status_color = 'text-warning';
-    $status_msg = 'For Approval';
-    $status_color_b = 'text-warning';
-    $status_msg_b = 'For Approval';
-}elseif ($action == 'certifyb_appr_pending'){
-    if ($is_approved_certa == '1' && $is_disapproved_certa == '0'&& $is_approved_certb == '0' && $is_disapproved_certb == '0') {
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
-    }elseif($is_approved_certa == '1' && $is_disapproved_certa == '0'&& $is_approved_certb == '0' && $is_disapproved_certb == '1'){
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-danger';
-        $status_msg_b = 'Disapproved';
-    }else{
-        $status_color = 'text-warning';
-        $status_msg = 'For Approval';
-        $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
-    }
-
-}elseif ($action == 'transaction_viewing') {
-    if ($is_approved_certa == '1' && $is_approved_certb == '0' && $is_disapproved_certb == '0') {
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
-    }elseif ($is_approved_certa == '1' && $is_approved_certb == '1') {
-        $status_color_b = 'text-success';
-        $status_msg_b = 'Approved by ' . $certb_approver;
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-    }elseif($is_approved_certa == '1' && $is_disapproved_certb == '1'){
-        $status_color = 'text-success';
-        $status_msg = 'Approved by ' . $certa_approver;
-        $status_color_b = 'text-danger';
-        $status_msg_b = 'Disapproved';
-    }else{
-        $status_color = 'text-warning';
-        $status_msg = 'For Approval';
-        $status_color_b = 'text-warning';
-        $status_msg_b = 'For Approval';
-    }
-}else{
-    $status_color_b = 'text-info';
-    $status_msg_b = '';
-}
-
-
 echo view('templates/myheader.php');
 ?>
+<head>
+<style>
+/* Editor grids */
+.ors-grid-card { border:1px solid var(--fods-border); background:#fff; margin-bottom:1rem; border-radius:12px; overflow:hidden; }
+.ors-grid-head { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; justify-content:space-between; padding:.65rem .9rem; border-bottom:1px solid var(--fods-border); background:#fafbfc; }
+.ors-grid-title { font-weight:600; color:var(--fods-text); }
+.ors-grid-sub { font-size:.75rem; color:var(--fods-muted); }
+.ors-grid-wrap { overflow-x:auto; scrollbar-width:thin; }
+/* Fixed, roomy columns: the grid scrolls sideways instead of squeezing the fields */
+.ors-grid { width:max-content; min-width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:.85rem; }
+.ors-grid col.c-act { width:84px; }
+.ors-grid col.c-program { width:320px; }
+.ors-grid col.c-project { width:360px; }
+.ors-grid col.c-rc { width:250px; }
+.ors-grid col.c-mfo { width:180px; }
+.ors-grid col.c-sub { width:300px; }
+.ors-grid col.c-uacs { width:140px; }
+.ors-grid col.c-amt { width:170px; }
+.ors-grid th { background:#f8fafc; color:var(--fods-muted); font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:.6rem .6rem; border-bottom:1px solid var(--fods-border); white-space:nowrap; text-align:left; }
+.ors-grid th.num, .ors-grid td.num { text-align:right; }
+.ors-grid td { padding:.45rem .6rem; border-bottom:1px solid #f1f4f8; vertical-align:middle; background:#fff; }
+.ors-grid tbody tr:hover td { background:#fbfcfd; }
+.ors-grid input { width:100%; height:36px; border:1px solid var(--fods-border); background:#fff; padding:.35rem .65rem; font-size:.85rem; color:var(--fods-text); border-radius:8px; text-overflow:ellipsis; }
+.ors-grid input::placeholder { color:#a3adbb; }
+.ors-grid input:hover:not(:disabled):not([readonly]) { border-color:#c7d0db; }
+.ors-grid input:focus { outline:none; border-color:var(--fods-teal); background:#fff; box-shadow:0 0 0 3px var(--fods-teal-soft); }
+.ors-grid input[type=number] { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+.ors-grid input:disabled, .ors-grid input[readonly] { color:#475569; background:#f1f4f8; border-color:transparent; }
+.ors-grid tfoot td { font-weight:600; background:#fafbfc; border-top:1px solid var(--fods-border); border-bottom:0; padding:.6rem .6rem; font-variant-numeric:tabular-nums; }
+/* Row actions stay on the left and the amount on the right while scrolling */
+.ors-grid .sticky-l { position:sticky; left:0; z-index:1; }
+.ors-grid .sticky-r { position:sticky; right:0; z-index:1; box-shadow:-8px 0 8px -8px rgba(15,23,42,.18); }
+.ors-grid th.sticky-l, .ors-grid th.sticky-r { background:#f8fafc; z-index:2; }
+.ors-grid tfoot .sticky-l, .ors-grid tfoot .sticky-r { background:#fafbfc; }
+.ors-grid-hint { font-size:.72rem; color:var(--fods-muted); }
+.ors-row-actions { display:flex; gap:.1rem; }
+.ors-row-actions .fods-icon-btn { width:28px; height:28px; font-size:.95rem; }
+.ors-empty { padding:1.25rem; text-align:center; color:var(--fods-muted); font-size:.82rem; }
 
+/* Amount summary on the Details tab */
+.ors-sum { border:1px solid var(--fods-border); background:#fafbfc; border-radius:12px; padding:.9rem 1rem; }
+.ors-sum-row { display:flex; justify-content:space-between; gap:1rem; padding:.3rem 0; font-size:.85rem; color:var(--fods-muted); }
+.ors-sum-row b { color:var(--fods-text); font-variant-numeric:tabular-nums; }
+.ors-sum-row.net { border-top:1px solid var(--fods-border); margin-top:.35rem; padding-top:.6rem; }
+.ors-sum-row.net b { color:#15803d; font-size:1.05rem; }
+
+/* Signatory status */
+.ors-sign { border:1px solid var(--fods-border); border-radius:12px; padding:.85rem 1rem; background:#fff; height:100%; }
+.ors-sign-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; margin-bottom:.6rem; }
+.ors-sign-box { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--fods-muted); }
+.ors-sign-note { font-size:.75rem; color:var(--fods-muted); margin-top:.5rem; }
+
+/* Editor footer totals */
+.ors-totals { display:flex; flex-wrap:wrap; gap:1.25rem; align-items:center; font-size:.82rem; color:var(--fods-muted); }
+.ors-totals b { color:var(--fods-text); font-size:.95rem; font-variant-numeric:tabular-nums; }
+.ors-tab-amt { font-size:.7rem; color:var(--fods-muted); margin-left:.35rem; font-weight:500; }
+
+/* Editor dialog: a bit wider than modal-xl on big screens so the grids fit */
+@media (min-width: 1200px) {
+    .ors-dialog { max-width: min(1320px, calc(100vw - 4rem)); }
+}
+
+/* jQuery UI autocomplete above the modal */
+.ui-autocomplete { z-index:2000 !important; max-height:280px; overflow-y:auto; overflow-x:hidden; font-size:.82rem; }
+.ui-autocomplete .ors-ac-sub { display:block; font-size:.72rem; color:var(--fods-muted); }
+
+@media (max-width: 767.98px) {
+    .ors-totals { gap:.5rem 1rem; width:100%; }
+}
+</style>
+</head>
 <div class="container-fluid">
-    <div class="row me-myorsburs-appr-outp-msg mx-0">
-    </div>
-    
     <input type="hidden" id="__siteurl" data-mesiteurl="<?=site_url();?>" />
-    <div class="row mb-2 mt-0">
-        <h4 class="fw-semibold mb-8">Obligation Request and Status</h4>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a class="text-muted text-decoration-none" href="<?=site_url();?>"><i class="ti ti-home fs-5"></i></a>
-            </li>
-            <li class="breadcrumb-item" aria-current="page">Budget</li>
-            <li class="breadcrumb-item" aria-current="page"><span class="form-label fw-bold">ORS</span></li>
-            </ol>
-        </nav>
+    <div class="row me-outp-msg mx-0"></div>
+
+    <div class="fods-page-head">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="#">ORS</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">ORS Entry</li>
+                </ol>
+            </nav>
+            <h1 class="fods-page-title">Obligation Request and Status</h1>
+            <p class="fods-page-sub">Obligate payments to payees against PS, MOOE and Capital Outlay, then send them for certification.</p>
+        </div>
+        <div class="fods-page-actions d-flex">
+            <select class="form-select form-select-sm fods-year" id="orsYear" aria-label="Year"></select>
+            <?php if ($perms['add']): ?>
+                <button type="button" class="btn btn-fods btn-sm px-3 py-2" id="orsTableAdd"><i class="ti ti-plus me-1"></i> New ORS</button>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <div class="card rounded">
-        <div class="row myors-outp-msg mx-0">
-
+    <!-- Stat cards (filled by myors.js for the selected year) -->
+    <div class="row g-3 mb-4" id="orsTableCards">
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="orsTable" data-filter="pending">
+                <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+            </button>
         </div>
-        <div class="card-header   bg-info p-1">
-            <div class="row d-flex align-items-center">
-                <div class="col-sm-6 d-flex align-items-center text-start">
-                    <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                        <i class="ti ti-pencil fs-5 me-1"></i>
-                        <span class="pt-1">Entry</span>
-                    </h6>
-                </div>
-                <div class="col-sm-6 text-end">
-                    <?php if($action == 'certifya_appr_pending' || $action == 'certifyb_appr_pending'):?>
-                        <button type="button" id="btn_approve" name="btn_approve" class="btn_approve btn btn-sm btn-success">
-                            Approve
-                        </button>
-                        <button type="button" id="btn_disapprove" name="btn_disapprove" class="btn_disapprove btn btn-sm btn-danger">
-                            Dispprove
-                        </button>
-                    <?php endif;?>
-                </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="orsTable" data-filter="disapproved">
+                <div class="fods-stat-icon tone-red"><i class="ti ti-arrow-back-up"></i></div>
+                <div><div class="fods-stat-value" data-card-value="returned">0</div><div class="fods-stat-label" data-card-label="returned">Returned</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="orsTable" data-filter="approved">
+                <div class="fods-stat-icon tone-green"><i class="ti ti-circle-check"></i></div>
+                <div><div class="fods-stat-value" data-card-value="approved">0</div><div class="fods-stat-label" data-card-label="approved">Approved</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="orsTable" data-filter="all">
+                <div class="fods-stat-icon tone-teal"><i class="ti ti-cash"></i></div>
+                <div><div class="fods-stat-value" data-card-value="total">₱0.00</div><div class="fods-stat-label" data-card-label="total">Total amount</div></div>
+            </button>
+        </div>
+    </div>
+
+    <div class="fods-card">
+        <div class="fods-card-head">
+            <div class="fods-filter" id="orsTableFilter">
+                <button type="button" class="active" data-filter="all">All</button>
+                <button type="button" data-filter="pending">Pending</button>
+                <button type="button" data-filter="disapproved">Returned</button>
+                <button type="button" data-filter="approved">Approved</button>
             </div>
-        </div>						
-        <div class="card-body p-0 px-4 py-2 my-2">
-            <form action="<?=site_url();?>myors?meaction=MAIN-SAVE" method="post" class="myors-validation">
-                <input type="hidden" class="form-control form-control-sm" id="recid" name="recid" value="<?=$recid;?>"/>
+            <div class="fods-search">
+                <i class="ti ti-search"></i>
+                <input type="search" class="form-control form-control-sm" id="orsTableSearch" placeholder="Search serial no., payee, particulars...">
+            </div>
+        </div>
+        <div class="fods-card-body fods-dt">
+            <table id="orsTable" class="table fods-table fods-table-stack w-100">
+                <thead>
+                    <tr>
+                        <th>ORS</th>
+                        <th class="d-none d-md-table-cell">Payee</th>
+                        <th class="d-none d-lg-table-cell">Date</th>
+                        <th class="text-end">Amount</th>
+                        <th>Status</th>
+                        <th class="d-none d-xl-table-cell">Encoded</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+</div>
 
-                <div class="row">
-                    <div class="col-sm-6">
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">Serial No.:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="text" id="serialno" name="serialno" value="<?=$serialno;?>" class="form-control form-control-sm"/>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span>Particulars</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <textarea name="particulars" id="particulars" placeholder="" rows="4" class="form-control form-control-sm"><?= empty($recid) ? 'TO OBLIGATE PAYMENT ' : $particulars; ?></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span>Funding Source:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <select name="" id="funding_source" class="form-select form-select-sm">
-                                        <?php if(!empty($recid)):?>
-                                            <option value="<?=$funding_source;?>"><?=$funding_source;?></option>
-                                        <?php else:?>
-                                            <option value="">Choose...</option>
-                                        <?php endif;?>
-                                            <option value="101101">101101</option>
-                                            <option value="102101">102101</option>
-                                            <option value="102406">102406</option>
-                                            <option value="102407">102407</option>
-                                            <option value="104102">104102</option>
-                                            <option value="105462">105462</option>
-                                            <option value="308601">308601</option>
-                                            <option value="308602">308602</option>
-                                            <option value="308603">308603</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span>Fund Cluster:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <select name="" id="fund_cluster_code" class="form-select form-select-sm">
-                                        <?php if(!empty($recid)):?>
-                                            <option value="<?=$fund_cluster_code;?>"><?=$fund_cluster_code;?></option>
-                                        <?php else:?>
-                                            <option value="">Choose...</option>
-                                        <?php endif;?>
-                                            <option value="01">01</option>
-                                            <option value="07">07</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Payee:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <?php if(!empty($recid)):?>
-                                            <select name="payee_name" id="payee_name" class="form-control select2 form-select-sm show-tick">
-                                                <option selected value="<?=$payee_name;?>"><?=$payee_name;?></option>
-                                                <?php foreach($payeedata as $data): ?>
-                                                    <option 
-                                                        value="<?= $data['payee_name'] ?>"
-                                                        data-office="<?= $data['payee_office'] ?>"
-                                                        data-address="<?= $data['payee_address'] ?>"
-                                                    >
-                                                        <?= $data['payee_name'] ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        <?php else:?>
-                                            <select name="payee_name" id="payee_name" class="form-control select2 form-select-sm show-tick">
-                                                <option selected value="">Choose...</option>
-                                                <?php foreach($payeedata as $data): ?>
-                                                    <option 
-                                                        value="<?= $data['payee_name'] ?>"
-                                                        data-office="<?= $data['payee_office'] ?>"
-                                                        data-address="<?= $data['payee_address'] ?>"
-                                                    >
-                                                        <?= $data['payee_name'] ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        <?php endif;?>
-                                    </div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Office:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="text" id="payee_office" name="payee_office" value="<?=$payee_office;?>" class="form-control form-control-sm " disabled />
-                                    </div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Address:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="text" id="payee_address" name="payee_address" value="<?=$payee_address;?>" class="form-control form-control-sm"  disabled/>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span>Date</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="date" name="ors_date" id="ors_date" value="<?=$ors_date;?>" class="form form-control form-control-sm">
-                                    </div>
-                                </div>
-                            </div>
+<!-- ============================= EDITOR ============================= -->
+<div class="modal fade fods-modal" id="orsModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down ors-dialog">
+        <div class="modal-content">
+            <form id="orsForm" novalidate>
+                <div class="modal-header border-bottom">
+                    <div class="d-flex align-items-center" style="min-width:0">
+                        <div class="fods-modal-icon tone-teal"><i class="ti ti-file-invoice"></i></div>
+                        <div style="min-width:0">
+                            <h5 class="modal-title text-truncate" id="orsModalTitle">New ORS</h5>
+                            <div class="fods-modal-sub" id="orsModalSub">Fill in the payee and deductions, then the line items.</div>
                         </div>
                     </div>
-                    <div class="col-sm-6">
-                        <div class="alert alert-info alert-dismissible fade show py-2 mb-3" role="alert">
-                            <i class="bi bi-info-circle"></i>
-                            <strong>Note:</strong> DV No. will be automatically generated once this transaction has been reviewed and approved by the Accounting Section.
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="orsPrintBtn"><i class="ti ti-printer me-1"></i>ORS</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="orsPrintDvBtn"><i class="ti ti-printer me-1"></i>DV</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                </div>
+
+                <div class="modal-body" style="background:var(--fods-bg);">
+                    <input type="hidden" id="recid" name="recid">
+
+                    <div id="orsBanner" class="alert d-none mb-3"></div>
+
+                    <ul class="nav fods-segment mb-3 flex-nowrap fods-scroll-x" role="tablist" style="max-width:100%;">
+                        <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
+                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPanePs"><i class="ti ti-users"></i>Personnel Services<span class="ors-tab-amt" data-tab-total="ps"></span></button></li>
+                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="ors-tab-amt" data-tab-total="mooe"></span></button></li>
+                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="ors-tab-amt" data-tab-total="co"></span></button></li>
+                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- Details -->
+                        <div class="tab-pane fade show active" id="orsPaneDetails">
+                            <div class="row g-3">
+                                <div class="col-lg-7">
+                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
+                                        <div class="fods-section mt-0">Obligation</div>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label" for="serialno">Serial no.</label>
+                                                <input type="text" class="form-control" id="serialno" name="serialno">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label" for="ors_date">Date</label>
+                                                <input type="date" class="form-control" id="ors_date" name="ors_date">
+                                            </div>
+                                            <div class="col-md-4 col-6">
+                                                <label class="form-label" for="funding_source">Funding source</label>
+                                                <select class="form-select" id="funding_source" name="funding_source" required></select>
+                                                <div class="invalid-feedback">Required.</div>
+                                            </div>
+                                            <div class="col-md-4 col-6">
+                                                <label class="form-label" for="fund_cluster_code">Fund cluster</label>
+                                                <select class="form-select" id="fund_cluster_code" name="fund_cluster_code"></select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label" for="dvno">DV no.</label>
+                                                <input type="text" class="form-control" id="dvno" placeholder="Set by Accounting" readonly>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" for="particulars">Particulars</label>
+                                                <textarea class="form-control" id="particulars" name="particulars" rows="3" maxlength="250"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <div class="fods-section">Payee</div>
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label" for="payee_name">Payee</label>
+                                                <input type="text" class="form-control" id="payee_name" name="payee_name" placeholder="Start typing to pick a payee" autocomplete="off" required>
+                                                <div class="invalid-feedback">Payee is required.</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label" for="payee_office">Office</label>
+                                                <input type="text" class="form-control" id="payee_office" name="payee_office" readonly>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label" for="payee_address">Address</label>
+                                                <input type="text" class="form-control" id="payee_address" name="payee_address" readonly>
+                                            </div>
+                                        </div>
+                                    </div></div>
+                                </div>
+
+                                <div class="col-lg-5">
+                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
+                                        <div class="fods-section mt-0">Deductions</div>
+                                        <div class="row g-3">
+                                            <div class="col-7">
+                                                <label class="form-label" for="category">Category</label>
+                                                <select class="form-select" id="category" name="category"></select>
+                                            </div>
+                                            <div class="col-5 d-flex align-items-end ors-tax d-none">
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" id="is_vatable" value="1">
+                                                    <label class="form-check-label" for="is_vatable">VATable</label>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-4 ors-tax ors-vat d-none">
+                                                <label class="form-label" for="vat_percent">VAT %</label>
+                                                <input type="number" step="0.01" class="form-control" id="vat_percent" placeholder="e.g. 12">
+                                            </div>
+                                            <div class="col-4 ors-tax ors-ewt d-none">
+                                                <label class="form-label" for="ewt_percent">EWT %</label>
+                                                <input type="number" step="0.01" class="form-control" id="ewt_percent" placeholder="1, 2, 5">
+                                            </div>
+                                            <div class="col-4 ors-tax ors-pt d-none">
+                                                <label class="form-label" for="pt_percent">PT %</label>
+                                                <input type="number" step="0.01" class="form-control" id="pt_percent" placeholder="e.g. 5">
+                                            </div>
+                                            <div class="col-7 ors-tax d-none">
+                                                <label class="form-label" for="deduction_name">Other deduction</label>
+                                                <input type="text" class="form-control" id="deduction_name" placeholder="Type of deduction">
+                                            </div>
+                                            <div class="col-5 ors-tax d-none">
+                                                <label class="form-label" for="other_deductions">Amount</label>
+                                                <input type="number" step="0.01" class="form-control" id="other_deductions">
+                                            </div>
+
+                                            <div class="col-12 ors-income d-none">
+                                                <label class="form-label" for="income_tax">Income tax</label>
+                                                <input type="number" step="0.01" class="form-control" id="income_tax">
+                                            </div>
+
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="sss">SSS</label><input type="number" step="0.01" class="form-control" id="sss"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="hdmf">HDMF</label><input type="number" step="0.01" class="form-control" id="hdmf"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="pagibig_mp2">Pag-IBIG MP2</label><input type="number" step="0.01" class="form-control" id="pagibig_mp2"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="pagibig_loan">Pag-IBIG loan</label><input type="number" step="0.01" class="form-control" id="pagibig_loan"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="hmo">HMO</label><input type="number" step="0.01" class="form-control" id="hmo"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="wtax">WTAX</label><input type="number" step="0.01" class="form-control" id="wtax"></div>
+
+                                            <div class="col-12 ors-none"><div class="form-text mt-0">Pick a category to compute taxes and deductions.</div></div>
+                                        </div>
+
+                                        <div class="ors-sum mt-3">
+                                            <div class="ors-sum-row"><span>Gross amount</span><b id="orsGross">₱0.00</b></div>
+                                            <div class="ors-sum-row"><span>Total deductions</span><b class="text-danger" id="orsDeduction">₱0.00</b></div>
+                                            <div class="ors-sum-row net"><span>Net amount payable</span><b id="orsNet">₱0.00</b></div>
+                                        </div>
+                                        <input type="hidden" id="gross_amount">
+                                        <input type="hidden" id="total_deduction">
+                                        <input type="hidden" id="net_amount">
+                                    </div></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">DV No.:</span>
+
+                        <!-- Line items -->
+                        <div class="tab-pane fade" id="orsPanePs">
+                            <div class="ors-grid-card" data-grid="ps_direct"></div>
+                            <div class="ors-grid-card" data-grid="ps_indirect"></div>
+                        </div>
+                        <div class="tab-pane fade" id="orsPaneMooe">
+                            <div class="ors-grid-card" data-grid="mooe_direct"></div>
+                            <div class="ors-grid-card" data-grid="mooe_indirect"></div>
+                        </div>
+                        <div class="tab-pane fade" id="orsPaneCo">
+                            <div class="ors-grid-card" data-grid="co_direct"></div>
+                            <div class="ors-grid-card" data-grid="co_indirect"></div>
+                        </div>
+
+                        <!-- Certification -->
+                        <div class="tab-pane fade" id="orsPaneSign">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="ors-sign">
+                                        <div class="ors-sign-head"><span class="ors-sign-box">Box A · Requesting office</span><span id="orsSignStatusA"></span></div>
+                                        <label class="form-label" for="certified_a">Certified by</label>
+                                        <select class="form-select" id="certified_a" name="certified_a"></select>
+                                        <label class="form-label mt-2" for="position_a">Position</label>
+                                        <input type="text" class="form-control" id="position_a" name="position_a" readonly>
+                                        <div class="ors-sign-note" id="orsSignNoteA"></div>
                                     </div>
-                                    <div class="col-sm-8">
-                                        <input type="text" id="dvno" name="dvno" value="<?=$dvno;?>" placeholder="Enter DV no."class="form-control form-control-sm" disabled/>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ors-sign">
+                                        <div class="ors-sign-head"><span class="ors-sign-box">Box B · Budget</span><span id="orsSignStatusB"></span></div>
+                                        <label class="form-label" for="certified_b">Certified by</label>
+                                        <select class="form-select" id="certified_b" name="certified_b"></select>
+                                        <label class="form-label mt-2" for="position_b">Position</label>
+                                        <input type="text" class="form-control" id="position_b" name="position_b" readonly>
+                                        <div class="ors-sign-note" id="orsSignNoteB"></div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span>Category:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <select name="category" id="category" class="form-select form-select-sm">
-                                        <?php if(!empty($recid)):?>
-                                            <option value="<?=$category;?>"><?=$category;?></option>
-                                        <?php elseif(!empty($ors_id)):?>
-                                            <option value="<?=$category;?>"><?=$category;?></option>
-                                        <?php else:?>
-                                            <option value="">Choose...</option>
-                                        <?php endif;?>
-                                            <option value="Goods">Goods</option>
-                                            <option value="Services">Services</option>
-                                            <option value="Manual">Manual</option>
-                                            <option value="Payroll">Payroll</option>
-                                            <option value="Income Tax">Income Tax</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ============================================ -->
-                        <!-- TAX FIELDS (Goods, Services, Manual)         -->
-                        <!-- ============================================ -->
-                        <div class="tax-fields" style="display:none;">
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>is Vatable?</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" 
-                                            type="checkbox" 
-                                            id="is_vatable" 
-                                            name="is_vatable" 
-                                            value="1"
-                                            <?= (isset($is_vatable) && $is_vatable == 1) ? 'checked' : '' ?>>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- VAT FIELD -->
-                            <div class="row mb-2 vat-field">
-                                <div class="col-sm-4">
-                                    <span>VAT (%):</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="vat_percent" name="vat_percent"
-                                        value="<?= $vat_percent ?? '' ?>"
-                                        placeholder="e.g. 12"
-                                        class="form-control form-control-sm">
-                                    <small class="text-muted">Standard VAT: 12%</small>
-                                </div>
-                            </div>
-
-                            <!-- EWT FIELD -->
-                            <div class="row mb-2 ewt-field">
-                                <div class="col-sm-4">
-                                    <span>EWT (%):</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="ewt_percent" name="ewt_percent"
-                                        value="<?= $ewt_percent ?? '' ?>"
-                                        placeholder="e.g. 1, 2, 5"
-                                        class="form-control form-control-sm">
-                                    <small class="text-muted">Depends on ATC (e.g. 1%, 2%, 5%)</small>
-                                </div>
-                            </div>
-
-                            <!-- PT FIELD -->
-                            <div class="row mb-2 pt-field">
-                                <div class="col-sm-4">
-                                    <span>PT (%):</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="pt_percent" name="pt_percent"
-                                        value="<?= $pt_percent ?? '' ?>"
-                                        placeholder="e.g. 5"
-                                        class="form-control form-control-sm">
-                                    <small class="text-muted">Percentage Tax (if non-vatable, usually 5%)</small>
-                                </div>
-                            </div>
-
-                            <!-- OTHER DEDUCTIONS -->
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>Other Deductions:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="text" id="deduction_name" name="deduction_name" placeholder="Type of deduction"
-                                        value="<?= $deduction_name ?? '' ?>"
-                                        class="form-control form-control-sm">
-                                </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-sm-4 text-end">
-                                    <span></span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="other_deductions" name="other_deductions"
-                                        value="<?= $other_deductions ?? '' ?>"
-                                        class="form-control form-control-sm">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ============================================ -->
-                        <!-- INCOME TAX FIELD (Income Tax category only)  -->
-                        <!-- ============================================ -->
-                        <div class="income-tax-field" style="display:none;">
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>Income Tax:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="income_tax" name="income_tax"
-                                        value="<?= $income_tax ?? '' ?>"
-                                        class="form-control form-control-sm">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ============================================ -->
-                        <!-- PAYROLL FIELDS (Payroll category only)       -->
-                        <!-- ============================================ -->
-                        <div class="payroll-fields" style="display:none;">
-                            <!-- SSS -->
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>SSS:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="sss" name="sss"
-                                        value="<?= $sss ?? '' ?>"
-                                        class="form-control form-control-sm">
-                                </div>
-                            </div>
-
-                            <!-- HDMF -->
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>HDMF:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="hdmf" name="hdmf"
-                                        value="<?= $hdmf ?? '' ?>"
-                                        class="form-control form-control-sm">
-                                </div>
-                            </div>
-
-                            <!-- PAGIBIG MP2 -->
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>PAGIBIG MP2:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="pagibig_mp2" name="pagibig_mp2"
-                                        value="<?= $pagibig_mp2 ?? '' ?>"
-                                        class="form-control form-control-sm">
-                                </div>
-                            </div>
-
-                            <!-- PAGIBIG LOAN -->
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>PAGIBIG LOAN:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="pagibig_loan" name="pagibig_loan"
-                                        value="<?= $pagibig_loan ?? '' ?>"
-                                        class="form-control form-control-sm">
-                                </div>
-                            </div>
-
-                            <!-- HMO -->
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>HMO:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="hmo" name="hmo"
-                                        value="<?= $hmo ?? '' ?>"
-                                        class="form-control form-control-sm">
-                                </div>
-                            </div>
-
-                            <!-- WTAX -->
-                            <div class="row mb-2">
-                                <div class="col-sm-4">
-                                    <span>WTAX:</span>
-                                </div>
-                                <div class="col-sm-8">
-                                    <input type="number" step="0.01" id="wtax" name="wtax"
-                                        value="<?= $wtax ?? '' ?>"
-                                        class="form-control form-control-sm">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ============================================ -->
-                        <!-- GROSS AND NET AMOUNT (Always visible)        -->
-                        <!-- ============================================ -->
-                        <hr>
-
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-semibold">Gross Amount:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">₱</span>
-                                    <input type="text" id="gross_amount"
-                                        class="form-control text-end fw-bold"
-                                        readonly>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-semibold">Total Deductions:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">₱</span>
-                                    <input type="text" id="total_deduction"
-                                        class="form-control text-end fw-bold text-danger"
-                                        readonly>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- <input type="hidden" id="total_deduction" name="total_deduction"> -->
-
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-semibold">Net Amount Payable:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">₱</span>
-                                    <input type="text" id="net_amount"
-                                        class="form-control text-end fw-bold text-success"
-                                        readonly>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <hr>
 
-                <div class="row mb-2">
-                    <div class="col-sm-12">
-                        <!-- Nav tabs -->
-                        <ul class="nav nav-pills mb-3 gap-2" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link active rounded-pill px-3 fs-3 fw-semibold" data-bs-toggle="tab" href="#ps-pill" role="tab">
-                                I. Personal Services
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link rounded-pill px-3 fs-3 fw-semibold" data-bs-toggle="tab" href="#mooe-pill" role="tab">
-                                II. Maintenance
-                                </a>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link rounded-pill px-3 fs-3 fw-semibold" data-bs-toggle="tab" href="#co-pill" role="tab">
-                                III. Capital Outlay
-                                </a>
-                            </li>
-                        </ul>
-
-                        <!-- Tab panes -->
-                        <div class="tab-content border">
-                            <!-- PS TAB CONTENT -->
-                            <div class="tab-pane active p-3" id="ps-pill" role="tabpanel">
-                                <div class="row">
-                                    <div class="table-responsive pe-2 ps-0">
-                                        <div class="col-md-12 mb-2">
-                                            <span class="ms-3 fw-bold">Direct Cost:</span>
-                                            <table id="budget_line_items" class="table-sm table-striped budgetdata-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_trxjournalitem_add" href="javascript:__mysys_ors_ent.my_add_budget_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Program Title</th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="sub_object_code psuacs_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `program_title`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_ors_direct_ps_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $program_title = $data['program_title'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="<?=$program_title;?>" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="psuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <hr>
-                                        <div class="col-sm-12">
-                                            <span class="ms-3 fw-bold">Indirect Cost:</span>
-                                            <table id="budget_indirect_line_items" class="table-sm table-striped budgetdata-indirect-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_trxjournalitem_add" href="javascript:__mysys_ors_ent.my_add_budget_indirect_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Program Title</th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_indirect_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="psuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `program_title`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_ors_indirect_ps_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $program_title = $data['program_title'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="<?=$program_title;?>" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="psuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>              
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- MOOE TAB CONTENT -->
-                            <div class="tab-pane p-3" id="mooe-pill" role="tabpanel">
-                                <div class="row">
-                                    <div class="table-responsive pe-2 ps-0">
-                                        <div class="col-md-12 mb-2">
-                                            <span class="ms-3 fw-bold">Direct Cost:</span>
-                                            <table id="budget_mooe_line_items" class="table-sm table-striped budgetmooedata-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_trxjournalitem_add" href="javascript:__mysys_ors_ent.my_add_budget_mooe_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Program Title</th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_mooe_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="mooeuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `program_title`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_ors_direct_mooe_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $program_title = $data['program_title'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_mooe_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="<?=$program_title;?>" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="mooeuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div class="col-sm-12">
-                                            <span class="ms-3 fw-bold">Indirect Cost:</span>
-                                            <table id="budget_mooe_indirect_line_items" class="table-sm table-striped budgetmooedata-indirect-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_trxjournalitem_add" href="javascript:__mysys_ors_ent.my_add_budget_indirect_mooe_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Program Title</th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_indirect_mooe_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="mooeuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `program_title`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_ors_indirect_mooe_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $program_title = $data['program_title'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_indirect_mooe_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="<?=$program_title;?>" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="mooeuacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- CO TAB CONTENT -->
-                            <div class="tab-pane p-3" id="co-pill" role="tabpanel">
-                                <div class="row">
-                                    <div class="table-responsive pe-2 ps-0">
-                                        <div class="col-md-12 mb-2">
-                                            <span class="ms-3 fw-bold">Direct Cost:</span>
-                                            <table id="budget_co_line_items" class="table-sm table-striped budgetcodata-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_budgetcoitem_add" disabled href="javascript:__mysys_ors_ent.my_add_budget_co_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Program Title</th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_co_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="couacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `program_title`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_ors_direct_co_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $program_title = $data['program_title'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_co_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="<?=$program_title;?>" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="couacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div class="col-sm-12">
-                                            <span class="ms-3 fw-bold">Indirect Cost:</span>
-                                            <table id="budget_indirect_co_line_items" class="table-sm table-striped budgetcodata-indirect-list">
-                                                <thead>
-                                                    <th class="text-center">
-                                                        <a class="text-info px-2 fs-7 bg-hover-primary nav-icon-hover position-relative z-index-5" id="btn_budgetcoitem_add" disabled href="javascript:__mysys_ors_ent.my_add_budget_indirect_co_line();"><i class="ti ti-new-section"></i></a>
-                                                    </th>
-                                                    <th class="text-center align-middle">Program Title</th>
-                                                    <th class="text-center align-middle">Project Title</th>
-                                                    <th class="text-center align-middle">Responsibility Code</th>
-                                                    <th class="text-center align-middle">MFO/PAP</th>
-                                                    <th class="text-center align-middle">Sub-object Code</th>
-                                                    <th class="text-center align-middle">UACS</th>
-                                                    <th class="text-center align-middle">Amount</th>
-                                                </thead>
-                                                <tbody>
-                                                    <tr style="display:none;">
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_indirect_co_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="couacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php if(!empty($recid)):
-                                                        $query = $this->db->query("
-                                                        SELECT
-                                                            `recid`,
-                                                            `program_title`,
-                                                            `project_title`,
-                                                            `responsibility_code`,
-                                                            `mfopaps_code`,
-                                                            `sub_object_code`,
-                                                            `uacs_code`,
-                                                            `amount`
-                                                        FROM
-                                                            `tbl_ors_indirect_co_dt`
-                                                        WHERE 
-                                                            `project_id` = '$recid'"
-                                                        );
-                                                        $result = $query->getResultArray();
-                                                        foreach ($result as $data):
-                                                            $dt_id = $data['recid'];
-                                                            $program_title = $data['program_title'];
-                                                            $project_title = $data['project_title'];
-                                                            $responsibility_code = $data['responsibility_code'];
-                                                            $mfopaps_code = $data['mfopaps_code'];
-                                                            $sub_object_code = $data['sub_object_code'];
-                                                            $uacs_code = $data['uacs_code'];
-                                                            $amount = $data['amount'];
-                                                    ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">
-                                                            <div class="d-inline-flex gap-1 justify-content-center">
-                                                                <a class="text-danger fs-5 bg-hover-danger nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                onclick="$(this).closest('tr').remove();">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </a>
-                                                                <a class="text-success fs-5 bg-hover-primary nav-icon-hover"
-                                                                href="javascript:void(0)"
-                                                                title="Add rows above"
-                                                                onclick="__mysys_ors_ent.my_add_budget_indirect_co_line_above(this);">
-                                                                    <i class="ti ti-plus"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="program_title"  value="<?=$program_title;?>" size="60" placeholder="Enter program title"  name="program_title" class="program_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="project_title"  value="<?=$project_title;?>" size="60" placeholder="Enter project title"  name="project_title" class="project_title">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="responsibility_code"  value="<?=$responsibility_code;?>" size="35"  name="responsibility_code" class="responsibility_code text-center" disabled>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="mfopaps_code"  value="<?=$mfopaps_code;?>" size="25" name="mfopaps_code" class="mfopaps_code text-center" disabled/>
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="sub_object_code"  value="<?=$sub_object_code;?>" size="60" placeholder="Enter sub-object code"  name="sub_object_code" class="couacs_code sub_object_code">
-                                                        </td>
-                                                        <td class="align-middle" nowrap>
-                                                            <input type="text" id="uacs"  value="<?=$uacs_code;?>" size="25" name="uacs" class="uacs text-center" disabled/>
-                                                        </td>
-                                                        <td class="text-center align-middle" nowrap>
-                                                            <input type="number" id="amount"  value="<?=$amount;?>" size="25" step="any" name="amount" class="amount text-center"/>
-                                                        </td>
-                                                    </tr>
-                                                    <?php endforeach; endif;?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-
-                            </div>
-                        </div>
+                <div class="modal-footer justify-content-between">
+                    <div class="ors-totals">
+                        <span>Gross <b id="orsFootGross">₱0.00</b></span>
+                        <span>Deductions <b id="orsFootDeduction">₱0.00</b></span>
+                        <span>Net <b id="orsFootNet">₱0.00</b></span>
                     </div>
-                </div>
-
-                <hr class="fw-bolder">
-
-                <div class="row">
-                    <div class="col-sm-6">
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Certified A:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <?php if(!empty($recid)):?>
-                                            <select name="certified_a" id="certified_a" class="form-control select2 form-select-sm show-tick">
-                                                <option selected value="<?=$certified_a;?>"><?=$certified_a;?></option>
-                                                <?php foreach($certifyadata as $data): ?>
-                                                    <option 
-                                                        value="<?= $data['full_name'] ?>"
-                                                        data-position="<?= $data['position'] ?>"
-                                                    >
-                                                        <?= $data['full_name'] ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        <?php else:?>
-                                            <select name="certified_a" id="certified_a" class="form-control select2 form-select-sm show-tick">
-                                                <option selected value="">Choose...</option>
-                                                <?php foreach($certifyadata as $data): ?>
-                                                    <option 
-                                                        value="<?= $data['full_name'] ?>"
-                                                        data-position="<?= $data['position'] ?>"
-                                                    >
-                                                        <?= $data['full_name'] ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        <?php endif;?>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Position:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="text" id="position_a" name="position_a" value="<?=$position_a;?>" class="form-control form-control-sm" disabled/>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <?php if(!empty($action)):?>
-                                        <div class="col-sm-4">
-                                            <span class="fw-bold">Status:</span>
-                                        </div>
-                                        <div class="col-sm-8 <?=$status_color;?> fs-3 fw-bold">
-                                            <span><i class="ti ti-flag"></i> <?=$status_msg;?></span>
-                                        </div>
-                                    <?php endif;?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-sm-6">
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span class="fw-bold">Certified B:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <?php if(!empty($recid)):?>
-                                    <select name="certified_b" id="certified_b" class="form-control select2 form-select-sm show-tick">
-                                        <option selected value="<?=$certified_b;?>"><?=$certified_b;?></option>
-                                        <?php foreach($certifybdata as $data): ?>
-                                            <option 
-                                                value="<?= $data['full_name'] ?>"
-                                                data-position="<?= $data['position'] ?>"
-                                            >
-                                                <?= $data['full_name'] ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                <?php else:?>
-                                    <select name="certified_b" id="certified_b" class="form-control select2 form-select-sm show-tick">
-                                        <option selected value="">Choose...</option>
-                                        <?php foreach($certifybdata as $data): ?>
-                                            <option 
-                                                value="<?= $data['full_name'] ?>"
-                                                data-position="<?= $data['position'] ?>"
-                                            >
-                                                <?= $data['full_name'] ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                <?php endif;?>
-                            </div>
-                        </div>
-                        <div class="row mb-2">
-                            <div class="col-sm-12">
-                                <div class="row mb-2">
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Position:</span>
-                                    </div>
-                                    <div class="col-sm-8">
-                                        <input type="text" id="position_b" name="position_b" value="<?=$position_b;?>" class="form-control form-control-sm" disabled/>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-sm-12">
-                            <div class="row mb-2">
-                                <?php if(!empty($action)):?>
-                                    <div class="col-sm-4">
-                                        <span class="fw-bold">Status:</span>
-                                    </div>
-                                    <div class="col-sm-8 <?=$status_color_b;?> fs-3 fw-bold">
-                                        <span><i class="ti ti-flag"></i> <?=$status_msg_b;?></span>
-                                    </div>
-                                <?php endif;?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-
-                <div class="row mb-2">  
-                    <div class="col-sm-12 text-end">
-                        <button type="submit" id="submitBtn" class="btn bg-<?= empty($recid) ? 'success' : 'info' ?>-subtle text-<?= empty($recid) ? 'success' : 'info' ?> btn-sm"><i class="ti ti-brand-doctrine mt-1 fs-4 me-1"></i>
-                            <?= empty($recid) ? 'Save' : 'Update' ?>
-                        </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Save</button>
                     </div>
                 </div>
             </form>
-
-
-        </div>
-    </div>
-
-    <div class="row mb-2">
-        <div class="col-sm-12">
-            <div class="card">
-                <div class="card-header bg-info p-1">
-                    <div class="row">
-                        <div class="col-sm-6 d-flex align-items-center text-start">
-                            <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                                <i class="ti ti-list fs-5 me-1"></i>
-                                <span class="pt-1">List</span>
-                            </h6>
-                        </div>
-                    </div>
-                </div>						
-                <div class="card-body p-0 px-4 py-2 my-2">
-                    <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th class="text-center">Action</th>
-                                <th class="text-center" style="width:250px;">Serial No.</th>
-                                <th class="text-center">Particulars</th>
-                                <th class="text-center">Payee</th>
-                                <th class="text-center">Total Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody class="align-middle">
-                            <?php if(!empty($orshddata)):
-                                foreach ($orshddata as $data):
-                                    $dt_recid = $data['recid'];
-                                    $serialno = $data['serialno'];
-                                    $particulars = $data['particulars'];
-                                    $payee_name = $data['payee_name'];
-                                    $total_amount = $data['amount'];
-                            ?>
-                            <tr>
-                                <td class="text-center align-middle">
-                                    <div class="d-flex justify-content-center gap-2">
-                                        <a class="text-info nav-icon-hover fs-6" 
-                                        href="myors?meaction=MAIN&recid=<?= $dt_recid ?>" 
-                                        title="Edit Transaction">
-                                        <i class="ti ti-edit"></i>
-                                        </a>
-                                        <button class="btn btn-sm fs-6 text-warning p-0 border-0 bg-transparent" 
-                                                onclick="__mysys_ors_ent.__showPdfInModal('<?= base_url('myors?meaction=PRINT-ORS&recid='.$dt_recid) ?>')" 
-                                                title="Print ORS">
-                                        <i class="ti ti-printer"></i>
-                                        <button class="btn btn-sm fs-6 text-primary p-0 border-0 bg-transparent" 
-                                                onclick="__mysys_ors_ent.__showPdfInModal('<?= base_url('myors?meaction=PRINT-DISBURSEMENT&recid='.$dt_recid) ?>')" 
-                                                title="Print DV">
-                                        <i class="ti ti-printer"></i>
-                                        </button>
-                                        </button>
-                                    </div>
-                                </td>
-                                <td class="text-center"><?=$serialno;?></td>
-                                <td class="text-center"><?=$particulars;?></td>
-                                <td class="text-center"><?=$payee_name;?></td>
-                                <td class="text-center"><?= 'P'. number_format($total_amount,2);?></td>
-                            </tr>
-                            <?php endforeach; endif;?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-</div>
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-info text-white">
-        <h5 class="modal-title text-white" id="confirmDeleteModalLabel">Confirm Delete</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        Are you sure you want to delete this payee?
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success btn-sm px-3" id="confirmDeleteBtn">Yes</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- APPROVAL -->
-<div class="modal fade" id="confirmApproveModal" tabindex="-1" aria-labelledby="confirmApproveModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-        <div class="modal-header bg-info text-white">
-            <h5 class="modal-title text-white" id="confirmApproveModalLabel">Confirm Approval</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="row mb-2">
-                        <div class="col-sm-4">
-                            <span>Approver:</span>
-                        </div>
-                        <div class="col-sm-8">
-                            <?php if($action == 'certifya_appr_approved' && !empty($recid)):?>
-                                <input type="text" id="approved_by" name="approved_by" value="<?=$approver;?>" class="form-control form-control-sm" readonly/>
-                            <?php else:?>
-                                <input type="text" id="approved_by" name="approved_by" value="<?=$this->cuser;?>" class="form-control form-control-sm" readonly/>
-                            <?php endif;?>
-                        </div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-sm-4">
-                            <span>Remarks:</span>       
-                        </div>
-                        <div class="col-sm-8">
-                        <?php if($action == 'certifya_appr_approved' && !empty($recid)):?>
-                            <textarea name="approved_remarks" id="approved_remarks" placeholder="" rows="3" class="form-control form-control-sm" disabled><?=$certa_remarks;?></textarea>
-                        <?php else:?>
-                            <textarea name="approved_remarks" id="approved_remarks" placeholder="" rows="3" class="form-control form-control-sm"></textarea>
-                        <?php endif;?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
-        <div class="modal-footer">
-            <?php if($action == 'certifya_appr_approved' && !empty($recid)):?>
-                <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Back</button>
-            <?php else:?>
-                <button type="button" class="btn btn-success btn-sm px-3" id="confirmApproveBtn">Approve</button>
-                <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Cancel</button>
-            <?php endif;?>
-        </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="confirmDisapproveModal" tabindex="-1" aria-labelledby="confirmDisapproveModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-        <div class="modal-header bg-info text-white">
-            <h5 class="modal-title text-white" id="confirmDisapproveModalLabel">Confirm Disapproval</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="row mb-2">
-                        <div class="col-sm-4">
-                            <span>Disapprover:</span>
-                        </div>
-                        <div class="col-sm-8">
-                            <?php if($action == 'certifya_appr_disapproved' && !empty($recid)):?>
-                                <input type="text" id="disapproved_by" name="disapproved_by" value="<?=$approver;?>" class="form-control form-control-sm" readonly/>
-                            <?php else:?>
-                                <input type="text" id="disapproved_by" name="disapproved_by" value="<?=$this->cuser;?>" class="form-control form-control-sm" readonly/>
-                            <?php endif;?>
-                        </div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-sm-4">
-                            <span>Remarks:</span>       
-                        </div>
-                        <div class="col-sm-8">
-                            <?php if($action == 'certifya_appr_disapproved' && !empty($recid)):?>
-                                <textarea name="disapproved_remarks" id="disapproved_remarks" placeholder="" rows="3" class="form-control form-control-sm" disabled><?=$certb_remarks;?></textarea>
-                            <?php else:?>
-                                <textarea name="disapproved_remarks" id="disapproved_remarks" placeholder="" rows="3" class="form-control form-control-sm"></textarea>
-                            <?php endif;?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
-        <div class="modal-footer">
-            <?php if($action == 'certifya_appr_disapproved' && !empty($recid)):?>
-                <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Back</button>
-            <?php else:?>
-                <button type="button" class="btn btn-danger btn-sm px-3" id="confirmDisapproveBtn">Disapprove</button>
-                <button type="button" class="btn bg-secondary-subtle btn-sm" data-bs-dismiss="modal">Cancel</button>
-            <?php endif;?>
-        </div>
-        </div>
-    </div>
-</div>
-
-<!-- PDF Modal -->
-<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+<!-- ORS / DV print preview -->
+<div class="modal fade fods-modal" id="orsPrintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-md-down">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Printing Preview</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="orsPrintTitle">Print preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <iframe id="pdfFrame" src="" style="width: 100%; height: 80vh;" frameborder="0"></iframe>
+            <div class="modal-body p-0">
+                <iframe id="orsPrintFrame" src="about:blank" style="width:100%; height:80vh; border:0;"></iframe>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
-<script src="<?=base_url('assets/js/ors/ors.js?v=6');?>"></script>
-<script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
-
 <script>
-$(function () {
-
-    function computeGross() {
-        let total = 0;
-        $(".amount").each(function () {
-            total += parseFloat($(this).val()) || 0;
-        });
-        $("#gross_amount").val(total.toFixed(2));
-        return total;
-    }
-
-    function resetTaxes() {
-        $("#vat_percent").val('');
-        $("#ewt_percent").val('');
-        $("#pt_percent").val('');
-    }
-
-    function applyTaxRules() {
-
-        let gross = computeGross();
-        let category = $("#category").val();
-        let isVat = $("#is_vatable").is(":checked");
-
-        // Get Other Deductions and Income Tax values
-        let otherDeductions = parseFloat($("#other_deductions").val()) || 0;
-        let incomeTax = parseFloat($("#income_tax").val()) || 0;
-
-        // Get Payroll deductions
-        let sss = parseFloat($("#sss").val()) || 0;
-        let hdmf = parseFloat($("#hdmf").val()) || 0;
-        let pagibig_mp2 = parseFloat($("#pagibig_mp2").val()) || 0;
-        let pagibig_loan = parseFloat($("#pagibig_loan").val()) || 0;
-        let hmo = parseFloat($("#hmo").val()) || 0;
-        let wtax = parseFloat($("#wtax").val()) || 0;
-
-        // =========================
-        // PAYROLL MODE
-        // =========================
-        if (category === "Payroll") {
-            let totalPayrollDeductions = sss + hdmf + pagibig_mp2 + pagibig_loan + hmo + wtax;
-            let netPayable = gross - totalPayrollDeductions;
-            
-            // Reset tax fields
-            resetTaxes();
-            $("#vat_percent").val('');
-            $("#ewt_percent").val('');
-            $("#pt_percent").val('');
-            $("#other_deductions").val('');
-            $("#income_tax").val('');
-            
-            $("#net_amount").val(netPayable.toFixed(2));
-            $("#total_deduction").val(totalPayrollDeductions.toFixed(2));
-            return;
-        }
-
-        // =========================
-        // INCOME TAX MODE
-        // =========================
-        if (category === "Income Tax") {
-            // Reset other deduction fields
-            resetTaxes();
-            $("#other_deductions").val('');
-            $("#sss").val('');
-            $("#hdmf").val('');
-            $("#pagibig_mp2").val('');
-            $("#pagibig_loan").val('');
-            $("#hmo").val('');
-            $("#wtax").val('');
-            
-            let netPayable = gross - incomeTax;
-            
-            $("#net_amount").val(netPayable.toFixed(2));
-            $("#total_deduction").val(incomeTax.toFixed(2));
-            return;
-        }
-
-        // DEFAULT (no category)
-        if (!category) {
-            resetTaxes();
-            let net = gross - otherDeductions - incomeTax;
-            // Reset payroll fields
-            $("#sss").val('');
-            $("#hdmf").val('');
-            $("#pagibig_mp2").val('');
-            $("#pagibig_loan").val('');
-            $("#hmo").val('');
-            $("#wtax").val('');
-            $("#net_amount").val(net.toFixed(2));
-            $("#total_deduction").val((otherDeductions + incomeTax).toFixed(2));
-            return;
-        }
-
-        // =========================
-        // GOODS, SERVICES, MANUAL MODE
-        // =========================
-        let net = 0;
-        let vat = 0;
-        let ewt = 0;
-        let pt = 0;
-        let totalDeduction = 0;
-
-        // Reset payroll fields
-        $("#sss").val('');
-        $("#hdmf").val('');
-        $("#pagibig_mp2").val('');
-        $("#pagibig_loan").val('');
-        $("#hmo").val('');
-        $("#wtax").val('');
-
-        // MANUAL MODE (CPA RULE)
-        if (category === "Manual") {
-
-            let vatPercent = parseFloat($("#vat_percent").val()) || 0;
-            let ewtPercent = parseFloat($("#ewt_percent").val()) || 0;
-            let ptPercent  = parseFloat($("#pt_percent").val()) || 0;
-
-            if (isVat) {
-                net = gross / 1.12;
-                vat = net * (vatPercent / 100);
-                ewt = net * (ewtPercent / 100);
-
-                $("#pt_percent").val('');
-            } else {
-                net = gross;
-                pt = gross * (ptPercent / 100);
-                ewt = gross * (ewtPercent / 100);
-
-                $("#vat_percent").val('');
-            }
-
-            let netPayable = gross - vat - ewt - pt - otherDeductions - incomeTax;
-            totalDeduction = vat + ewt + pt + otherDeductions + incomeTax;
-
-            $("#net_amount").val(netPayable.toFixed(2));
-            $("#total_deduction").val(totalDeduction.toFixed(2));
-            return;
-        }
-
-        // AUTO MODE (GOODS/SERVICES)
-        if (isVat) {
-
-            net = gross / 1.12;
-
-            $("#vat_percent").val(5);
-            vat = net * 0.05;
-
-            if (category === "Goods") {
-                $("#ewt_percent").val(1);
-                ewt = net * 0.01;
-            } else if (category === "Services") {
-                $("#ewt_percent").val(2);
-                ewt = net * 0.02;
-            }
-
-            $("#pt_percent").val('');
-
-        } else {
-
-            net = gross;
-
-            $("#vat_percent").val('');
-
-            if (category === "Goods") {
-                $("#ewt_percent").val(1);
-                ewt = gross * 0.01;
-            } else if (category === "Services") {
-                $("#ewt_percent").val(2);
-                ewt = gross * 0.02;
-            }
-
-            $("#pt_percent").val(3);
-            pt = gross * 0.03;
-        }
-
-        // FINAL - Subtract Other Deductions and Income Tax
-        let netPayable = gross - vat - ewt - pt - otherDeductions - incomeTax;
-        totalDeduction = vat + ewt + pt + otherDeductions + incomeTax;
-
-        $("#net_amount").val(netPayable.toFixed(2));
-        $("#total_deduction").val(totalDeduction.toFixed(2));
-    }
-
-    function toggleFields() {
-        let category = $("#category").val();
-        
-        // Hide all conditional fields first
-        $(".tax-fields").hide();
-        $(".other-deductions-field").hide();
-        $(".income-tax-field").hide();
-        $(".payroll-fields").hide();
-        
-        // Show fields based on category
-        if (category === "Goods" || category === "Services" || category === "Manual") {
-            $(".tax-fields").show();
-            $(".other-deductions-field").show();
-            
-            // Handle VAT toggle within tax fields
-            if ($("#is_vatable").is(":checked")) {
-                $(".vat-field").show();
-                $(".ewt-field").show();
-                $(".pt-field").hide();
-            } else {
-                $(".vat-field").hide();
-                $(".ewt-field").show();
-                $(".pt-field").show();
-            }
-        } else if (category === "Income Tax") {
-            $(".income-tax-field").show();
-        } else if (category === "Payroll") {
-            $(".payroll-fields").show();
-        } else {
-            // No category selected - show nothing or default
-            $(".tax-fields").hide();
-            $(".other-deductions-field").hide();
-            $(".income-tax-field").hide();
-            $(".payroll-fields").hide();
-        }
-    }
-
-    // VALIDATION
-    $("#is_vatable").on("change", function () {
-
-        let category = $("#category").val();
-
-        if (!category) {
-            $(this).prop("checked", false);
-
-            toastr.warning("Select category first before enabling VAT.", "Validation", {
-                progressBar: true,
-                closeButton: true,
-                timeOut: 2000
-            });
-
-            return;
-        }
-
-        if (category === "Goods" || category === "Services" || category === "Manual") {
-            toggleFields();
-            applyTaxRules();
-        }
-    });
-
-    $("#category").on("change", function () {
-        // Reset checkbox when switching to non-tax categories
-        let category = $(this).val();
-        if (category === "Payroll" || category === "Income Tax") {
-            $("#is_vatable").prop("checked", false);
-        }
-        toggleFields();
-        applyTaxRules();
-    });
-
-    // Input listeners for all fields
-    $(document).on("input", ".amount, #vat_percent, #ewt_percent, #pt_percent, #other_deductions, #income_tax, #sss, #hdmf, #pagibig_mp2, #pagibig_loan, #hmo, #wtax", function () {
-        applyTaxRules();
-    });
-
-    // INIT
-    toggleFields();
-    applyTaxRules();
-});
+    var __ors_data = <?= json_encode($orshddata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __ors_lookups = <?= json_encode($lookups, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __ors_perms = <?= json_encode($perms) ?>;
+    var __ors_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-
-<!-- PROGRAM TITLE LOOKUP -->
-<script>
-<?php
-    $programs = [
-        'General Administration and Support Service',
-        'Scientific Research and Development Services on Basic and Applied Researches on Food and Nutrition',
-        "Expanding the FNRI's Nutrigenomics Laboratory: Towards Establishment of a World Class Philippines Nutrigenomics Center",
-        'Nutritional Assessment and Monitoring on Food and Nutrition',
-        'Expanded National Nutrition Survey',
-        'Technical Services on Food and Nutrition'
-    ];
-?>
-var programs = <?php echo json_encode($programs); ?>;
-$(function() {
-  // Initialize autocomplete for all existing textareas
-  $(".program_title").autocomplete({
-    source: programs
-  });
-
-  // Re-initialize whenever a new row is added dynamically
-  $(document).on("focus", ".program_title", function () {
-    if (!$(this).data("uiAutocomplete")) {
-      $(this).autocomplete({
-        source: programs
-      });
-    }
-  });
-});
-</script>
-
-<!-- PROJECT TITLE LOOKUP -->
-<script>
-<?php
-$projects = [];
-foreach ($projectdata as $data) {
-    $projects[$data['project_title']] = [
-        'rc' => $data['responsibility_code'],
-        'mfopaps' => $data['mfopaps_code']
-    ];
-}
-?>
-var projects = <?= json_encode($projects); ?>;
-var project_titles = Object.keys(projects);
-
-$(function () {
-
-  $(document).on("focus", ".project_title", function () {
-
-    if (!$(this).data("ui-autocomplete")) {
-
-      $(this).autocomplete({
-        source: project_titles,
-        select: function (event, ui) {
-
-          let row = $(this).closest('tr'); // change if not in table
-
-          row.find('.responsibility_code')
-             .val(projects[ui.item.value].rc);
-
-          row.find('.mfopaps_code')
-             .val(projects[ui.item.value].mfopaps);
-
-        }
-      });
-
-    }
-
-  });
-
-});
-</script>
-
-<!-- PSUACS TITLE LOOKUP -->
- <?php
-$psuacs = [];
-foreach ($psuacsdata as $data) {
-    $psuacs[] = [
-        'label'     => $data['sub_object_code'], // shown in dropdown
-        'value'     => $data['sub_object_code'], // filled in input
-        'uacs_code' => $data['uacs_code'],        // mapped value
-    ];
-}
-?>
-<script>
-var psuacs = <?= json_encode($psuacs); ?>;
-
-$(document).on("focus", ".psuacs_code", function () {
-
-  if (!$(this).data("ui-autocomplete")) {
-
-    $(this).autocomplete({
-      source: psuacs,
-      select: function (event, ui) {
-
-        let row = $(this).closest('tr');
-
-        // Set selected values
-        $(this).val(ui.item.value);
-        row.find('.uacs').val(ui.item.uacs_code);
-
-        return false; // stop default behavior
-      }
-    });
-
-  }
-});
-</script>
-
-
-<!-- MOOEUACS TITLE LOOKUP -->
- <?php
-$mooeuacs = [];
-foreach ($mooeuacsdata as $data) {
-    $mooeuacs[] = [
-        'label'     => $data['sub_object_code'], // what user sees
-        'value'     => $data['sub_object_code'], // what goes in input
-        'uacs_code' => $data['uacs_code'],        // extra data
-    ];
-}
-?>
-
-<script>
-var mooeuacs = <?= json_encode($mooeuacs); ?>;
-
-$(document).on("focus", ".mooeuacs_code", function () {
-
-  if (!$(this).data("ui-autocomplete")) {
-
-    $(this).autocomplete({
-      source: mooeuacs,
-      select: function (event, ui) {
-
-        let row = $(this).closest('tr');
-
-        // Set selected values
-        $(this).val(ui.item.value);
-        row.find('.uacs').val(ui.item.uacs_code);
-
-        return false; // prevent default replace
-      }
-    });
-
-  }
-});
-</script>
-
-
-<!-- CO TITLE LOOKUP -->
- <?php
-$couacs = [];
-foreach ($couacsdata as $data) {
-    $couacs[] = [
-        'label'     => $data['sub_object_code'], // shown in dropdown
-        'value'     => $data['sub_object_code'], // inserted in input
-        'uacs_code' => $data['uacs_code'],        // mapped value
-    ];
-}
-?>
-
-<script>
-var couacs = <?= json_encode($couacs); ?>;
-
-$(document).on("focus", ".couacs_code", function () {
-
-  if (!$(this).data("ui-autocomplete")) {
-
-    $(this).autocomplete({
-      source: couacs,
-      select: function (event, ui) {
-
-        let row = $(this).closest('tr');
-
-        // Set selected values
-        $(this).val(ui.item.value);
-        row.find('.uacs').val(ui.item.uacs_code);
-
-        return false; // prevent default behavior
-      }
-    });
-
-  }
-});
-</script>
-
-
-
-<?php
-	echo $MDL_jsscript;
-?>
-<script>
-    __mysys_ors_ent.__ors_saving();
-</script>
-
-<?php
-    echo view('templates/myfooter.php');
-?>
-
-
+<script src="<?=base_url('assets/js/ors/myors.js?v=6');?>"></script>
+<?php echo view('templates/myfooter.php'); ?>

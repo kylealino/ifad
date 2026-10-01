@@ -76,9 +76,8 @@ class MyLDDAPADAModel extends Model
 			}
 		}
 
-		$query = $this->db->query("SELECT `funding_source` FROM tbl_disbursement_hd WHERE `dvno` = '$dv_fundingsource'");
-		$rw = $query->getRowArray();
-		$funding_source = $rw['funding_source'];
+		$rw = $this->db->query("SELECT `funding_source` FROM tbl_disbursement_hd WHERE `dvno` = ?", [$dv_fundingsource ?? ''])->getRowArray();
+		$funding_source = $rw['funding_source'] ?? '';
 
 		// if ($is_ci == '0') {
 		// 	$ckno =  $this->get_ctr_ada('CTRL_NO01');//TRANSACTION NO
@@ -91,6 +90,7 @@ class MyLDDAPADAModel extends Model
 		$ckno = $ckno;
 
 		if (empty($recid)) {
+			fods_require_access(\Config\AccessCodes::LDDAPADA_ADD, 'Saving');
 			// $cseqn =  $this->get_ctr_lddapada($fund_cluster_code,$funding_source,'CTRL_NO01');//TRANSACTION NO
 
 			$cseqn = $lddapadano;
@@ -193,9 +193,42 @@ class MyLDDAPADAModel extends Model
 				}
 			}
 
-			$status = "LDDAP-ADA Saved Successfully!";
+			$status = "LDDAP-ADA saved successfully";
 			$color = "success";
 		}else{
+			fods_require_access(\Config\AccessCodes::LDDAPADA_UPDATE, 'Updating');
+
+			// Once approved the LDDAP-ADA is locked; a disapproved one can be
+			// corrected and goes back for approval
+			$current = $this->db->query("SELECT `is_approved`, `is_disapproved` FROM tbl_lddapada_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			if (empty($current)) {
+				echo "
+				<script>
+				toastr.error('LDDAP-ADA not found', 'Oops!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2000,
+					});
+				</script>
+				";
+				die();
+			}
+			if ($current['is_approved'] == '1') {
+				echo "
+				<script>
+				toastr.error('This LDDAP-ADA is already approved and can no longer be edited', 'Locked', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				</script>
+				";
+				die();
+			}
+			$is_resubmit = $current['is_disapproved'] == '1';
+			if ($is_resubmit) {
+				$this->db->query("UPDATE tbl_lddapada_hd SET `is_pending` = '1', `is_disapproved` = '0' WHERE `recid` = ?", [$recid]);
+			}
 
 			$query = $this->db->query("
 				UPDATE tbl_lddapada_hd
@@ -226,7 +259,7 @@ class MyLDDAPADAModel extends Model
 			$project_id = $recid;
 
 			if (!empty($dvno_list)) {
-				$query = $this->db->query("DELETE FROM tbl_lddapada_dvno WHERE `lddapada_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_lddapada_dvno WHERE `lddapada_id` = ?", [$project_id]);
 				foreach($dvno_list as $dv) {
 					$this->db->query("
 						INSERT INTO tbl_lddapada_dvno 
@@ -246,11 +279,11 @@ class MyLDDAPADAModel extends Model
 					);
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_pr_ppmp WHERE `lddapada_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_lddapada_dvno WHERE `lddapada_id` = ?", [$project_id]);
 			}
 
 			if (!empty($dvdtdata)) {
-				$query = $this->db->query("DELETE FROM tbl_lddapada_dt WHERE `lddapada_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_lddapada_dt WHERE `lddapada_id` = ?", [$project_id]);
 				for($aa = 0; $aa < count($dvdtdata); $aa++){
 					$medata = explode("x|x",$dvdtdata[$aa]);
 					$dvno = $medata[0]; 
@@ -295,10 +328,10 @@ class MyLDDAPADAModel extends Model
 					
 				}
 			}else{
-				$query = $this->db->query("DELETE FROM tbl_lddapada_dt WHERE `lddapada_id` = '$project_id'");
+				$query = $this->db->query("DELETE FROM tbl_lddapada_dt WHERE `lddapada_id` = ?", [$project_id]);
 			}
 
-			$status = "LDDAP-ADA Updated Successfully!";
+			$status = $is_resubmit ? "LDDAP-ADA updated and sent back for approval" : "LDDAP-ADA updated successfully";
 			$color = "info";
 		}
 
@@ -331,62 +364,131 @@ class MyLDDAPADAModel extends Model
 		
 	}
 	
-	//CERTIFIED A APPROVAL/DISAPPROVAL
-	public function disbursement_certifya_approve() { 
+	//LDDAP-ADA - ONE RECORD WITH ITS DV LINES (editor / review modals)
+	public function lddapada_load($recid) {
+		$hd = $this->db->query("SELECT * FROM tbl_lddapada_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		if (empty($hd)) {
+			return null;
+		}
+		$hd['lines'] = $this->db->query("
+			SELECT `recid`, `dvno`, `payee_name`, `payee_account_num`, `serialno`, `uacs_code`,
+				`gross_amount`, `total_deduction`, `net_amount`, `remarks`
+			FROM tbl_lddapada_dt
+			WHERE `lddapada_id` = ?
+			ORDER BY `recid` ASC
+		", [$recid])->getResultArray();
+		// the DVs in the order they were picked
+		$hd['dvno_list'] = array_column($this->db->query("
+			SELECT `dvno` FROM tbl_lddapada_dvno WHERE `lddapada_id` = ? ORDER BY `recid` ASC
+		", [$recid])->getResultArray(), 'dvno');
+		return $hd;
+	}
+
+	//LDDAP-ADA - LINE FOR EACH PICKED DV: payee, account no., amounts, and the
+	//allotment class (UACS with the largest amount on the DV's own ORS / BURS)
+	public function dv_lines($dvnos) {
+		$out = [];
+		foreach ((array) $dvnos as $dvno) {
+			$dv = $this->db->query("
+				SELECT `dvno`, `payee_name`, `serialno`, `gross_amount`, `total_deduction`, `net_amount`
+				FROM tbl_disbursement_hd WHERE `dvno` = ? ORDER BY `recid` DESC LIMIT 1
+			", [$dvno])->getRowArray();
+			if (empty($dv)) {
+				continue;
+			}
+			$acct = $this->db->query("SELECT `payee_account_num` FROM tbl_payee WHERE `payee_name` = ? LIMIT 1", [$dv['payee_name']])->getRowArray();
+			$dv['payee_account_num'] = $acct['payee_account_num'] ?? '';
+			$dv['uacs_code'] = '';
+			foreach (['ors', 'burs'] as $src) {
+				$ob = $this->db->query("SELECT `recid` FROM tbl_{$src}_hd WHERE `serialno` = ? ORDER BY `recid` DESC LIMIT 1", [$dv['serialno']])->getRowArray();
+				if (empty($ob)) {
+					continue;
+				}
+				$top = $this->db->query("
+					SELECT uacs_code FROM (
+						SELECT uacs_code, amount FROM tbl_{$src}_direct_ps_dt WHERE project_id = ?
+						UNION ALL SELECT uacs_code, amount FROM tbl_{$src}_direct_mooe_dt WHERE project_id = ?
+						UNION ALL SELECT uacs_code, amount FROM tbl_{$src}_direct_co_dt WHERE project_id = ?
+						UNION ALL SELECT uacs_code, amount FROM tbl_{$src}_indirect_ps_dt WHERE project_id = ?
+						UNION ALL SELECT uacs_code, amount FROM tbl_{$src}_indirect_mooe_dt WHERE project_id = ?
+						UNION ALL SELECT uacs_code, amount FROM tbl_{$src}_indirect_co_dt WHERE project_id = ?
+					) x
+					ORDER BY amount DESC
+					LIMIT 1
+				", array_fill(0, 6, $ob['recid']))->getRowArray();
+				$dv['uacs_code'] = $top['uacs_code'] ?? '';
+				break;
+			}
+			$out[] = $dv;
+		}
+		return $out;
+	}
+
+	//LDDAP-ADA - APPROVAL / DISAPPROVAL (single step)
+	public function lddapada_approve() { $this->lddapada_decide(true); }
+	public function lddapada_disapprove() { $this->lddapada_decide(false); }
+
+	private function lddapada_decide($approve) {
 		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
-		$remarks = $this->request->getPostGet('remarks');
-		$serialno = $this->request->getPostGet('serialno');
-		$funding_source = $this->request->getPostGet('funding_source');
+		$remarks = trim((string) $this->request->getPostGet('remarks'));
 
-		// $cseqn =  $this->get_ctr_lddapada('01',$funding_source,'CTRL_NO01');//TRANSACTION NO
-		// $trx = empty($serialno) ? $cseqn : $serialno;
+		fods_require_access(\Config\AccessCodes::LDDAPADAAPPROVAL_APPROVE, $approve ? 'Approve' : 'Disapprove');
 
-		$accessquery = $this->db->query("
-			SELECT `recid` FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '2005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
+		// Only an LDDAP-ADA that is still waiting can be decided
+		$hd = $this->db->query("SELECT `is_approved`, `is_disapproved` FROM tbl_lddapada_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		if (empty($hd) || $hd['is_approved'] == '1' || $hd['is_disapproved'] == '1') {
 			echo "
 			<script>
-			toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
+			toastr.error('This LDDAP-ADA is not waiting for approval', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2500,
+				});
+			</script>
+			";
+			exit;
+		}
+		if (!$approve && $remarks === '') {
+			echo "
+			<script>
+			toastr.error('Remarks are required when disapproving', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2000,
 				});
 			</script>
 			";
-			die();
+			exit;
 		}
 
 		$query = $this->db->query("
-			UPDATE tbl_disbursement_hd 
-			SET 
-				`is_pending` = '0', 
-				`is_approved_certa` = '1',
-				`is_disapproved_certa` = '0',
-				`certa_approver` = '$approver', 
-				`certa_remarks` = '$remarks'
-			WHERE `recid` = '$recid'
-		");
-		$status = "disbursement approved!";
-		
+			UPDATE tbl_lddapada_hd
+			SET
+				`is_pending` = '0',
+				`is_approved` = ?,
+				`is_disapproved` = ?,
+				`approver` = ?,
+				`remarks` = ?
+			WHERE `recid` = ?
+		", [$approve ? 1 : 0, $approve ? 0 : 1, $this->cuser, mb_substr($remarks, 0, 250), $recid]);
+
+		$status = $approve ? "LDDAP-ADA approved" : "LDDAP-ADA disapproved";
+		$color = $approve ? "success" : "warning";
 		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
 			echo "
 			<script>
-				toastr.success('{$status}!', 'Well Done!', {
+				toastr.{$color}('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mydisbursementapproval?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+						window.location.href = 'mylddapadaapproval';
+					}, 2500);
 			</script>
 			";
-			exit; // Stop further PHP execution after the toast
+			exit;
 		} else {
-			// If there's an error, show an alert message
 			echo "<script type='text/javascript'>
 					alert('An error occurred while executing the query.');
 				  </script>";

@@ -1,237 +1,137 @@
 <?php
-$this->request = \Config\Services::request();
-$this->db = \Config\Database::connect();
-$recid = $this->request->getPostGet('recid');
-
-$allotment_class = "";
-$object_code = "";
-$sub_object_code = "";
-$uacs_code = "";
-$counter = 1;
-
-if(!empty($recid) || !is_null($recid)) { 
-
-    $query = $this->db->query("
-    SELECT
-        `recid`,
-        `allotment_class`,
-        `object_code`,
-        `sub_object_code`,
-        `uacs_code`,
-        `added_at`
-    FROM
-        `mst_uacs` 
-    WHERE 
-        `recid` = '$recid'"
-    );
-
-    $data = $query->getRowArray();
-    $allotment_class = $data['allotment_class'];
-    $object_code = $data['object_code'];
-    $sub_object_code = $data['sub_object_code'];
-    $uacs_code = $data['uacs_code'];
-
-
-}
+$classes = [
+    'Personnel Services' => ['ps', 'PS', 'tone-teal', 'ti-users'],
+    'Maintenance and Other Operating Expenses' => ['mooe', 'MOOE', 'tone-indigo', 'ti-tools'],
+    'Capital Outlay' => ['co', 'CO', 'tone-amber', 'ti-building'],
+];
 echo view('templates/myheader.php');
 ?>
-
 <div class="container-fluid">
-    <div class="row me-mypayee-outp-msg mx-0">
-    </div>
     <input type="hidden" id="__siteurl" data-mesiteurl="<?=site_url();?>" />
-    <div class="row mb-2 mt-0">
-        <h4 class="fw-semibold mb-8">Unified Accounts Code Structure</h4>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a class="text-muted text-decoration-none" href="<?=site_url();?>"><i class="ti ti-home fs-5"></i></a>
-            </li>
-            <li class="breadcrumb-item" aria-current="page">Maintenance</li>
-            <li class="breadcrumb-item" aria-current="page"><span class="form-label fw-bold">UACS</span></li>
-            </ol>
-        </nav>
+    <div class="row me-outp-msg mx-0"></div>
+
+    <div class="fods-page-head">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="#">Maintenance</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">UACS</li>
+                </ol>
+            </nav>
+            <h1 class="fods-page-title">UACS Codes</h1>
+            <p class="fods-page-sub">Unified Accounts Code Structure — object and sub-object codes by allotment class.</p>
+        </div>
+        <?php if ($perms['add']): ?>
+        <div class="fods-page-actions d-flex">
+            <button type="button" class="btn btn-fods btn-sm px-3 py-2" id="uacsTableAdd"><i class="ti ti-plus me-1"></i> Add UACS Code</button>
+        </div>
+        <?php endif; ?>
     </div>
-    <div class="card">
-        <div class="card-header bg-info p-1">
-            <div class="row">
-                <div class="col-sm-6 d-flex align-items-center text-start">
-                    <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                        <i class="ti ti-pencil fs-5 me-1"></i>
-                        <span class="pt-1">Entry</span>
-                    </h6>
-                </div>
-                <div class="col-sm-6 text-end ">
-                    <!-- <button type="button" id="btn_delete" name="btn_delete" class="btn_delete btn btn-sm btn-danger mx-3">
-                        Remove Payee
-                    </button> -->
-                </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <button type="button" class="fods-stat" data-table="uacsTable" data-filter="all">
+                <div class="fods-stat-icon tone-slate"><i class="ti ti-list-numbers"></i></div>
+                <div><div class="fods-stat-value"><?= number_format(count($uacsdata)) ?></div><div class="fods-stat-label">UACS codes</div></div>
+            </button>
+        </div>
+        <?php foreach ($classes as $name => [$key, $short, $tone, $icon]): ?>
+        <div class="col-6 col-lg-3">
+            <button type="button" class="fods-stat" data-table="uacsTable" data-filter="<?= $key ?>">
+                <div class="fods-stat-icon <?= $tone ?>"><i class="ti <?= $icon ?>"></i></div>
+                <div><div class="fods-stat-value"><?= number_format($byClass[$name] ?? 0) ?></div><div class="fods-stat-label"><?= esc($name) ?></div></div>
+            </button>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="fods-card">
+        <div class="fods-card-head">
+            <div class="fods-filter" id="uacsTableFilter">
+                <button type="button" class="active" data-filter="all">All</button>
+                <?php foreach ($classes as $name => [$key, $short]): ?>
+                    <button type="button" data-filter="<?= $key ?>"><?= $short ?></button>
+                <?php endforeach; ?>
             </div>
-		</div>						
-        <div class="card-body p-0 px-4 py-2 my-2">
-            <form action="<?=site_url();?>myuacs?meaction=MAIN-SAVE" method="post" class="myuacs-validation">
-                <div class="row">
-                    <div class="col-sm-6">
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span>Allotment Class:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <select id="allotment_class" name="allotment_class" class="form-select form-select-sm">
-                                    <?php if(!empty($recid)):?>
-                                    <option value="<?=$allotment_class;?>"><?=$allotment_class;?></option>
-                                    <?php endif;?>
-                                    <option value="Personnel Services">Personnel Services</option>
-                                    <option value="Maintenance and Other Operating Expenses">Maintenance and Other Operating Expenses</option>
-                                    <option value="Capital Outlay">Capital Outlay</option>
-                                </select>
-                            </div>
+            <div class="fods-search">
+                <i class="ti ti-search"></i>
+                <input type="search" class="form-control form-control-sm" id="uacsTableSearch" placeholder="Search code or object...">
+            </div>
+        </div>
+        <div class="fods-card-body fods-dt">
+            <table id="uacsTable" class="table fods-table fods-table-stack w-100">
+                <thead>
+                    <tr>
+                        <th>UACS code</th>
+                        <th class="d-none d-md-table-cell">Object code</th>
+                        <th>Allotment class</th>
+                        <th class="d-none d-lg-table-cell">Added</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add / edit -->
+<div class="modal fade fods-modal" id="uacsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <form id="uacsForm" novalidate>
+                <div class="modal-header">
+                    <div class="d-flex align-items-center">
+                        <div class="fods-modal-icon tone-teal"><i class="ti ti-list-numbers"></i></div>
+                        <div>
+                            <h5 class="modal-title" id="uacsModalTitle">Add UACS Code</h5>
+                            <div class="fods-modal-sub" id="uacsModalSub">An object / sub-object code and its UACS code.</div>
                         </div>
                     </div>
-                    <div class="col-sm-6">
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span>UACS Code:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="text" id="uacs_code" name="uacs_code" value="<?=$uacs_code;?>" class="form-control form-control-sm" />
-                            </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="recid">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" for="allotment_class">Allotment class</label>
+                            <select class="form-select" id="allotment_class" name="allotment_class" required>
+                                <option value="">Choose…</option>
+                                <?php foreach ($classes as $name => $c): ?>
+                                    <option value="<?= esc($name, 'attr') ?>"><?= esc($name) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="invalid-feedback">Choose an allotment class.</div>
                         </div>
-                    </div>
-                    <div class="col-sm-6">
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <span>Object Code:</span>
-                            </div>
-                            <div class="col-sm-8">
-                                <input type="hidden" class="form-control form-control-sm" id="recid" name="recid" value="<?=$recid;?>"/>
-                                <input type="text" id="object_code" name="object_code" value="<?=$object_code;?>" class="form-control form-control-sm" />
-                            </div>
+                        <div class="col-12">
+                            <label class="form-label" for="object_code">Object code</label>
+                            <input type="text" class="form-control" id="object_code" name="object_code" required>
+                            <div class="invalid-feedback">Object code is required.</div>
                         </div>
-                    </div>
-                    <div class="col-sm-12 mb-2">
-                        <div class="row">
-                            <div class="col-sm-2">
-                                <span>Sub-object Code:</span>
-                            </div>
-                            <div class="col-sm-10">
-                                <textarea name="sub_object_code" id="sub_object_code" placeholder="" rows="4" class="form-control form-control-sm"><?=$sub_object_code;?></textarea>
-                            </div>
+                        <div class="col-12">
+                            <label class="form-label" for="sub_object_code">Sub-object code</label>
+                            <input type="text" class="form-control" id="sub_object_code" name="sub_object_code" required>
+                            <div class="invalid-feedback">Sub-object code is required.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="uacs_code">UACS code</label>
+                            <input type="text" class="form-control" id="uacs_code" name="uacs_code" placeholder="e.g. 50203010-00" required>
+                            <div class="invalid-feedback">UACS code is required.</div>
                         </div>
                     </div>
                 </div>
-                <div class="row mb-2">  
-                    <div class="col-sm-12 text-end">
-                        <button type="submit" class="btn bg-<?= empty($recid) ? 'success' : 'info' ?>-subtle text-<?= empty($recid) ? 'success' : 'info' ?> btn-sm rounded-pill "><i class="ti ti-brand-doctrine mt-1 fs-4 me-1"></i>
-                            <?= empty($recid) ? 'Save' : 'Update' ?>
-                        </button>
-                    </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Create</button>
                 </div>
             </form>
         </div>
     </div>
-    
-    <div class="card">
-        <div class="card-header bg-info p-1">
-            <div class="row">
-                <div class="col-sm-6 d-flex align-items-center text-start">
-                    <h6 class="mb-0 lh-base px-3 text-white fw-semibold d-flex align-items-center">
-                        <i class="ti ti-list fs-5 me-1"></i>
-                        <span class="pt-1">List</span>
-                    </h6>
-                </div>
-            </div>
-		</div>						
-        <div class="card-body p-0 px-4 py-2 my-2">
-            <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Action</th>
-                        <th>Allotment Class</th>
-                        <th>Object Code</th>
-                        <th>Sub-object Code</th>
-                        <th>UACS Code</th>
-                        <th>Encode Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if(!empty($uacsdata)):
-                        foreach ($uacsdata as $data):
-                            $recid = $data['recid'];
-                            $allotment_class = $data['allotment_class'];
-                            $object_code = $data['object_code'];
-                            $sub_object_code = $data['sub_object_code'];
-                            $uacs_code = $data['uacs_code'];
-                            $added_at = $data['added_at'];
-                    ?>
-                    <tr>
-                        <td class="text-center align-middle">
-                            <a class="text-info nav-icon-hover fs-6" href="myuacs?meaction=MAIN&recid=<?=$recid;?>">
-                               <i class="ti ti-eye" aria-hidden="true"></i>
-                            </a>
-                        </td>
-                        <td class="text-center"><?=$allotment_class;?></td>
-                        <td class="text-center"><?=$object_code;?></td>
-                        <td class="text-center"><?=$sub_object_code;?></td>
-                        <td class="text-center"><?=$uacs_code;?></td>
-                        <td class="text-center"><?=$added_at;?></td>
-                    </tr>
-                    <?php endforeach; endif;?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="row uacs-outp-msg">
-	</div>
-</div>
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-secondary-subtle text-white">
-        <h5 class="modal-title" id="confirmDeleteModalLabel">Confirm Delete</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        Are you sure you want to delete this payee?
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success btn-sm px-3" id="confirmDeleteBtn">Yes</button>
-      </div>
-    </div>
-  </div>
 </div>
 
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="<?=base_url('assets/js/maintenance/myuacs.js');?>"></script>
-<script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
 <script>
-    __mysys_uacs_ent.__uacs_saving();
-    $(document).ready(function () {
-        $('#datatablesSimple').DataTable({
-            pageLength: 5,
-            lengthChange: false,
-            language: {
-            search: "Search:"
-            }
-        });
-    });
-
-    $(document).on('change', '#selUacsCat', function() {
-        var selected = $(this).find('option:selected');
-
-        // Extract data from selected option
-        var uacsid = selected.data('uacsid') || '';
-        // Set the values into inputs
-        $('#uacs_category_id').val(uacsid);
-    });
-
+    var __uacs_data = <?= json_encode($uacsdata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __uacs_perms = <?= json_encode($perms) ?>;
 </script>
-
-<?php
-    echo view('templates/myfooter.php');
-?>
-
-
+<script src="<?=base_url('assets/js/maintenance/myuacs.js?v=3');?>"></script>
+<?php echo view('templates/myfooter.php'); ?>

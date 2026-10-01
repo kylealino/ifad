@@ -218,21 +218,7 @@ class MyBudgetAllotmentModel extends Model
 			die();
 		}
 		if (empty($recid)) {
-			$accessquery = $this->db->query("
-				SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '1002' AND `is_active` = '1'
-			");
-			if ($accessquery->getNumRows() == 0) {
-				echo "
-				<script>
-				toastr.error('Saving Access Denied! Please Contact the Administrator.', 'Oops!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2000,
-					});
-				</script>
-				";
-				die();
-			}
+			fods_require_access(\Config\AccessCodes::BUDGET_ADD, 'Saving');
 
 			//INSERTING HD DATA
 			$query = $this->db->query("
@@ -601,21 +587,7 @@ class MyBudgetAllotmentModel extends Model
 			$status = "Project Budget Allotment Saved Successfully!";
 			$color = "success";
 		}else{
-			$accessquery = $this->db->query("
-				SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '1003' AND `is_active` = '1'
-			");
-			if ($accessquery->getNumRows() == 0) {
-				echo "
-				<script>
-				toastr.error('Updating Access Denied! Please Contact the Administrator.', 'Oops!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2000,
-					});
-				</script>
-				";
-				die();
-			}
+			fods_require_access(\Config\AccessCodes::BUDGET_UPDATE, 'Updating');
 			$query = $this->db->query("
 				UPDATE tbl_budget_hd
 				SET
@@ -1023,29 +995,16 @@ class MyBudgetAllotmentModel extends Model
 	
 	public function budget_approve() { 
 		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
+		$approver = $this->cuser;
 		$remarks = $this->request->getPostGet('remarks');
 
-		$accessquery = $this->db->query("
-			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '1005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Approve Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
-		}
+		fods_require_access(\Config\AccessCodes::BUDGETAPPROVAL_APPROVE, 'Approve');
 
 		$query = $this->db->query("
-			UPDATE tbl_budget_hd SET `is_pending` = '0', `is_approved` = '1',`approver` = '$approver', `remarks` = '$remarks' WHERE `recid` = '$recid'
-		");
-		$status = "Project budget approved!";
+			UPDATE tbl_budget_hd SET `is_pending` = '0', `is_approved` = '1', `approver` = ?, `remarks` = ? WHERE `recid` = ?
+		", [$approver, $remarks, $recid]);
+		$status = "Project budget approved";
+		$back = $this->request->getPostGet('return_to') === 'approval' ? 'mybudgetapproval' : 'mybudgetallotment?meaction=MAIN';
 		
 		if ($query) {
 			// Echo JavaScript to show the toast and then redirect
@@ -1057,7 +1016,7 @@ class MyBudgetAllotmentModel extends Model
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mybudgetallotment?meaction=MAIN'; // Redirect to MAIN view
+						window.location.href = '{$back}'; // Redirect to MAIN view
 					}, 2500); // 2-second delay for user to see the toast
 			</script>
 			";
@@ -1073,29 +1032,16 @@ class MyBudgetAllotmentModel extends Model
 
 	public function budget_disapprove() { 
 		$recid = $this->request->getPostGet('recid');
-		$approver = $this->request->getPostGet('approver');
+		$approver = $this->cuser;
 		$remarks = $this->request->getPostGet('remarks');
 
-		$accessquery = $this->db->query("
-			SELECT `recid`FROM tbl_user_access WHERE `username` = '{$this->cuser}' AND `access_code` = '1005' AND `is_active` = '1'
-		");
-		if ($accessquery->getNumRows() == 0) {
-			echo "
-			<script>
-			toastr.error('Disapprove Access Denied! Please Contact the Administrator.', 'Oops!', {
-					progressBar: true,
-					closeButton: true,
-					timeOut:2000,
-				});
-			</script>
-			";
-			die();
-		}
+		fods_require_access(\Config\AccessCodes::BUDGETAPPROVAL_APPROVE, 'Disapprove');
 
 		$query = $this->db->query("
-			UPDATE tbl_budget_hd SET `is_pending` = '0', `is_approved` = '0',`is_disapproved` = '1',`approver` = '$approver', `remarks` = '$remarks' WHERE `recid` = '$recid'
-		");
-		$status = "Project budget disapproved!";
+			UPDATE tbl_budget_hd SET `is_pending` = '0', `is_approved` = '0', `is_disapproved` = '1', `approver` = ?, `remarks` = ? WHERE `recid` = ?
+		", [$approver, $remarks, $recid]);
+		$status = "Project budget disapproved";
+		$back = $this->request->getPostGet('return_to') === 'approval' ? 'mybudgetapproval' : 'mybudgetallotment?meaction=MAIN';
 		
 		if ($query) {
 			// Echo JavaScript to show the toast and then redirect
@@ -1107,7 +1053,7 @@ class MyBudgetAllotmentModel extends Model
 						timeOut:2500,
 					});
 				setTimeout(function() {
-						window.location.href = 'mybudgetallotment?meaction=MAIN'; // Redirect to MAIN view
+						window.location.href = '{$back}'; // Redirect to MAIN view
 					}, 2500); // 2-second delay for user to see the toast
 			</script>
 			";
@@ -1119,6 +1065,53 @@ class MyBudgetAllotmentModel extends Model
 				  </script>";
 			exit;
 		}
+	}
+
+	/**
+	 * One allotment with all its line items and attachments, for the editor
+	 * (read-only; saving still goes through budget_save()).
+	 */
+	public function budget_load($recid) {
+		$hd = $this->db->query("
+			SELECT `recid`, `trxno`, `project_title`, `responsibility_code`, `fund_cluster_code`, `division_name`,
+			       `program_title`, `duration_from`, `duration_to`, `program_leader`, `project_leader`,
+			       `monitoring_agency`, `collaborating_agencies`, `implementing_agency`, `funding_agency`,
+			       `tagging`, `is_pending`, `is_approved`, `is_disapproved`, `approver`, `remarks`,
+			       `is_realign1`, `is_realign2`, `is_realign3`,
+			       `with_extension`, `extended_from`, `extended_to`, `lddap_refno`, `added_at`, `added_by`
+			FROM `tbl_budget_hd`
+			WHERE `recid` = ?
+		", [$recid])->getRowArray();
+
+		if (empty($hd)) {
+			return null;
+		}
+
+		$withItem = "SELECT `recid`, `expense_item`, `particulars`, `code`, `approved_budget`,
+		                    `r1_approved_budget`, `r2_approved_budget`, `r3_approved_budget`, `proposed_realignment`
+		             FROM `%s` WHERE `project_id` = ? ORDER BY `recid`";
+		$coRows = "SELECT `recid`, `particulars`, `code`, `approved_budget`,
+		                  `r1_approved_budget`, `r2_approved_budget`, `r3_approved_budget`, `proposed_realignment`
+		           FROM `%s` WHERE `project_id` = ? ORDER BY `recid`";
+
+		$grids = [
+			'ps_direct'     => sprintf($withItem, 'tbl_budget_direct_ps_dt'),
+			'ps_indirect'   => sprintf($withItem, 'tbl_budget_indirect_ps_dt'),
+			'mooe_direct'   => sprintf($withItem, 'tbl_budget_direct_mooe_dt'),
+			'mooe_indirect' => sprintf($withItem, 'tbl_budget_indirect_mooe_dt'),
+			'co_direct'     => sprintf($coRows, 'tbl_budget_direct_co_dt'),
+			'co_indirect'   => sprintf($coRows, 'tbl_budget_indirect_co_dt'),
+			'ac'            => "SELECT `recid`, `particulars`, `code`, `approved_budget` FROM `tbl_budget_savings_dt` WHERE `project_id` = ? ORDER BY `recid`",
+		];
+		foreach ($grids as $key => $sql) {
+			$hd['grids'][$key] = $this->db->query($sql, [$recid])->getResultArray();
+		}
+
+		$hd['attachments'] = $this->db->query("
+			SELECT `recid`, `file_name` FROM `tbl_budget_attachments` WHERE `trxno` = ? ORDER BY `recid`
+		", [$hd['trxno']])->getResultArray();
+
+		return $hd;
 	}
 
 	public function budget_attachment_upload() { 
