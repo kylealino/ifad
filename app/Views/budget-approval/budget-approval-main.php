@@ -185,5 +185,5 @@ echo view('templates/myheader.php');
     var __approval_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __approval_perms = <?= json_encode($perms) ?>;
 </script>
-<script src="<?=base_url('assets/js/budget/mybudgetapproval.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/budget/mybudgetapproval.js?v=4');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

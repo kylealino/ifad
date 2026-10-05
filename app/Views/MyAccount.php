@@ -185,7 +185,7 @@ echo view('templates/myheader.php');
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="<?=base_url('assets/libs/apexcharts/dist/apexcharts.min.js')?>"></script>
-<script src="<?=base_url('assets/js/report/mysaobreport.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/report/mysaobreport.js?v=4');?>"></script>
 <script src="<?=base_url('assets/js/dashboards/dashboard2.js')?>"></script>
 <script src="<?=base_url('assets/js/apex-chart/apex.radial.init.js')?>"></script>
 

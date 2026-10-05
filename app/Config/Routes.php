@@ -72,6 +72,18 @@ $routes->post('mysaobrpt', 'MySaobReport::index',['filter' => 'myauthuser']);
 $routes->get('mypr', 'MyPR::index',['filter' => 'myauthuser']);
 $routes->post('mypr', 'MyPR::index',['filter' => 'myauthuser']);
 
+//PR APPROVAL - Box A requesting office / Box B approval
+$routes->get('myprapproval', 'MyPRApproval::index',['filter' => 'myauthuser']);
+$routes->post('myprapproval', 'MyPRApproval::index',['filter' => 'myauthuser']);
+
+//PO - Purchase Order module (prepared from a PR)
+$routes->get('mypo', 'MyPO::index',['filter' => 'myauthuser']);
+$routes->post('mypo', 'MyPO::index',['filter' => 'myauthuser']);
+
+//PO APPROVAL - Box A accounting / Box B approval
+$routes->get('mypoapproval', 'MyPOApproval::index',['filter' => 'myauthuser']);
+$routes->post('mypoapproval', 'MyPOApproval::index',['filter' => 'myauthuser']);
+
 //PRODUCTS - PRODUCTS module
 $routes->get('myproducts', 'MyProducts::index',['filter' => 'myauthuser']);
 $routes->post('myproducts', 'MyProducts::index',['filter' => 'myauthuser']);

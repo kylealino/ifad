@@ -25,11 +25,14 @@ SELECT
     `estimated_cost`
 FROM
     `tbl_pr_hd`
-WHERE 
-    `recid` = '$recid'"
-);
+WHERE
+    `recid` = ?"
+, [$recid]);
 
 $data = $query->getRowArray();
+if (empty($data)) {
+    die('Purchase request not found.');
+}
 $entity_name = $data['entity_name'];
 $office = $data['office'];
 $prno = $data['prno'];
@@ -52,30 +55,94 @@ SELECT
     `quotation_date`
 FROM
     `tbl_pr_rfq`
-WHERE 
-    `recid` = '$rfq_recid'"
-);
+WHERE
+    `recid` = ?"
+, [$rfq_recid]);
 
 $data = $query->getRowArray();
+if (empty($data)) {
+    die('Request for quotation not found.');
+}
 $quotation_no = $data['quotation_no'];
 $company_name = $data['company_name'];
 $company_address = $data['company_address'];
 $delivery_period = $data['delivery_period'];
 $terms = $data['terms'];
 $quotation_date = $data['quotation_date'];
+// printed as "May 11, 2026"; a blank date stays blank
+$quotation_date_text = (empty($quotation_date) || strpos($quotation_date, '0000') === 0) ? '' : date('F j, Y', strtotime($quotation_date));
 
-class PDF extends \FPDF {
-    function Footer() {
-        // Position at 15 mm from bottom
-        $this->SetY(-15);
-        // Arial italic 8
-        $this->SetFont('Arial', 'I', 8);
-        // Page number in center
-        $this->Cell(0, 10, 'Page ' . $this->PageNo() . ' of {nb}', 0, 0, 'C');
+// FPDF with UTF-8 text: names are stored in UTF-8 (ñ / Ñ are two bytes) but
+// FPDF's core fonts read Windows-1252, so text is converted here once.
+if (!class_exists('RfqPDF')) {
+    class RfqPDF extends \FPDF {
+        // Converts only valid UTF-8 with non-ASCII characters, so text that
+        // is already Windows-1252 is left as is
+        public static function toPdf($text) {
+            $text = (string) $text;
+            if (!preg_match('/[\x80-\xFF]/', $text) || !mb_check_encoding($text, 'UTF-8')) {
+                return $text;
+            }
+            $out = @iconv('UTF-8', 'windows-1252//TRANSLIT', $text);
+            return $out === false ? $text : $out;
+        }
+        function Cell($w, $h = 0, $txt = '', $border = 0, $ln = 0, $align = '', $fill = false, $link = '') {
+            parent::Cell($w, $h, self::toPdf($txt), $border, $ln, $align, $fill, $link);
+        }
+        function MultiCell($w, $h, $txt, $border = 0, $align = 'J', $fill = false) {
+            parent::MultiCell($w, $h, self::toPdf($txt), $border, $align, $fill);
+        }
+        function GetStringWidth($s) {
+            return parent::GetStringWidth(self::toPdf($s));
+        }
+        // Lines a MultiCell of width $w needs for $txt, so a row's height is
+        // known before it is drawn (and it is never split across pages)
+        function NbLines($w, $txt) {
+            $cw = $this->CurrentFont['cw'];
+            $wmax = ($w - 2 * $this->cMargin) * 1000 / $this->FontSize;
+            $s = str_replace("\r", '', self::toPdf($txt));
+            $nb = strlen($s);
+            if ($nb > 0 && $s[$nb - 1] == "\n") {
+                $nb--;
+            }
+            $sep = -1; $i = 0; $j = 0; $l = 0; $nl = 1;
+            while ($i < $nb) {
+                $c = $s[$i];
+                if ($c == "\n") {
+                    $i++; $sep = -1; $j = $i; $l = 0; $nl++;
+                    continue;
+                }
+                if ($c == ' ') {
+                    $sep = $i;
+                }
+                $l += $cw[$c] ?? 0;
+                if ($l > $wmax) {
+                    if ($sep == -1) {
+                        if ($i == $j) {
+                            $i++;
+                        }
+                    } else {
+                        $i = $sep + 1;
+                    }
+                    $sep = -1; $j = $i; $l = 0; $nl++;
+                } else {
+                    $i++;
+                }
+            }
+            return $nl;
+        }
+        function Footer() {
+            // Position at 15 mm from bottom
+            $this->SetY(-15);
+            // Arial italic 8
+            $this->SetFont('Arial', 'I', 8);
+            // Page number in center
+            $this->Cell(0, 10, 'Page ' . $this->PageNo() . ' of {nb}', 0, 0, 'C');
+        }
     }
 }
 
-$pdf = new PDF('P', 'mm', 'A4');
+$pdf = new RfqPDF('P', 'mm', 'A4');
 $pdf->AliasNbPages();
 $pdf->AddPage();
 $pdf->SetTitle('Request for Quotation - Print');
@@ -141,7 +208,7 @@ $pdf->SetXY(129, $Y);
 $pdf->Cell(30, 5, 'Date:' , 0, 1, 'R');
 
 $pdf->SetXY(170, $Y);
-$pdf->Cell(30, 5, $quotation_date , 'B', 1, 'L');
+$pdf->Cell(30, 5, $quotation_date_text , 'B', 1, 'L');
 
 $Y = $pdf->GetY();
 
@@ -199,88 +266,40 @@ $pdf->SetXY(135, $Y);
 $pdf->SetFont('Arial', 'B', 9);
 $pdf->Cell(40, 4, 'ADMINISTRATIVE OFFICER V' , 'T', 1, 'C');
 
-$pdf->SetFont('Arial', '', 8);
-//1ST LAYER--------------------------------------------------------------
-$Y = $pdf->GetY()+5;
-$pdf->SetXY(10, $Y);
-$pdf->Cell(15, 3.5, '' , 'LT', 1, 'C');
 
-$pdf->SetXY(25, $Y);
-$pdf->Cell(20, 3.5, '' , 'LT', 1, 'C');
+// Table columns: x position and width (10 to 200 mm across the page)
+$cols = [
+    'no'    => [10, 15],
+    'abc'   => [25, 20],
+    'desc'  => [45, 65],
+    'offer' => [110, 35],
+    'qty'   => [145, 10],
+    'unit'  => [155, 15],
+    'price' => [170, 15],
+    'total' => [185, 15],
+];
 
-$pdf->SetXY(45, $Y);
-$pdf->Cell(65, 3.5, "" , 'LT', 1, 'C');
+// One table line: $texts per column key, with the same $border on every cell
+// (the last column also closes the table on the right)
+$tableLine = function ($y, $h, array $texts, $border, $align = 'C') use ($pdf, $cols) {
+    foreach ($cols as $key => [$x, $w]) {
+        $pdf->SetXY($x, $y);
+        $pdf->Cell($w, $h, $texts[$key] ?? '', $border . ($key === 'total' ? 'R' : ''), 0, $align);
+    }
+    $pdf->SetY($y + $h);
+};
 
-$pdf->SetXY(110, $Y);
-$pdf->Cell(35, 3.5, "BIDDER'S" , 'LT', 1, 'C');
+// Three-line column header, also repeated at the top of every new page
+$tableHeader = function ($y) use ($pdf, $tableLine) {
+    $pdf->SetFont('Arial', '', 8);
+    $tableLine($y, 3.5, ['offer' => "BIDDER'S"], 'LT');
+    $tableLine($pdf->GetY(), 3.5, ['no' => 'ITEM NO.', 'abc' => 'ABC', 'desc' => "ITEM & DESCRIPTION/END-USER'S", 'offer' => 'SPECIFICATIONS', 'qty' => 'QTY', 'unit' => 'UNIT', 'price' => 'UNIT', 'total' => 'TOTAL'], 'L');
+    $tableLine($pdf->GetY(), 3.5, ['abc' => 'PER ITEM', 'desc' => 'SPECIFICATIONS', 'offer' => 'OFFER', 'price' => 'PRICE', 'total' => 'PRICE'], 'LB');
+};
 
-$pdf->SetXY(145, $Y);
-$pdf->Cell(10, 3.5, '' , 'LT', 1, 'C');
+$tableHeader($pdf->GetY() + 5);
 
-$pdf->SetXY(155, $Y);
-$pdf->Cell(15, 3.5, '' , 'LT', 1, 'C');
-
-$pdf->SetXY(170, $Y);
-$pdf->Cell(15, 3.5, '' , 'LT', 1, 'C');
-
-$pdf->SetXY(185, $Y);
-$pdf->Cell(15, 3.5, '' , 'RLT', 1, 'C');
-//2ND LAYER -----------------------------------------------------------------
-$Y = $pdf->GetY();
-$pdf->SetXY(10, $Y);
-$pdf->Cell(15, 3.5, 'ITEM NO.' , 'L', 1, 'C');
-
-$pdf->SetXY(25, $Y);
-$pdf->Cell(20, 3.5, 'ABC' , 'L', 1, 'C');
-
-$pdf->SetXY(45, $Y);
-$pdf->Cell(65, 3.5, "ITEM & DESCRIPTION/END-USER'S" , 'L', 1, 'C');
-
-$pdf->SetXY(110, $Y);
-$pdf->Cell(35, 3.5, 'SPECIFICATIONS' , 'L', 1, 'C');
-
-$pdf->SetXY(145, $Y);
-$pdf->Cell(10, 3.5, 'QTY' , 'L', 1, 'C');
-
-$pdf->SetXY(155, $Y);
-$pdf->Cell(15, 3.5, 'UNIT' , 'L', 1, 'C');
-
-$pdf->SetXY(170, $Y);
-$pdf->Cell(15, 3.5, 'UNIT' , 'L', 1, 'C');
-
-$pdf->SetXY(185, $Y);
-$pdf->Cell(15, 3.5, 'TOTAL' , 'LR', 1, 'C');
-
-//3RD LAYER --------------------------------------------------------------------
-$Y = $pdf->GetY();
-$pdf->SetXY(10, $Y);
-$pdf->Cell(15, 3.5, '' , 'LB', 1, 'C');
-
-$pdf->SetXY(25, $Y);
-$pdf->Cell(20, 3.5, 'PER ITEM' , 'LB', 1, 'C');
-
-$pdf->SetXY(45, $Y);
-$pdf->Cell(65, 3.5, "SPECIFICATIONS" , 'LB', 1, 'C');
-
-$pdf->SetXY(110, $Y);
-$pdf->Cell(35, 3.5, 'OFFER' , 'LB', 1, 'C');
-
-$pdf->SetXY(145, $Y);
-$pdf->Cell(10, 3.5, '' , 'LB', 1, 'C');
-
-$pdf->SetXY(155, $Y);
-$pdf->Cell(15, 3.5, '' , 'LB', 1, 'C');
-
-$pdf->SetXY(170, $Y);
-$pdf->Cell(15, 3.5, 'PRICE' , 'LB', 1, 'C');
-
-$pdf->SetXY(185, $Y);
-$pdf->Cell(15, 3.5, 'PRICE' , 'LBR', 1, 'C');
-
-
-
-
-$Y = $pdf->GetY();
+//ITEMS ------------------------------------------------------------------------
 $pdf->SetLineWidth(0.2); // normal thickness
 $pdf->SetFont('Arial', '', 9);
 $query = $this->db->query("
@@ -289,177 +308,59 @@ SELECT
     `unit`,
     `quantity`,
     `unit_cost`,
-    `total_cost`,
-    `added_by`,
-    `added_at`
+    `total_cost`
 FROM
     `tbl_pr_dt`
-WHERE 
-    `pr_id` = '$recid'
-");
+WHERE
+    `pr_id` = ?
+ORDER BY `recid` ASC
+", [$recid]);
 
-$rw = $query->getResultArray();
-foreach ($rw as $data) {
-    $item_desc = $data['item_desc'];
+$item_no = 0;
+foreach ($query->getResultArray() as $data) {
+    $item_desc = trim((string) $data['item_desc']);
     $quantity = $data['quantity'];
     $unit_cost = $data['unit_cost'];
     $unit = $data['unit'];
 
+    // blank lines saved on older PRs are not items
+    if ($item_desc === '' && (float) $quantity == 0 && (float) $unit_cost == 0) {
+        continue;
+    }
+    $item_no++;
 
-    if ($pdf->GetY() > 240) { // adjust threshold as needed
+    // The row is as tall as its description; start a new page when it would not fit
+    $rowHeight = 5 * $pdf->NbLines($cols['desc'][1], $item_desc);
+    if ($pdf->GetY() + $rowHeight > 262) {
         $pdf->AddPage();
-
-        // (optional) reprint your table header on new page here:
+        $tableHeader(10);
         $pdf->SetFont('Arial', '', 9);
-
-        $Y =10;
-        $pdf->SetXY(10, $Y);
-        $pdf->Cell(15, 3.5, '' , 'LT', 1, 'C');
-
-        $pdf->SetXY(25, $Y);
-        $pdf->Cell(20, 3.5, '' , 'LT', 1, 'C');
-
-        $pdf->SetXY(45, $Y);
-        $pdf->Cell(65, 3.5, "" , 'LT', 1, 'C');
-
-        $pdf->SetXY(110, $Y);
-        $pdf->Cell(35, 3.5, "BIDDER'S" , 'LT', 1, 'C');
-
-        $pdf->SetXY(145, $Y);
-        $pdf->Cell(10, 3.5, '' , 'LT', 1, 'C');
-
-        $pdf->SetXY(155, $Y);
-        $pdf->Cell(15, 3.5, '' , 'LT', 1, 'C');
-
-        $pdf->SetXY(170, $Y);
-        $pdf->Cell(15, 3.5, '' , 'LT', 1, 'C');
-
-        $pdf->SetXY(185, $Y);
-        $pdf->Cell(15, 3.5, '' , 'RLT', 1, 'C');
-        //2ND LAYER -----------------------------------------------------------------
-        $Y = $pdf->GetY();
-        $pdf->SetXY(10, $Y);
-        $pdf->Cell(15, 3.5, 'ITEM NO.' , 'L', 1, 'C');
-
-        $pdf->SetXY(25, $Y);
-        $pdf->Cell(20, 3.5, 'ABC' , 'L', 1, 'C');
-
-        $pdf->SetXY(45, $Y);
-        $pdf->Cell(65, 3.5, "ITEM & DESCRIPTION/END-USER'S" , 'L', 1, 'C');
-
-        $pdf->SetXY(110, $Y);
-        $pdf->Cell(35, 3.5, 'SPECIFICATIONS' , 'L', 1, 'C');
-
-        $pdf->SetXY(145, $Y);
-        $pdf->Cell(10, 3.5, 'QTY' , 'L', 1, 'C');
-
-        $pdf->SetXY(155, $Y);
-        $pdf->Cell(15, 3.5, 'UNIT' , 'L', 1, 'C');
-
-        $pdf->SetXY(170, $Y);
-        $pdf->Cell(15, 3.5, 'UNIT' , 'L', 1, 'C');
-
-        $pdf->SetXY(185, $Y);
-        $pdf->Cell(15, 3.5, 'TOTAL' , 'LR', 1, 'C');
-
-        //3RD LAYER --------------------------------------------------------------------
-        $Y = $pdf->GetY();
-        $pdf->SetXY(10, $Y);
-        $pdf->Cell(15, 3.5, '' , 'LB', 1, 'C');
-
-        $pdf->SetXY(25, $Y);
-        $pdf->Cell(20, 3.5, 'PER ITEM' , 'LB', 1, 'C');
-
-        $pdf->SetXY(45, $Y);
-        $pdf->Cell(65, 3.5, "SPECIFICATIONS" , 'LB', 1, 'C');
-
-        $pdf->SetXY(110, $Y);
-        $pdf->Cell(35, 3.5, 'OFFER' , 'LB', 1, 'C');
-
-        $pdf->SetXY(145, $Y);
-        $pdf->Cell(10, 3.5, '' , 'LB', 1, 'C');
-
-        $pdf->SetXY(155, $Y);
-        $pdf->Cell(15, 3.5, '' , 'LB', 1, 'C');
-
-        $pdf->SetXY(170, $Y);
-        $pdf->Cell(15, 3.5, 'PRICE' , 'LB', 1, 'C');
-
-        $pdf->SetXY(185, $Y);
-        $pdf->Cell(15, 3.5, 'PRICE' , 'LBR', 1, 'C');
-
-       
     }
 
     $startY = $pdf->GetY();
 
-    // ITEM & DESCRIPTION MultiCell
-    $pdf->SetXY(45, $startY);
-    $pdf->MultiCell(65, 5, $item_desc, 0, 'L');
+    // Borders for the whole row, then the description on top of its cell
+    $tableLine($startY, $rowHeight, [], 'LB');
+    $pdf->SetXY($cols['desc'][0], $startY);
+    $pdf->MultiCell($cols['desc'][1], 5, $item_desc, 0, 'L');
 
-    // Calculate height of MultiCell
-    $endY = $pdf->GetY();
-    $rowHeight = $endY - $startY;
-
-    // Draw borders for all cells (using same height as multicell)
-    $pdf->SetXY(10, $startY);  $pdf->Cell(15, $rowHeight, '', 'L', 0, 'C');  // ITEM NO.
-    $pdf->SetXY(25, $startY);  $pdf->Cell(20, $rowHeight, '', 'L', 0, 'C');  // ABC
-    $pdf->SetXY(45, $startY);  $pdf->Cell(65, $rowHeight, '', 'L', 0, 'L');  // Item Desc border only (already printed MultiCell)
-    $pdf->SetXY(110, $startY); $pdf->Cell(35, $rowHeight, '', 'L', 0, 'L');  // Specifications
-    $pdf->SetXY(145, $startY); $pdf->Cell(10, $rowHeight, '', 'L', 0, 'C');  // QTY
-    $pdf->SetXY(155, $startY); $pdf->Cell(15, $rowHeight, '', 'L', 0, 'C');  // UNIT1
-    $pdf->SetXY(170, $startY); $pdf->Cell(15, $rowHeight, '', 'L', 0, 'C');  // UNIT2
-    $pdf->SetXY(185, $startY); $pdf->Cell(15, $rowHeight, '', 'LR', 0, 'C');  // TOTAL
-
-    // Vertically center text for single line cells
+    // Single-line cells sit in the middle of the row
     $middleY = $startY + ($rowHeight / 2) - 2.5;
-
-    $pdf->SetXY(10, $middleY);  $pdf->Cell(15, 5, '', 0, 0, 'C');
-    $pdf->SetXY(25, $middleY);  $pdf->Cell(20, 5, $unit_cost, 0, 0, 'C');
-    // No need to print itemDesc here because MultiCell already did it
-    $pdf->SetXY(110, $middleY); $pdf->Cell(35, 5, '', 0, 0, 'L');
-    $pdf->SetXY(145, $middleY); $pdf->Cell(10, 5, $quantity, 0, 0, 'C');
-    $pdf->SetXY(155, $middleY); $pdf->Cell(15, 5, $unit, 0, 0, 'C');
-    $pdf->SetXY(170, $middleY); $pdf->Cell(15, 5, '', 0, 0, 'C');
-    $pdf->SetXY(185, $middleY); $pdf->Cell(15, 5, '', 0, 0, 'R');
+    $pdf->SetXY($cols['no'][0], $middleY);   $pdf->Cell($cols['no'][1], 5, $item_no, 0, 0, 'C');
+    $pdf->SetXY($cols['abc'][0], $middleY);  $pdf->Cell($cols['abc'][1], 5, number_format((float) $unit_cost, 2), 0, 0, 'R');
+    $pdf->SetXY($cols['qty'][0], $middleY);  $pdf->Cell($cols['qty'][1], 5, $quantity, 0, 0, 'C');
+    $pdf->SetXY($cols['unit'][0], $middleY); $pdf->Cell($cols['unit'][1], 5, $unit, 0, 0, 'C');
 
     // Move to the next line
-    $pdf->SetY($endY);
+    $pdf->SetY($startY + $rowHeight);
 }
 
-$currentY = $pdf->GetY();
-
-// Only apply empty rows logic on the first page
+// Blank ruled rows fill the rest of the table on the first page
 if ($pdf->PageNo() == 1) {
-
-    $currentY = $pdf->GetY();
-
-    // Keep adding empty rows until Y reaches 200 (first page only)
-    while ($currentY < 160) {
-        $pdf->SetXY(10, $currentY);
-        $pdf->Cell(15, 5, '', 'L', 0, 'C');  // ITEM NO.
-        $pdf->SetXY(25, $currentY);
-        $pdf->Cell(20, 5, '', 'L', 0, 'C');  // ABC
-        $pdf->SetXY(45, $currentY);
-        $pdf->Cell(65, 5, '', 'L', 0, 'L');  // ITEM & DESCRIPTION (empty)
-        $pdf->SetXY(110, $currentY);
-        $pdf->Cell(35, 5, '', 'L', 0, 'L');  // SPECIFICATIONS
-        $pdf->SetXY(145, $currentY);
-        $pdf->Cell(10, 5, '', 'L', 0, 'C');  // QTY
-        $pdf->SetXY(155, $currentY);
-        $pdf->Cell(15, 5, '', 'L', 0, 'C');  // UNIT 1
-        $pdf->SetXY(170, $currentY);
-        $pdf->Cell(15, 5, '', 'L', 0, 'C');  // UNIT 2
-        $pdf->SetXY(185, $currentY);
-        $pdf->Cell(15, 5, '', 'LR', 0, 'C');  // TOTAL (the last cell with ln=1 for line break)
-        $pdf->SetXY(10, $currentY);
-        $pdf->Cell(270, 5, '', 'B', 1, 'C');  // TOTAL (the last cell with ln=1 for line break)
-
-
-        $currentY = $pdf->GetY();
+    while ($pdf->GetY() < 160) {
+        $tableLine($pdf->GetY(), 5, [], 'LB');
     }
 }
-
 
 
 
@@ -565,10 +466,10 @@ $pdf->SetXY(25, $Y);
 $pdf->Cell(20, 3.5, '', 'LB', 0, 'C');  // ABC
 
 $pdf->SetXY(45, $Y);
-$pdf->Cell(65, 3.3, 'Terms of Payment:', 'LB', 0, 'L');  // ITEM DESCRIPTION
+$pdf->Cell(65, 3.5, 'Terms of Payment:', 'LB', 0, 'L');  // ITEM DESCRIPTION
 
 $pdf->SetXY(75, $Y);
-$pdf->Cell(30, 3.3, $terms, 'B', 0, 'L');  // ITEM DESCRIPTION
+$pdf->Cell(30, 3.5, $terms, 'B', 0, 'L');  // ITEM DESCRIPTION
 
 $pdf->SetXY(110, $Y);
 $pdf->Cell(35, 3.5, '', 'LB', 0, 'C');  // SPECIFICATIONS
@@ -664,4 +565,4 @@ $pdf->Cell(50, 3, 'Date', 0, 1, 'C');
 
 $pdf->Output();
 exit;
-?>
+?>

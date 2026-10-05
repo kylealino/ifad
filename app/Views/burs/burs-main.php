@@ -385,5 +385,5 @@ echo view('templates/myheader.php');
     var __burs_perms = <?= json_encode($perms) ?>;
     var __burs_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/burs/myburs.js?v=6');?>"></script>
+<script src="<?=base_url('assets/js/burs/myburs.js?v=7');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

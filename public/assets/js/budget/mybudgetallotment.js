@@ -42,14 +42,6 @@ function __mysys_budget_allotment_ent() {
 		return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
 
-	function moneyShort(n) {
-		n = Number(n || 0);
-		if (n >= 1e9) { return '₱' + (n / 1e9).toFixed(2) + 'B'; }
-		if (n >= 1e6) { return '₱' + (n / 1e6).toFixed(1) + 'M'; }
-		if (n >= 1e3) { return '₱' + (n / 1e3).toFixed(1) + 'K'; }
-		return money(n);
-	}
-
 	function fmtDate(d) {
 		if (!d || String(d).indexOf('0000') === 0) { return '—'; }
 		var dt = new Date(String(d).replace(' ', 'T'));
@@ -88,7 +80,7 @@ function __mysys_budget_allotment_ent() {
 		var card = function (key, group, label) {
 			var l = list.filter(function (r) { return inGroup(r, group); });
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
-			$('[data-card-label="' + key + '"]').text(label() + ' · ' + moneyShort(amount(l)));
+			$('[data-card-label="' + key + '"]').text(label() + ' · ' + money(amount(l)));
 		};
 		card('pending', 'pending', function () { return 'Pending'; });
 		card('returned', 'disapproved', function () { return 'Returned'; });
@@ -307,7 +299,7 @@ function __mysys_budget_allotment_ent() {
 			if (g.kind !== 'ac') { total.approved += sum.approved; total.proposed += sum.proposed; }
 		});
 
-		Object.keys(tabs).forEach(function (t) { $('[data-tab-total="' + t + '"]').text(tabs[t] ? moneyShort(tabs[t]) : ''); });
+		Object.keys(tabs).forEach(function (t) { $('[data-tab-total="' + t + '"]').text(tabs[t] ? money(tabs[t]) : ''); });
 
 		var ta = total.approved.toFixed(2), tp = total.proposed.toFixed(2);
 		$('#total_approved_combined').val(ta);

@@ -54,14 +54,6 @@ function __mysys_saob_rpt_ent() {
 		return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
 
-	function moneyShort(n) {
-		n = Number(n || 0);
-		if (n >= 1e9) { return '₱' + (n / 1e9).toFixed(2) + 'B'; }
-		if (n >= 1e6) { return '₱' + (n / 1e6).toFixed(1) + 'M'; }
-		if (n >= 1e3) { return '₱' + (n / 1e3).toFixed(1) + 'K'; }
-		return money(n);
-	}
-
 	// Totals are posted in this format and compared as text by saob_save()
 	function total(n) {
 		return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -112,7 +104,7 @@ function __mysys_saob_rpt_ent() {
 		var card = function (key, status, label) {
 			var l = list.filter(function (r) { return r.status === status; });
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
-			$('[data-card-label="' + key + '"]').text(label + ' · ' + moneyShort(amount(l)));
+			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
 		$('[data-card-value="records"]').text(list.length.toLocaleString());
 		$('[data-card-label="records"]').text('Allotments · ' + programCount.toLocaleString() + ' program' + (programCount === 1 ? '' : 's'));
@@ -122,7 +114,7 @@ function __mysys_saob_rpt_ent() {
 		// figure and the label carries the full one
 		var sum = amount(list);
 		var short = sum >= 1e8;
-		$('[data-card-value="total"]').text(short ? moneyShort(sum) : money(sum));
+		$('[data-card-value="total"]').text(short ? money(sum) : money(sum));
 		$('[data-card-label="total"]').text('Approved budget' + (short ? ' · ' + money(sum) : ''));
 	}
 
@@ -391,7 +383,7 @@ function __mysys_saob_rpt_ent() {
 			card.find('[data-count]').text('· ' + trs.length + ' line' + (trs.length === 1 ? '' : 's'));
 			card.find('.saob-empty').toggleClass('d-none', trs.length > 0);
 			card.find('.saob-grid-wrap, [data-hint]').toggleClass('d-none', trs.length === 0);
-			$('[data-tab-total="' + key + '"]').text(Math.abs(sum.approved) >= 0.005 ? moneyShort(sum.approved) : '');
+			$('[data-tab-total="' + key + '"]').text(Math.abs(sum.approved) >= 0.005 ? money(sum.approved) : '');
 			totalApproved += sum.approved;
 			totalRevised += sum.revised;
 		});
@@ -419,8 +411,13 @@ function __mysys_saob_rpt_ent() {
 		});
 	}
 
+	// Set both ways: the same modal is reused for records the user can and cannot
+	// edit. The month switches and amount columns follow setMonths() / applyMonthRules().
 	function applyLocks() {
-		if (!canSave()) { window.jQuery('#saobModal .modal-body').find('input, select, textarea, .saob-add, .saob-remove, .saob-insert').prop('disabled', true); }
+		var $ = window.jQuery;
+		var locked = !canSave();
+		$('#saobPaneDetails').find('input, select, textarea').not('.saob-month').prop('disabled', locked);
+		if (locked) { $('#saobModal .saob-grid-card').find('input, select, .saob-add, .saob-remove, .saob-insert').prop('disabled', true); }
 	}
 
 	this.__saob_grids = function () {

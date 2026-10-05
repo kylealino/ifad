@@ -20,11 +20,15 @@ SELECT
     `end_user`,
     `charge_to`,
     `purpose`,
-    `estimated_cost`
+    `estimated_cost`,
+    `requested_by`,
+    `requested_position`,
+    `approved_by`,
+    `approved_position`
 FROM
     `tbl_pr_hd`
-WHERE 
-    `recid` = '$recid'"
+WHERE
+    `recid` = ?", [$recid]
 );
 
 $data = $query->getRowArray();
@@ -38,6 +42,16 @@ $end_user = $data['end_user'];
 $charge_to = $data['charge_to'];
 $purpose = $data['purpose'];
 $estimated_cost = $data['estimated_cost'];
+// Signatories saved on the PR (Box A requested by, Box B approved by); PRs
+// saved before PR approval print the names this form used to carry
+$requested_by = trim((string) $data['requested_by']) !== '' ? $data['requested_by'] : 'MILFLOR S. GONZALES, Ph.D.';
+$requested_position = trim((string) $data['requested_by']) !== '' ? $data['requested_position'] : 'Chief, TDSTSD';
+$approved_by = trim((string) $data['approved_by']) !== '' ? $data['approved_by'] : 'ALEXIS M. ORTIZ';
+$approved_position = trim((string) $data['approved_by']) !== '' ? $data['approved_position'] : 'Chief Administrative Officer, FAD';
+// FPDF core fonts are windows-1252 (names such as VIRIÑA)
+foreach (['requested_by', 'requested_position', 'approved_by', 'approved_position'] as $v) {
+    $$v = iconv('UTF-8', 'windows-1252//TRANSLIT', (string) $$v);
+}
 
 class PDF extends \FPDF {
     function Footer() {
@@ -403,10 +417,10 @@ $pdf->Cell(20, 5, '' ,'R' , 1, 'C');
 
 $pdf->SetFont('Arial', 'B',10);
 $pdf->SetXY(58, $Y);
-$pdf->Cell(74, 5, 'MILFLOR S. GONZALES, Ph.D.' , 'LR', 1, 'C');
+$pdf->Cell(74, 5, $requested_by , 'LR', 1, 'C');
 
 $pdf->SetXY(132, $Y);
-$pdf->Cell(68, 5, 'ALEXIS M. ORTIZ' , 'R', 1, 'C');
+$pdf->Cell(68, 5, $approved_by , 'R', 1, 'C');
 $pdf->SetFont('Arial', '',10);
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);
@@ -416,10 +430,10 @@ $pdf->SetXY(38, $Y);
 $pdf->Cell(20, 5, '' ,'BR' , 1, 'C');
 
 $pdf->SetXY(58, $Y);
-$pdf->Cell(74, 5, 'Chief, TDSTSD' , 'BLR', 1, 'C');
+$pdf->Cell(74, 5, $requested_position , 'BLR', 1, 'C');
 
 $pdf->SetXY(132, $Y);
-$pdf->Cell(68, 5, 'Chief Administrative Officer, FAD' , 'BR', 1, 'C');
+$pdf->Cell(68, 5, $approved_position , 'BR', 1, 'C');
 
 $Y = $pdf->GetY()+5;
 

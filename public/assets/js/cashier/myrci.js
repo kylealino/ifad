@@ -21,14 +21,6 @@ function __mysys_rci_ent() {
 		return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
 
-	function moneyShort(n) {
-		n = Number(n || 0);
-		if (n >= 1e9) { return '₱' + (n / 1e9).toFixed(2) + 'B'; }
-		if (n >= 1e6) { return '₱' + (n / 1e6).toFixed(1) + 'M'; }
-		if (n >= 1e3) { return '₱' + (n / 1e3).toFixed(1) + 'K'; }
-		return money(n);
-	}
-
 	function fmtDate(d) {
 		if (!d || String(d).indexOf('0000') === 0) { return '—'; }
 		var dt = new Date(String(d).replace(' ', 'T'));
@@ -53,10 +45,10 @@ function __mysys_rci_ent() {
 		var lddapadas = {};
 		list.forEach(function (r) { String(r.lddapadanos || '').split(', ').filter(Boolean).forEach(function (n) { lddapadas[n] = true; }); });
 		$('[data-card-value="reports"]').text(list.length.toLocaleString());
-		$('[data-card-label="reports"]').text('Report' + (list.length === 1 ? '' : 's') + ' · ' + moneyShort(sum('net_amount')));
+		$('[data-card-label="reports"]').text('Report' + (list.length === 1 ? '' : 's') + ' · ' + money(sum('net_amount')));
 		$('[data-card-value="lddapadas"]').text(Object.keys(lddapadas).length.toLocaleString());
 		$('[data-card-value="dvs"]').text(sum('dv_count').toLocaleString());
-		$('[data-card-label="dvs"]').text('DVs paid · gross ' + moneyShort(sum('gross_amount')));
+		$('[data-card-label="dvs"]').text('DVs paid · gross ' + money(sum('gross_amount')));
 		$('[data-card-value="total"]').text(money(sum('net_amount')));
 		$('[data-card-label="total"]').text('Total amount · net');
 	}

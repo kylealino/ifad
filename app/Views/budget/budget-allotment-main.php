@@ -401,5 +401,5 @@ echo view('templates/myheader.php');
     var __budget_perms = <?= json_encode($perms) ?>;
     var __budget_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/budget/mybudgetallotment.js?v=10');?>"></script>
+<script src="<?=base_url('assets/js/budget/mybudgetallotment.js?v=11');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

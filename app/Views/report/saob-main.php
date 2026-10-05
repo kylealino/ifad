@@ -381,5 +381,5 @@ echo view('templates/myheader.php');
     var __saob_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __saob_copy = <?= json_encode($copy, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/report/mysaobreport.js?v=7');?>"></script>
+<script src="<?=base_url('assets/js/report/mysaobreport.js?v=9');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

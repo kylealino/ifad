@@ -385,5 +385,5 @@ echo view('templates/myheader.php');
     var __ors_perms = <?= json_encode($perms) ?>;
     var __ors_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/ors/myors.js?v=6');?>"></script>
+<script src="<?=base_url('assets/js/ors/myors.js?v=7');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

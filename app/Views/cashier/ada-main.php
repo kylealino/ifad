@@ -207,5 +207,5 @@ echo view('templates/myheader.php');
     var __ada_perms = <?= json_encode($perms) ?>;
     var __ada_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/cashier/myada.js?v=1');?>"></script>
+<script src="<?=base_url('assets/js/cashier/myada.js?v=2');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

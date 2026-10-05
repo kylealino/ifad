@@ -54,14 +54,6 @@ function __mysys_budget_approval_ent() {
 		return '<span class="fods-chip ' + s[0] + '"><span class="fods-dot"></span>' + s[1] + '</span>';
 	}
 
-	function moneyShort(n) {
-		n = Number(n || 0);
-		if (n >= 1e9) { return '₱' + (n / 1e9).toFixed(2) + 'B'; }
-		if (n >= 1e6) { return '₱' + (n / 1e6).toFixed(1) + 'M'; }
-		if (n >= 1e3) { return '₱' + (n / 1e3).toFixed(1) + 'K'; }
-		return money(n);
-	}
-
 	//APPROVAL - YEAR (the cards and the list follow the year picked in the page head)
 	const YEAR_KEY = 'fods.year.mybudgetapproval';
 	let year = String(new Date().getFullYear());
@@ -88,7 +80,7 @@ function __mysys_budget_approval_ent() {
 		var card = function (key, group, label) {
 			var l = list.filter(function (r) { return inGroup(r, group); });
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
-			$('[data-card-label="' + key + '"]').text(label() + ' · ' + moneyShort(amount(l)));
+			$('[data-card-label="' + key + '"]').text(label() + ' · ' + money(amount(l)));
 		};
 		card('pending', 'pending', function () { return perms.approve ? 'Waiting for you' : 'Pending'; });
 		card('returned', 'disapproved', function () { return 'Returned'; });

@@ -16,138 +16,129 @@ class MyPPMP extends BaseController
 	}
 
     public function index() {
-        
+
         $meaction = $this->request->getPostGet('meaction');
-    
+
         switch ($meaction) {
-            case 'MAIN': 
+            case 'MAIN':
                 if (fods_has_access(\Config\AccessCodes::PPMP_VIEW)) {
-                    return $this->loadPPMPView();
+                    return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
                 }
-                break;
 
-            case 'PPMP-SAVE': 
+            // One PPMP with its items, for the editor modal
+            case 'MAIN-LOAD':
+                if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) {
+                    return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
+                }
+                $record = $this->myppmp->ppmp_load($this->request->getGet('recid'));
+                if ($record === null) {
+                    return $this->response->setStatusCode(404)->setJSON(['error' => 'PPMP not found']);
+                }
+                return $this->response->setJSON($record);
+
+            case 'PPMP-SAVE':
                 $this->myppmp->ppmp_save();
                 return redirect()->to('myppmp?meaction=MAIN');
                 break;
-            
+
             case 'PPMP-PRINT':
-				if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) { return view('errors/html/access-restricted'); }
-				return view('procurement/ppmp/ppmp-pdf');
-				break;
-
-            //  case 'MAIN-APPROVE': 
-            //     $this->mysaob->budget_approve();
-            //     return redirect()->to('myua?meaction=MAIN');
-            //     break;
-
-            //   case 'MAIN-DISAPPROVE': 
-            //     $this->mysaob->budget_disapprove();
-            //     return redirect()->to('myua?meaction=MAIN');
-            //     break;
+                if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) { return view('errors/html/access-restricted'); }
+                return view('procurement/ppmp/ppmp-pdf');
+                break;
         }
     }
-    
 
-    private function loadPPMPView() {
 
-        $productsdataquery = $this->db->query("
-            SELECT
-                `recid`,
-                `product_code`,
-                `product_desc`,
-                `uom`,
-                `price`,
-                `quantity`,
-                `remarks`
-            FROM
-                `mst_products`
-            ORDER BY
-                `recid` DESC
-        ");
-        $productsdata = $productsdataquery->getResultArray();
+    private function loadMainView() {
 
-        $projectsdataquery = $this->db->query("
-            SELECT
-                `recid`,
-                `project_title`,
-                `responsibility_code`
-            FROM
-                `tbl_reference_project`
-            WHERE
-                `fundcluster_id` = '1'
-            ORDER BY
-                `recid` DESC
-            
-        ");
-        $projectsdata = $projectsdataquery->getResultArray();
+        $ppmphddata = $this->db->query("
+        SELECT
+            a.`recid`,
+            a.`ppmpno`,
+            a.`end_user`,
+            a.`fiscal_year`,
+            a.`project_title`,
+            a.`responsibility_code`,
+            a.`is_indicative`,
+            a.`is_final`,
+            a.`added_at`,
+            a.`added_by`,
+            COALESCE(d.n,0) AS items,
+            COALESCE(d.amount,0) AS amount
+        FROM tbl_ppmp_hd a
+        LEFT JOIN (SELECT ppmp_id, COUNT(*) n, SUM(estimated_budget) amount FROM tbl_ppmp_dt GROUP BY ppmp_id) d ON d.ppmp_id = a.recid
+        ORDER BY a.`recid` DESC
+        ")->getResultArray();
 
-        $prlistdataquery = $this->db->query("
-            SELECT
-                `prno`
-            FROM
-                `tbl_pr_hd`
-            ORDER BY
-                `recid` DESC
-        ");
-        $prlistdata = $prlistdataquery->getResultArray();
+        // One status per PPMP: final, indicative, or not marked yet
+        foreach ($ppmphddata as &$row) {
+            $row['status'] = self::statusOf($row);
+            unset($row['is_indicative'], $row['is_final']);
+        }
+        unset($row);
 
-        $abstractlistdataquery = $this->db->query("
-            SELECT
-                `recid`,
-                `prno`,
-                `transaction_no`,
-                `abstract_date`,
-                `bidder_1`,
-                `bidder_2`,
-                `bidder_3`,
-                `bidder_4`,
-                `bidder_5`
-            FROM
-                `tbl_abstract_hd`
-            ORDER BY
-                `recid` DESC
-        ");
-        $abstractlistdata = $abstractlistdataquery->getResultArray();
 
-        $ppmplistdataquery = $this->db->query("
-            SELECT
-                `recid`,
-                `ppmpno`,
-                `end_user`,
-                `fiscal_year`,
-                `project_title`,
-                `responsibility_code`
-            FROM
-                `tbl_ppmp_hd`
-            ORDER BY
-                `recid` DESC
-        ");
-        $ppmplistdata = $ppmplistdataquery->getResultArray();
+        //item lookup: picking one fills the unit and the unit cost
+        $productsdata = $this->db->query("
+        SELECT
+            `product_desc` AS value,
+            `uom`,
+            `price`
+        FROM `mst_products`
+        WHERE `product_desc` <> ''
+        ORDER BY `product_desc` ASC
+        ")->getResultArray();
 
-        $signatoriesdataquery = $this->db->query("
-            SELECT
-                `full_name`
-            FROM
-                `myua_user`
-            WHERE
-                `is_ppmp_signatory` = 1
-            ORDER BY
-                `recid` DESC
-        ");
-        $signatoriesdata = $signatoriesdataquery->getResultArray();
+        //responsibility code -> project title lookup
+        $projectsdata = $this->db->query("
+        SELECT
+            `responsibility_code`,
+            `project_title`
+        FROM `tbl_reference_project`
+        WHERE `fundcluster_id` = '1'
+        ORDER BY `responsibility_code` ASC
+        ")->getResultArray();
+
+        $signatories = array_column(
+            $this->db->query("SELECT `full_name` FROM myua_user WHERE `is_ppmp_signatory` = 1 AND `is_active` = 1 ORDER BY `full_name` ASC")->getResultArray(),
+            'full_name'
+        );
 
         return view('procurement/ppmp/ppmp-main', [
-            'productsdata' => $productsdata,
-            'projectsdata' => $projectsdata,
-            'prlistdata' => $prlistdata,
-            'ppmplistdata' => $ppmplistdata,
-            'abstractlistdata' => $abstractlistdata,
-            'signatoriesdata' => $signatoriesdata,
+            'ppmphddata' => $ppmphddata,
+            'lookups' => [
+                'products' => $productsdata,
+                'projects' => $projectsdata,
+                'signatories' => $signatories,
+                'fiscal_years' => range((int) date('Y') + 1, 2024),
+                'item_types' => ['Goods', 'Infrastructure', 'Consulting Services'],
+                'units' => ['pc', 'btl', 'pack', 'box', 'cyl', 'crtg'],
+                'modes' => ['SVP', 'Direct Acquisition', 'Direct Contracting', 'Public Bidding'],
+                'preproc' => ['Yes', 'No'],
+                'funding_sources' => ['General Fund', 'Trust Fund', 'Project Fund (Externally Funded)'],
+            ],
+            'perms' => [
+                'add' => fods_has_access(\Config\AccessCodes::PPMP_ADD),
+                'edit' => fods_has_access(\Config\AccessCodes::PPMP_UPDATE),
+            ],
+            'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that PPMP directly
         ]);
     }
-    
-    
+
+    // final: marked Final (wins when both switches are on)
+    // indicative: marked Indicative only
+    // unmarked: neither switch is on yet
+    public static function statusOf(array $hd) {
+        if ($hd['is_final'] == '1') {
+            return 'final';
+        }
+        if ($hd['is_indicative'] == '1') {
+            return 'indicative';
+        }
+        return 'unmarked';
+    }
+
+
 }

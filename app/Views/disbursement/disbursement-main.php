@@ -410,5 +410,5 @@ echo view('templates/myheader.php');
     var __dv_perms = <?= json_encode($perms) ?>;
     var __dv_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/disbursement/mydisbursement.js?v=4');?>"></script>
+<script src="<?=base_url('assets/js/disbursement/mydisbursement.js?v=5');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

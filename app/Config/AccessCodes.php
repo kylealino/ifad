@@ -142,4 +142,20 @@ class AccessCodes
     // 42 - ADA Approval
     public const ADAAPPROVAL_VIEW    = '42001';
     public const ADAAPPROVAL_APPROVE = '42005';
+
+    // 43 - Purchase Order (prepared from a PR)
+    public const PO_VIEW   = '43001';
+    public const PO_ADD    = '43002';
+    public const PO_UPDATE = '43003';
+    public const PO_DELETE = '43004';
+
+    // 44 - PO Approval (Box A accounting, then Box B approval; each step is
+    //      decided by the signatory named on it, or an Administrator)
+    public const POAPPROVAL_VIEW    = '44001';
+    public const POAPPROVAL_APPROVE = '44005';
+
+    // 45 - PR Approval (Box A requesting office, then Box B approval; each
+    //      step is decided by the signatory named on it, or an Administrator)
+    public const PRAPPROVAL_VIEW    = '45001';
+    public const PRAPPROVAL_APPROVE = '45005';
 }
