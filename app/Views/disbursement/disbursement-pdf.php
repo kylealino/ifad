@@ -663,18 +663,38 @@ $pdf->Cell(75, 4, 'NET', 0, 1, 'R');
 $pdf->SetXY(160, $Y);
 $pdf->Cell(40, 4, number_format($net,2), 0, 1, 'R');
 
-if ($deduction_name) {
-    $Y = 138;
-    $pdf->SetFont('Times', '', 9);
-    $pdf->SetXY(10, $Y);
-    $pdf->Cell(75, 4, $deduction_name, 0, 1, 'R');
-
-    $pdf->SetXY(160, $Y);
-    $pdf->Cell(40, 4, number_format($other_deductions,2), 0, 1, 'R');
+// Other deductions, one line each (tbl_disbursement_deduction); a DV saved
+// before several deductions were possible prints its single header one
+$otherRows = $this->db->query("SELECT `deduction_name`, `amount` FROM tbl_disbursement_deduction WHERE `disbursement_id` = ? ORDER BY `recid` ASC", [$recid])->getResultArray();
+if (empty($otherRows) && $deduction_name) {
+    $otherRows = [['deduction_name' => $deduction_name, 'amount' => $other_deductions]];
 }
 
-if ($deduction_name) {
-    $net = $net - $other_deductions;
+if (!empty($otherRows)) {
+    // the lines share the space between NET and Amount Due (Y 132 to 144)
+    $n = count($otherRows);
+    $lineH = $n <= 3 ? 4 : 11.6 / $n;
+    $Y = max(132, 142 - $n * $lineH);
+    $baseSize = $n <= 3 ? 9 : max(5.5, $lineH * 2.2);
+    foreach ($otherRows as $d) {
+        $name = iconv('UTF-8', 'windows-1252//TRANSLIT', (string) $d['deduction_name']);
+        // shrink a long type so it stays inside the Particulars box
+        $size = $baseSize;
+        $pdf->SetFont('Times', '', $size);
+        while ($size > 5.5 && $pdf->GetStringWidth($name) > 85) {
+            $size -= 0.5;
+            $pdf->SetFont('Times', '', $size);
+        }
+        $pdf->SetXY(12, $Y);
+        $pdf->Cell(86, $lineH, $name, 0, 0, 'R');
+
+        $pdf->SetFont('Times', '', $baseSize);
+        $pdf->SetXY(160, $Y);
+        $pdf->Cell(40, $lineH, number_format((float) $d['amount'], 2), 0, 1, 'R');
+
+        $net = $net - (float) $d['amount'];
+        $Y += $lineH;
+    }
 }
 
 $Y = 144;

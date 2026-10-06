@@ -238,7 +238,9 @@ function __mysys_disbursement_approval_ent() {
 		if (num(hd.vat_percent)) { deductions.push('VAT ' + num(hd.vat_percent) + '%'); }
 		if (num(hd.ewt_percent)) { deductions.push('EWT ' + num(hd.ewt_percent) + '%'); }
 		if (num(hd.pt_percent)) { deductions.push('PT ' + num(hd.pt_percent) + '%'); }
-		if (num(hd.other_deductions)) { deductions.push((hd.deduction_name || 'Other') + ' ' + money(hd.other_deductions)); }
+		// each other deduction on its own (older DVs: the single one on the header)
+		var others = (hd.deductions && hd.deductions.length) ? hd.deductions : (num(hd.other_deductions) ? [{ deduction_name: hd.deduction_name, amount: hd.other_deductions }] : []);
+		others.forEach(function (d) { deductions.push((d.deduction_name || 'Other') + ' ' + money(d.amount)); });
 		if (num(hd.income_tax)) { deductions.push('Income tax ' + money(hd.income_tax)); }
 		[['sss', 'SSS'], ['hdmf', 'HDMF'], ['pagibig_mp2', 'Pag-IBIG MP2'], ['pagibig_loan', 'Pag-IBIG loan'], ['hmo', 'HMO'], ['wtax', 'WTAX']].forEach(function (p) {
 			if (num(hd[p[0]])) { deductions.push(p[1] + ' ' + money(hd[p[0]])); }

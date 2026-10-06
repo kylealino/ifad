@@ -74,6 +74,11 @@ echo view('templates/myheader.php');
 @media (max-width: 767.98px) {
     .dv-totals { gap:.5rem 1rem; width:100%; }
 }
+/* Other deductions: type + amount per row */
+.dv-ded-row { display:grid; grid-template-columns:minmax(0,1fr) 140px 32px; gap:.5rem; align-items:center; margin-bottom:.5rem; }
+.dv-ded-row input[type=number] { text-align:right; font-variant-numeric:tabular-nums; }
+.dv-ded-empty { font-size:.78rem; color:var(--fods-muted); margin-bottom:.5rem; }
+.dv-ded-total { font-size:.78rem; color:var(--fods-muted); text-align:right; }
 </style>
 </head>
 <div class="container-fluid">
@@ -276,13 +281,15 @@ echo view('templates/myheader.php');
                                                 <label class="form-label" for="pt_percent">PT %</label>
                                                 <input type="number" step="0.01" class="form-control" id="pt_percent" placeholder="e.g. 5">
                                             </div>
-                                            <div class="col-7 dv-tax d-none">
-                                                <label class="form-label" for="deduction_name">Other deduction</label>
-                                                <input type="text" class="form-control" id="deduction_name" placeholder="Type of deduction">
-                                            </div>
-                                            <div class="col-5 dv-tax d-none">
-                                                <label class="form-label" for="other_deductions">Amount</label>
-                                                <input type="number" step="0.01" class="form-control" id="other_deductions">
+                                            <!-- Other deductions: one row each; their sum and types go in the two hidden fields the totals use -->
+                                            <div class="col-12 dv-other d-none">
+                                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                                    <label class="form-label mb-0">Other deductions</label>
+                                                    <button type="button" class="btn btn-sm btn-fods-ghost dv-ded-add"><i class="ti ti-plus me-1"></i>Add deduction</button>
+                                                </div>
+                                                <div id="dvDeductionRows" class="dv-ded-rows"></div>
+                                                <input type="hidden" id="deduction_name">
+                                                <input type="hidden" id="other_deductions">
                                             </div>
 
                                             <div class="col-12 dv-income d-none">
@@ -410,5 +417,5 @@ echo view('templates/myheader.php');
     var __dv_perms = <?= json_encode($perms) ?>;
     var __dv_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/disbursement/mydisbursement.js?v=5');?>"></script>
+<script src="<?=base_url('assets/js/disbursement/mydisbursement.js?v=7');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

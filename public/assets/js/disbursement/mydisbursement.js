@@ -360,7 +360,50 @@ function __mysys_disbursement_ent() {
 		$('#dvNet, #dvFootNet').text(money(net));
 	}
 
-	function clear(ids) { ids.forEach(function (id) { document.getElementById(id).value = ''; }); }
+	function clear(ids) {
+		ids.forEach(function (id) { document.getElementById(id).value = ''; });
+		// categories without other deductions drop the rows too
+		if (ids.indexOf('other_deductions') !== -1 && document.querySelector('#dvDeductionRows .dv-ded-row')) { renderDeductions([]); }
+	}
+
+	//DISBURSEMENT - OTHER DEDUCTIONS (type + amount per row). The rows feed the
+	//two fields the totals have always used: other_deductions = their sum,
+	//deduction_name = their types, so every computation stays the same.
+	function deductionRowHtml(d) {
+		d = d || {};
+		var off = canSave() ? '' : ' disabled';
+		return '<div class="dv-ded-row">'
+			+ '<input type="text" class="form-control dv-ded-name" maxlength="250" placeholder="Type of deduction, e.g. SI#16379 - 16 Calendar Days Delayed" value="' + esc(d.deduction_name || '') + '" aria-label="Type of deduction"' + off + '>'
+			+ '<input type="number" step="0.01" class="form-control dv-ded-amount" placeholder="0.00" value="' + (num(d.amount) ? esc(d.amount) : '') + '" aria-label="Deduction amount"' + off + '>'
+			+ '<button type="button" class="fods-icon-btn is-danger dv-ded-remove" title="Remove deduction"' + off + '><i class="ti ti-trash"></i></button>'
+			+ '</div>';
+	}
+
+	function renderDeductions(list) {
+		var rows = (list || []).map(deductionRowHtml).join('');
+		document.getElementById('dvDeductionRows').innerHTML = rows || '<div class="dv-ded-empty">No other deductions. Use <b>Add deduction</b> for each one, e.g. delay penalties per sales invoice.</div>';
+		// set both ways: the editor is reused for records the user can and cannot edit
+		window.jQuery('#dvModal .dv-ded-add').prop('disabled', !canSave());
+		syncDeductions();
+	}
+
+	function deductionRows() {
+		var out = [];
+		window.jQuery('#dvDeductionRows .dv-ded-row').each(function () {
+			var name = window.jQuery(this).find('.dv-ded-name').val().trim();
+			var amount = roundMoney(parseFloat(window.jQuery(this).find('.dv-ded-amount').val()) || 0);
+			if (name === '' && amount === 0) { return; }   // untouched rows are not saved
+			out.push({ deduction_name: name, amount: amount });
+		});
+		return out;
+	}
+
+	function syncDeductions() {
+		var rows = deductionRows();
+		var sum = roundMoney(rows.reduce(function (t, d) { return roundMoney(t + d.amount); }, 0));
+		document.getElementById('other_deductions').value = sum ? sum.toFixed(2) : '';
+		document.getElementById('deduction_name').value = rows.map(function (d) { return d.deduction_name; }).filter(Boolean).join('; ').slice(0, 100);
+	}
 
 	var PAYROLL = ['sss', 'hdmf', 'pagibig_mp2', 'pagibig_loan', 'hmo', 'wtax'];
 
@@ -371,6 +414,7 @@ function __mysys_disbursement_ent() {
 
 		var category = $('#category').val();
 		var isVat = $('#is_vatable').is(':checked');
+		syncDeductions();
 		var otherDeductions = getMoney('other_deductions');
 		var incomeTax = getMoney('income_tax');
 
@@ -380,18 +424,20 @@ function __mysys_disbursement_ent() {
 			return;
 		}
 
-		// PAYROLL
+		// PAYROLL (salary deductions, plus any other deductions)
 		if (category === 'Payroll') {
 			var payroll = roundMoney(PAYROLL.reduce(function (s, id) { return s + getMoney(id); }, 0));
-			clear(['vat_percent', 'ewt_percent', 'pt_percent', 'other_deductions', 'income_tax']);
-			setAmounts(gross, payroll, roundMoney(gross - payroll));
+			clear(['vat_percent', 'ewt_percent', 'pt_percent', 'income_tax']);
+			var payrollTotal = roundMoney(payroll + otherDeductions);
+			setAmounts(gross, payrollTotal, roundMoney(gross - payrollTotal));
 			return;
 		}
 
-		// INCOME TAX
+		// INCOME TAX (plus any other deductions)
 		if (category === 'Income Tax') {
-			clear(['vat_percent', 'ewt_percent', 'pt_percent', 'other_deductions'].concat(PAYROLL));
-			setAmounts(gross, incomeTax, roundMoney(gross - incomeTax));
+			clear(['vat_percent', 'ewt_percent', 'pt_percent'].concat(PAYROLL));
+			var incomeTotal = roundMoney(incomeTax + otherDeductions);
+			setAmounts(gross, incomeTotal, roundMoney(gross - incomeTotal));
 			return;
 		}
 
@@ -453,6 +499,8 @@ function __mysys_disbursement_ent() {
 		}
 		$('#dvModal .dv-income').toggleClass('d-none', category !== 'Income Tax');
 		$('#dvModal .dv-payroll').toggleClass('d-none', category !== 'Payroll');
+		// other deductions go with every category
+		$('#dvModal .dv-other').toggleClass('d-none', !category);
 		$('#dvModal .dv-none').toggleClass('d-none', !!category);
 	}
 
@@ -477,7 +525,22 @@ function __mysys_disbursement_ent() {
 			applyTaxRules();
 		});
 
-		$('#dvModal').on('input', '#vat_percent, #ewt_percent, #pt_percent, #other_deductions, #income_tax, #sss, #hdmf, #pagibig_mp2, #pagibig_loan, #hmo, #wtax', applyTaxRules);
+		$('#dvModal').on('input', '#vat_percent, #ewt_percent, #pt_percent, #income_tax, #sss, #hdmf, #pagibig_mp2, #pagibig_loan, #hmo, #wtax, .dv-ded-name, .dv-ded-amount', applyTaxRules);
+
+		$('#dvModal').on('input', '.dv-ded-name', function () { this.classList.remove('is-invalid'); });
+
+		// Other deductions: add a row / remove one
+		$('#dvModal').on('click', '.dv-ded-add', function () {
+			var box = $('#dvDeductionRows');
+			box.find('.dv-ded-empty').remove();
+			var row = $(deductionRowHtml(null)).appendTo(box);
+			row.find('.dv-ded-name').trigger('focus');
+		});
+		$('#dvModal').on('click', '.dv-ded-remove', function () {
+			$(this).closest('.dv-ded-row').remove();
+			if (!$('#dvDeductionRows .dv-ded-row').length) { renderDeductions([]); }
+			applyTaxRules();
+		});
 	};
 
 	//DISBURSEMENT - DETAILS (ORS / BURS source, payee lookup, signatories)
@@ -518,6 +581,7 @@ function __mysys_disbursement_ent() {
 			setVal(f, num(o[f]) ? o[f] : '');
 		});
 		setVal('serialno', o.serialno);
+		renderDeductions(o.deductions);
 		sourcePayee = o.payee_name || '';
 		if (o.disbursement_date && String(o.disbursement_date).indexOf('0000') !== 0) { setVal('disbursement_date', o.disbursement_date); }
 		options('funding_source', lookups.funding_sources || [], o.funding_source);
@@ -626,6 +690,7 @@ function __mysys_disbursement_ent() {
 		if (!hd) { setVal('position_c', window.jQuery('#certified_c').find(':selected').data('position') || ''); }
 
 		document.getElementById('is_vatable').checked = !!hd && String(hd.is_vatable) === '1';
+		renderDeductions(hd ? hd.deductions : []);
 		sourcePayee = '';
 		document.getElementById('dvSourceHint').textContent = 'Picking one copies its payee, deductions, signatory and line items into this DV.';
 
@@ -798,6 +863,17 @@ function __mysys_disbursement_ent() {
 			}
 			recalc();
 
+			// every other deduction with an amount needs its type (it is printed on the DV)
+			var unnamed = $('#dvDeductionRows .dv-ded-row').filter(function () {
+				return !$(this).find('.dv-ded-name').val().trim() && num($(this).find('.dv-ded-amount').val()) !== 0;
+			}).first();
+			if (unnamed.length) {
+				bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#dvPaneDetails"]')).show();
+				unnamed.find('.dv-ded-name').addClass('is-invalid').trigger('focus');
+				toastr.warning('Type what each other deduction is for.', 'Deduction type needed', { closeButton: true });
+				return;
+			}
+
 			var val = function (id) { return document.getElementById(id).value; };
 			var mparam = {
 				recid: val('recid'),
@@ -831,6 +907,9 @@ function __mysys_disbursement_ent() {
 				hmo: val('hmo'),
 				wtax: val('wtax'),
 				is_vatable: document.getElementById('is_vatable').checked ? 1 : 0,
+				// each other deduction as "type x|x amount"; the header keeps their sum and types
+				dvdeductions_posted: 1,
+				dvdeductiondata: deductionRows().map(function (d) { return d.deduction_name + 'x|x' + d.amount.toFixed(2); }),
 				meaction: 'MAIN-SAVE'
 			};
 			Object.keys(GRIDS).forEach(function (key) { mparam[GRIDS[key].payload] = collectGrid(key); });

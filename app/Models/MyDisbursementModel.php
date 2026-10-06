@@ -112,6 +112,7 @@ class MyDisbursementModel extends Model
             ", [$recid])->getResultArray();
         }
         $hd['history'] = $this->getTransactionHistory($recid);
+        $hd['deductions'] = $this->deduction_rows($hd);
 
         // Box D is not picked on the DV; the modals show it next to Box A and C
         $boxd = self::box_d($hd['net_amount']);
@@ -156,6 +157,47 @@ class MyDisbursementModel extends Model
         return $name !== '' && mb_strtolower($name) === mb_strtolower(trim(fods_current_user()['full_name']));
     }
 
+    //DISBURSEMENT - OTHER DEDUCTIONS (tbl_disbursement_deduction, one row each)
+
+    // The single deduction kept on a header (an ORS / BURS, or a DV saved
+    // before several deductions were possible), as rows
+    public static function single_deduction(array $hd) {
+        $name = trim((string) ($hd['deduction_name'] ?? ''));
+        $amount = (float) ($hd['other_deductions'] ?? 0);
+        return ($name === '' && $amount == 0) ? [] : [['deduction_name' => $name, 'amount' => number_format($amount, 2, '.', '')]];
+    }
+
+    // A DV's deductions; an older DV shows its header deduction as one row
+    public function deduction_rows(array $hd) {
+        $rows = $this->db->query("
+            SELECT `deduction_name`, `amount`
+            FROM tbl_disbursement_deduction
+            WHERE `disbursement_id` = ?
+            ORDER BY `recid` ASC
+        ", [$hd['recid']])->getResultArray();
+        return $rows ?: self::single_deduction($hd);
+    }
+
+    // Replaces a DV's deduction rows (null: an older page posted none, leave them)
+    private function save_deductions($dv_id, $dvno, $deductions) {
+        if ($deductions === null) {
+            return;
+        }
+        $this->db->query("DELETE FROM tbl_disbursement_deduction WHERE `disbursement_id` = ?", [$dv_id]);
+        if (empty($deductions)) {
+            return;
+        }
+        $params = [];
+        foreach ($deductions as $d) {
+            array_push($params, $dv_id, (string) $dvno, mb_substr($d['name'], 0, 250), $d['amount'], $this->cuser);
+        }
+        $this->db->query("
+            INSERT INTO tbl_disbursement_deduction (`disbursement_id`, `dvno`, `deduction_name`, `amount`, `added_by`)
+            VALUES " . implode(', ', array_fill(0, count($deductions), '(?, ?, ?, ?, ?)')),
+            $params
+        );
+    }
+
     // Line tables per grid key (tbl_ors_*, tbl_burs_* and tbl_disbursement_* share the suffixes)
     const GRIDS = [
         'ps_direct'     => 'direct_ps_dt',
@@ -184,6 +226,8 @@ class MyDisbursementModel extends Model
                   'deduction_name', 'sss', 'hdmf', 'pagibig_mp2', 'pagibig_loan', 'hmo', 'wtax', 'category'] as $field) {
             $out[$field] = $hd[$field];
         }
+        // an ORS / BURS has one other deduction: it becomes the DV's first row
+        $out['deductions'] = self::single_deduction($hd);
         $out['grids'] = [];
         foreach (self::GRIDS as $key => $table) {
             $out['grids'][$key] = $this->db->query("
@@ -235,6 +279,23 @@ class MyDisbursementModel extends Model
 		$pagibig_loan = $this->request->getPostGet('pagibig_loan');
 		$hmo = $this->request->getPostGet('hmo');
 		$wtax = $this->request->getPostGet('wtax');
+
+		// Other deductions: one "type x|x amount" row each. The header keeps
+		// their sum and their types, so totals, net and reports read the same
+		// fields as before. (null = posted by an older page: header fields as sent)
+		$deductions = null;
+		if ($this->request->getPostGet('dvdeductions_posted')) {
+			$deductions = [];
+			foreach ((array) $this->request->getPostGet('dvdeductiondata') as $line) {
+				$medata = array_pad(explode("x|x", (string) $line), 2, '');
+				$name = trim($medata[0]);
+				$amount = round((float) str_replace(',', '', $medata[1]), 2);
+				if ($name === '' && $amount == 0) { continue; }
+				$deductions[] = ['name' => $name, 'amount' => $amount];
+			}
+			$other_deductions = round(array_sum(array_column($deductions, 'amount')), 2);
+			$deduction_name = mb_substr(implode('; ', array_filter(array_column($deductions, 'name'), 'strlen')), 0, 100);
+		}
 
 		if (empty($funding_source)) {
 			echo "
@@ -373,6 +434,7 @@ class MyDisbursementModel extends Model
 			);
 
 			$project_id = $this->db->insertID();
+			$this->save_deductions($project_id, $dvno, $deductions);
 
 			//INSERTING PS DT DATA
 			if (!empty($budgetdtdata)) {
@@ -689,6 +751,7 @@ class MyDisbursementModel extends Model
 			]);
 
 			$project_id = $recid;
+			$this->save_deductions($project_id, $dvno, $deductions);
 
 			if (!empty($budgetdtdata)) {
 				$query = $this->db->query("DELETE FROM tbl_disbursement_direct_ps_dt WHERE `project_id` = ?", [$project_id]);
