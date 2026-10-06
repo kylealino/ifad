@@ -73,6 +73,8 @@ class MyUserManagementModel extends Model
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::USERMGMT_ADD, 'Saving');
 			$hash_password = hash('sha512', $password);
+			// the user and their access are saved together, in one commit
+			$this->db->transStart();
 			$query = $this->db->query("
 				INSERT INTO `myua_user`(
 					`username`, `hash_password`, `full_name`, `division`, `section`,
@@ -87,11 +89,13 @@ class MyUserManagementModel extends Model
 			]);
 
 			$this->syncUserAccess($username, $role_id);
+			$this->db->transComplete();
 
 			$status = "User Saved successfully";
 			$color = "success";
 		} else {
 			fods_require_access(\Config\AccessCodes::USERMGMT_UPDATE, 'Updating');
+			$this->db->transStart();
 			if (!empty($password)) {
 				$hash_password = hash('sha512', $password);
 				$query = $this->db->query("
@@ -120,12 +124,13 @@ class MyUserManagementModel extends Model
 			}
 
 			$this->syncUserAccess($username, $role_id);
+			$this->db->transComplete();
 
 			$status = "User Updated successfully";
 			$color = "info";
 		}
 
-		if ($query) {
+		if ($query && $this->db->transStatus()) {
 			$this->successOut($status, $color);
 		} else {
 			$this->errorOut('An error occurred while executing the query.');
@@ -160,30 +165,38 @@ class MyUserManagementModel extends Model
 
 		if (empty($role_id)) { return; }
 
-		$roleQuery = $this->db->query("SELECT `is_active` FROM `tbl_roles` WHERE `recid` = ?", [$role_id]);
-		$role = $roleQuery->getRowArray();
-		if (empty($role) || (int) $role['is_active'] !== 1) { return; }
-
-		$codesQuery = $this->db->query("SELECT `access_code` FROM `tbl_role_access` WHERE `role_id` = ?", [$role_id]);
-		$codes = $codesQuery->getResultArray();
-
-		foreach ($codes as $row) {
-			$this->db->query("
-				INSERT INTO `tbl_user_access` (`username`, `access_code`, `is_active`, `added_by`)
-				VALUES (?, ?, 1, ?)
-			", [$username, $row['access_code'], $this->cuser]);
-		}
+		// All of the role's codes in one statement (an inactive role grants nothing)
+		$this->db->query("
+			INSERT INTO `tbl_user_access` (`username`, `access_code`, `is_active`, `added_by`)
+			SELECT ?, ra.`access_code`, 1, ?
+			FROM `tbl_role_access` ra
+			JOIN `tbl_roles` r ON r.`recid` = ra.`role_id` AND r.`is_active` = 1
+			WHERE ra.`role_id` = ?
+		", [$username, $this->cuser, $role_id]);
 	}
 
 	/**
 	 * Re-syncs every user currently assigned to a given role. Used after a
 	 * role's permission set changes, or a role is activated/deactivated.
+	 * Two statements for the whole role instead of a delete + one insert per
+	 * code per user, which took minutes on MySQL 8 (each commit is flushed).
 	 */
 	public function syncUsersByRole($role_id) {
-		$usersQuery = $this->db->query("SELECT `username` FROM `myua_user` WHERE `role_id` = ?", [$role_id]);
-		foreach ($usersQuery->getResultArray() as $row) {
-			$this->syncUserAccess($row['username'], $role_id);
-		}
+		$this->db->query("
+			DELETE ua FROM `tbl_user_access` ua
+			JOIN `myua_user` u ON u.`username` = ua.`username`
+			WHERE u.`role_id` = ?
+		", [$role_id]);
+
+		// DISTINCT: a username listed twice in myua_user still gets each code once
+		$this->db->query("
+			INSERT INTO `tbl_user_access` (`username`, `access_code`, `is_active`, `added_by`)
+			SELECT DISTINCT u.`username`, ra.`access_code`, 1, ?
+			FROM `myua_user` u
+			JOIN `tbl_roles` r ON r.`recid` = u.`role_id` AND r.`is_active` = 1
+			JOIN `tbl_role_access` ra ON ra.`role_id` = u.`role_id`
+			WHERE u.`role_id` = ?
+		", [$this->cuser, $role_id]);
 	}
 
 	public function role_save() {
@@ -222,10 +235,12 @@ class MyUserManagementModel extends Model
 		if (empty($role_id)) { $this->errorOut('Missing role.'); }
 		fods_require_access(\Config\AccessCodes::USERMGMT_UPDATE, 'Updating');
 
-		$query = $this->db->query("UPDATE `tbl_roles` SET `is_active` = NOT `is_active` WHERE `recid` = ?", [$role_id]);
+		$this->db->transStart();
+		$this->db->query("UPDATE `tbl_roles` SET `is_active` = NOT `is_active` WHERE `recid` = ?", [$role_id]);
 		$this->syncUsersByRole($role_id);
+		$this->db->transComplete();
 
-		if ($query) {
+		if ($this->db->transStatus()) {
 			$this->successOut('Role status updated', 'success', "&tab=roles");
 		} else {
 			$this->errorOut('An error occurred while executing the query.');
@@ -259,20 +274,30 @@ class MyUserManagementModel extends Model
 		if (empty($role_id)) { $this->errorOut('Missing role.'); }
 		fods_require_access(\Config\AccessCodes::USERMGMT_UPDATE, 'Updating');
 
-		$query = $this->db->query("DELETE FROM `tbl_role_access` WHERE `role_id` = ?", [$role_id]);
+		// One transaction (one commit) for the role's codes and its users' access
+		$this->db->transStart();
 
-		if (!empty($access_codes) && is_array($access_codes)) {
-			foreach ($access_codes as $code) {
-				$this->db->query("
-					INSERT INTO `tbl_role_access` (`role_id`, `access_code`, `added_by`)
-					VALUES (?, ?, ?)
-				", [$role_id, $code, $this->cuser]);
+		$this->db->query("DELETE FROM `tbl_role_access` WHERE `role_id` = ?", [$role_id]);
+
+		$codes = (!empty($access_codes) && is_array($access_codes)) ? array_values(array_unique(array_map('strval', $access_codes))) : [];
+		if (!empty($codes)) {
+			// all codes in one multi-row insert
+			$params = [];
+			foreach ($codes as $code) {
+				array_push($params, $role_id, $code, $this->cuser);
 			}
+			$this->db->query("
+				INSERT INTO `tbl_role_access` (`role_id`, `access_code`, `added_by`)
+				VALUES " . implode(', ', array_fill(0, count($codes), '(?, ?, ?)')),
+				$params
+			);
 		}
 
 		$this->syncUsersByRole($role_id);
 
-		if ($query) {
+		$this->db->transComplete();
+
+		if ($this->db->transStatus()) {
 			$this->successOut('Role permissions updated', 'success', "&tab=roles");
 		} else {
 			$this->errorOut('An error occurred while executing the query.');
