@@ -132,6 +132,40 @@ $lddapadano = $data['lddapadano'];
 $lddapada_date = $data['lddapada_date'];
 $formattedDate = date("F j, Y", strtotime($lddapada_date));
 
+// Current Year vs Prior Year's A/Ps: a line belongs to the year of its
+// obligation (the ORS/BURS date of its serial no., or the year inside the
+// serial no. 02-101101-2025-09-1233 when that ORS/BURS is not found). Lines
+// obligated before the LDDAP-ADA's year are prior year; the rest (and any
+// line whose year can't be told) are current year.
+$currentYear = (int) substr((string) $lddapada_date, 0, 4) >= 2000 ? (int) substr((string) $lddapada_date, 0, 4) : (int) date('Y');
+$lineSql = "
+SELECT * FROM (
+    SELECT
+        a.`recid`,
+        a.`dvno`,
+        a.`payee_name`,
+        a.`payee_account_num`,
+        a.`serialno`,
+        a.`uacs_code`,
+        a.`gross_amount`,
+        a.`total_deduction`,
+        a.`net_amount`,
+        a.`remarks`,
+        COALESCE(
+            (SELECT YEAR(o.`ors_date`) FROM `tbl_ors_hd` o WHERE o.`serialno` = a.`serialno` AND o.`ors_date` > '1900-01-01' LIMIT 1),
+            (SELECT YEAR(b.`burs_date`) FROM `tbl_burs_hd` b WHERE b.`serialno` = a.`serialno` AND b.`burs_date` > '1900-01-01' LIMIT 1),
+            IF(SUBSTRING_INDEX(SUBSTRING_INDEX(a.`serialno`, '-', 3), '-', -1) REGEXP '^20[0-9]{2}$',
+               CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(a.`serialno`, '-', 3), '-', -1) AS UNSIGNED), NULL)
+        ) AS `obligation_year`
+    FROM
+        `tbl_lddapada_dt` a
+    WHERE
+        a.`lddapada_id` = ?
+) x
+WHERE %s
+ORDER BY x.`recid` ASC
+";
+
 
 $pdf = new LddapadaPDF('P', 'mm', 'A4');
 $pdf->AliasNbPages();
@@ -313,25 +347,8 @@ $pdf->MultiCell(15, 2, "FOR MDS-GSB\nUSE ONLY", 'LR', 'C');
 
 $Y = $pdf->GetY();
 
-$query = $this->db->query("
-SELECT
-    a.`dvno`,
-    a.`payee_name`,
-    a.`payee_account_num`,
-    a.`serialno`,
-    a.`uacs_code`,
-    a.`gross_amount`,
-    a.`total_deduction`,
-    a.`net_amount`,
-    a.`remarks`
-FROM
-    `tbl_lddapada_dt` a
-WHERE
-    a.`lddapada_id` = ?
-    -- every line of the LDDAP-ADA is listed under Current Year A/Ps
-ORDER BY
-    a.`recid` ASC
-", [$recid]);
+// I. Current Year A/Ps: obligated in the LDDAP-ADA's year (or later, or unknown)
+$query = $this->db->query(sprintf($lineSql, "x.`obligation_year` IS NULL OR x.`obligation_year` >= ?"), [$recid, $currentYear]);
 
 $data = $query->getResultArray();
 
@@ -531,27 +548,8 @@ $pdf->Cell(15, 4, '', 'LR', 0, 'C');
 
 $Y = $pdf->GetY()+4;
 $pdf->SetXY(10, $Y);
-$query = $this->db->query("
-SELECT
-    a.`dvno`,
-    a.`payee_name`,
-    a.`payee_account_num`,
-    a.`serialno`,
-    a.`uacs_code`,
-    a.`gross_amount`,
-    a.`total_deduction`,
-    a.`net_amount`,
-    a.`remarks`
-FROM
-    `tbl_lddapada_dt` a
-WHERE
-    a.`lddapada_id` = ?
-    -- Prior Year's A/Ps stays on the form but empty: all lines are
-    -- listed under Current Year A/Ps
-    AND 1 = 0
-ORDER BY
-    a.`recid` ASC
-", [$recid]);
+// II. Prior Year's A/Ps: obligated before the LDDAP-ADA's year
+$query = $this->db->query(sprintf($lineSql, "x.`obligation_year` < ?"), [$recid, $currentYear]);
 
 $data = $query->getResultArray();
 
@@ -632,7 +630,8 @@ foreach ($data as $row) {
     // DV NO
     // ============================================
     $pdf->SetXY(75, $startY);
-    $pdf->Cell(30, $rowHeight, $dvno, 'L', 0, 'C');
+    // same as Current Year: the obligation (ORS/BURS) serial no.
+    $pdf->Cell(30, $rowHeight, $row['serialno'], 'L', 0, 'C');
 
     // ============================================
     // UACS
