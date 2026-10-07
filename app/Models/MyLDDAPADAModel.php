@@ -386,11 +386,21 @@ class MyLDDAPADAModel extends Model
 
 	//LDDAP-ADA - LINE FOR EACH PICKED DV: payee, account no., amounts, and the
 	//allotment class (UACS with the largest amount on the DV's own ORS / BURS)
+	// A DV's withholding tax for the LDDAP-ADA (columns of tbl_disbursement_hd):
+	// its total deductions less the other deductions and the payroll deductions
+	// that are not taxes (SSS, HDMF, Pag-IBIG MP2 / loan, HMO)
+	const WITHHOLDING_SQL = "(`total_deduction` - `other_deductions` - `sss` - `hdmf` - `pagibig_mp2` - `pagibig_loan` - `hmo`)";
+
 	public function dv_lines($dvnos) {
 		$out = [];
 		foreach ((array) $dvnos as $dvno) {
+			// Withholding tax = the DV's taxes only (VAT/EWT/PT, WTAX, income tax):
+			// its other deductions and payroll deductions are left out. The net
+			// stays the DV's net.
 			$dv = $this->db->query("
-				SELECT `dvno`, `payee_name`, `serialno`, `gross_amount`, `total_deduction`, `net_amount`
+				SELECT `dvno`, `payee_name`, `serialno`, `gross_amount`,
+					" . self::WITHHOLDING_SQL . " AS `total_deduction`,
+					`net_amount`
 				FROM tbl_disbursement_hd WHERE `dvno` = ? ORDER BY `recid` DESC LIMIT 1
 			", [$dvno])->getRowArray();
 			if (empty($dv)) {

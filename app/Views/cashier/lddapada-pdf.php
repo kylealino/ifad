@@ -137,6 +137,18 @@ $formattedDate = date("F j, Y", strtotime($lddapada_date));
 // serial no. 02-101101-2025-09-1233 when that ORS/BURS is not found). Lines
 // obligated before the LDDAP-ADA's year are prior year; the rest (and any
 // line whose year can't be told) are current year.
+// A line's withholding tax as printed: lines saved before other and payroll
+// deductions were left out still hold the DV's full total deductions, so those
+// print the DV's withholding instead; any other stored amount prints as saved
+if (!function_exists('lddap_withholding')) {
+    function lddap_withholding(array $row) {
+        if ($row['dv_total_deduction'] !== null && abs((float) $row['total_deduction'] - (float) $row['dv_total_deduction']) < 0.005) {
+            return (float) $row['dv_withholding'];
+        }
+        return (float) $row['total_deduction'];
+    }
+}
+
 $currentYear = (int) substr((string) $lddapada_date, 0, 4) >= 2000 ? (int) substr((string) $lddapada_date, 0, 4) : (int) date('Y');
 $lineSql = "
 SELECT * FROM (
@@ -151,6 +163,9 @@ SELECT * FROM (
         a.`total_deduction`,
         a.`net_amount`,
         a.`remarks`,
+        -- the line's DV: its full total deductions and its withholding tax only
+        (SELECT d.`total_deduction` FROM `tbl_disbursement_hd` d WHERE d.`dvno` = a.`dvno` AND a.`dvno` <> '' ORDER BY d.`recid` DESC LIMIT 1) AS `dv_total_deduction`,
+        (SELECT " . \App\Models\MyLDDAPADAModel::WITHHOLDING_SQL . " FROM `tbl_disbursement_hd` d WHERE d.`dvno` = a.`dvno` AND a.`dvno` <> '' ORDER BY d.`recid` DESC LIMIT 1) AS `dv_withholding`,
         COALESCE(
             (SELECT YEAR(o.`ors_date`) FROM `tbl_ors_hd` o WHERE o.`serialno` = a.`serialno` AND o.`ors_date` > '1900-01-01' LIMIT 1),
             (SELECT YEAR(b.`burs_date`) FROM `tbl_burs_hd` b WHERE b.`serialno` = a.`serialno` AND b.`burs_date` > '1900-01-01' LIMIT 1),
@@ -365,7 +380,9 @@ foreach ($data as $row) {
     $dvno       = $row['dvno'];
     $uacs       = $row['uacs_code'];
     $gross      = $row['gross_amount'];
-    $deduction  = $row['total_deduction'];
+    // Withholding tax only: a line saved with its DV's full total deductions
+    // (before other / payroll deductions were left out) prints the DV's withholding
+    $deduction  = lddap_withholding($row);
     $net        = $row['net_amount'];
     $remarks    = trim($row['remarks']);
 
@@ -564,7 +581,9 @@ foreach ($data as $row) {
     $dvno       = $row['dvno'];
     $uacs       = $row['uacs_code'];
     $gross      = $row['gross_amount'];
-    $deduction  = $row['total_deduction'];
+    // Withholding tax only: a line saved with its DV's full total deductions
+    // (before other / payroll deductions were left out) prints the DV's withholding
+    $deduction  = lddap_withholding($row);
     $net        = $row['net_amount'];
     $remarks    = trim($row['remarks']);
 
