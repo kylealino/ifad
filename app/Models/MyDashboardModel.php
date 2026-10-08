@@ -97,7 +97,7 @@ class MyDashboardModel extends Model
         return array_map('intval', array_column($rows, 'y'));
     }
 
-    /** Stage totals, conversion, waiting queues and unlinked records. */
+    /** Stage totals, conversion and waiting queues. */
     public function summary(?int $year): array
     {
         [$fo, $bo] = $this->yearFilter($year, 'obl_date');
@@ -147,14 +147,6 @@ class MyDashboardModel extends Model
             FROM pay p
             WHERE p.channel = 'LDDAP-ADA' AND NOT EXISTS (SELECT 1 FROM rci r WHERE r.dvno = p.dvno) {$fp}
         ", $bp)->getRowArray();
-
-        // Records whose link to the previous stage doesn't resolve
-        $s['unlinked'] = $this->db->query($this->cte() . "
-            SELECT
-              (SELECT COUNT(*) FROM tbl_disbursement_hd d WHERE NOT EXISTS (SELECT 1 FROM obl o WHERE o.serialno = d.serialno)) dv,
-              (SELECT COUNT(*) FROM pay p WHERE NOT EXISTS (SELECT 1 FROM tbl_disbursement_hd d WHERE d.dvno = p.dvno)) pay,
-              (SELECT COUNT(*) FROM rci r WHERE NOT EXISTS (SELECT 1 FROM tbl_disbursement_hd d WHERE d.dvno = r.dvno)) rci
-        ")->getRowArray();
 
         return $s;
     }

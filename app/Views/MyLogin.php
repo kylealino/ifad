@@ -628,11 +628,7 @@
       --mouse-y: 50%;
     }
     
-    /* Responsive */
-    @media (max-width: 992px) {
-      .login-container { width: 32%; min-width: 320px; }
-      .viz-container { display: none; }
-    }
+    /* (responsive rules are at the end of this stylesheet) */
     /* Executive-level interactive title */
     .fods-title-container {
         position: absolute;
@@ -738,6 +734,139 @@
     width: 70px;
     height: 70px;
     margin: 0 auto 0.5rem; /* Reduced bottom margin */
+}
+
+/* ============================= RESPONSIVE =============================
+   Desktop (993px and up): navy data wall on the left, login panel on the right.
+   Tablet and phone (992px and down): the wall becomes a full-screen background
+   and the login panel a centered card under the FODS title; the page scrolls
+   when the screen is short (landscape phones, on-screen keyboard). */
+
+/* phones with a dynamic browser bar: use the visible height */
+#main-wrapper { width: 100%; height: 100dvh; }
+.login-container { height: 100dvh; }
+
+/* Short desktop windows: the login panel scrolls instead of cutting the form */
+@media (min-width: 993px) and (max-height: 640px) {
+  .login-container { align-items: flex-start; overflow-y: auto; }
+  .auth-card { margin: auto; }
+}
+
+/* Small laptops / landscape tablets: fewer cards so they don't pile up */
+@media (min-width: 993px) and (max-width: 1280px) {
+  .login-container { width: 34%; }
+  #interactive-bg, .viz-container { width: 66%; }
+  .fods-title-container { left: 33%; }
+  /* six cards in two tidy columns (the desktop scatter overlaps at this width) */
+  .pos-6, .pos-7, .pos-9 { display: none; }
+  .data-card { width: 41%; min-width: 0; padding: 14px; }
+  .pos-1 { top: 14%; left: 6%; }
+  .pos-5 { top: 14%; left: 53%; }
+  .pos-3 { top: 43%; left: 6%; }
+  .pos-2 { top: 43%; left: 53%; }
+  .pos-8 { top: 70%; left: 6%; }
+  .pos-4 { top: 70%; left: 53%; }
+}
+
+/* ...and only the first two rows when that window is also short */
+@media (min-width: 993px) and (max-width: 1280px) and (max-height: 680px) {
+  .pos-8, .pos-4 { display: none; }
+  .pos-1, .pos-5 { top: 17%; }
+  .pos-3, .pos-2 { top: 56%; }
+}
+
+/* Tablets and phones */
+@media (max-width: 992px) {
+  body { overflow-x: hidden; overflow-y: auto; }
+
+  #main-wrapper {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: visible;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 76px 16px 28px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+
+  /* the animated background fills the screen and stays put while scrolling */
+  #interactive-bg { position: fixed; width: 100%; height: 100%; }
+  .viz-container { display: none; }
+
+  /* FODS title sits above the card, in the page flow */
+  .fods-title-container {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    z-index: 10;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+  .fods-title-container h1 { font-size: 2.25rem !important; letter-spacing: 10px !important; padding-left: 10px; }
+  .fods-title-container:hover h1 { letter-spacing: 10px !important; }
+
+  /* the login panel becomes a card */
+  .login-container {
+    width: 100%;
+    max-width: 440px;
+    min-width: 0;
+    height: auto;
+    border-radius: 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  }
+  .auth-card { max-width: 360px; padding: 2rem 1.75rem; }
+
+  /* comfortable to read and tap; 16px inputs stop iOS from zooming in on focus */
+  .form-label { font-size: 0.75rem; }
+  .form-control { font-size: 16px; padding: 0.75rem 0.75rem 0.75rem 2.5rem; border-radius: 10px; }
+  .input-icon { font-size: 1.05rem; left: 14px; }
+  .checkbox-wrapper input[type="checkbox"] { width: 18px; height: 18px; }
+  .checkbox-wrapper label, .forgot-link { font-size: 0.8rem; }
+  .options-row { flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .btn-signin { font-size: 0.95rem; padding: 0.85rem; border-radius: 10px; }
+  .btn-signin:hover { transform: none; }
+  .institution-tagline { font-size: 0.65rem; }
+  .agency-footer small { font-size: 0.68rem; }
+  .agency-badge { top: 16px; left: 16px; left: max(16px, env(safe-area-inset-left)); }
+}
+
+/* Phones */
+@media (max-width: 576px) {
+  #main-wrapper { padding-top: 68px; padding-bottom: 20px; }
+  .fods-title-container { margin-bottom: 1.1rem; }
+  .fods-title-container h1 { font-size: 1.9rem !important; letter-spacing: 8px !important; padding-left: 8px; }
+  .fods-title-container:hover h1 { letter-spacing: 8px !important; }
+  .login-container { border-radius: 18px; }
+  .auth-card { max-width: none; padding: 1.75rem 1.25rem; }
+  .institution-name { font-size: 1.35rem; }
+}
+
+/* Very narrow phones (320px wide) */
+@media (max-width: 360px) {
+  #main-wrapper { padding-left: 10px; padding-right: 10px; }
+  .auth-card { padding: 1.5rem 1rem; }
+  .institution-logo { width: 60px; height: 60px; }
+}
+
+/* Landscape phones: little height, so drop the big title and tighten the card */
+@media (max-width: 992px) and (max-height: 520px) {
+  #main-wrapper { justify-content: flex-start; padding-top: 60px; }
+  .fods-title-container { display: none; }
+  .logo-section { margin-bottom: 1rem; }
+  .institution-logo { width: 52px; height: 52px; }
+  .form-group { margin-bottom: 0.9rem; }
+  .agency-footer { margin-top: 1rem; }
+}
+
+/* Less motion for people who ask for it */
+@media (prefers-reduced-motion: reduce) {
+  .data-card, .bar, .mini-bar, .pie-segment { animation: none !important; }
+  .data-card, .btn-signin, .form-control { transition: none !important; }
 }
   </style>
 </head>

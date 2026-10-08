@@ -82,7 +82,6 @@ $stageMeta = [
     'rci'          => ['tone-green', 'ti-receipt-2', 'RCI'],
 ];
 
-$unlinkedTotal = (int) $s['unlinked']['dv'] + (int) $s['unlinked']['pay'] + (int) $s['unlinked']['rci'];
 
 echo view('templates/myheader.php');
 ?>
@@ -352,14 +351,6 @@ echo view('templates/myheader.php');
         </div>
     </div>
 
-    <?php if ($unlinkedTotal > 0): ?>
-    <div class="small text-muted mb-2">
-        <i class="ti ti-info-circle me-1"></i>
-        Not shown in the flow because their link to the previous step doesn't match any record:
-        <?= number_format($s['unlinked']['dv']) ?> DV(s) without a matching ORS/BURS serial no.,
-        <?= number_format($s['unlinked']['pay']) ?> payment line(s) and <?= number_format($s['unlinked']['rci']) ?> RCI line(s) without a matching DV no.
-    </div>
-    <?php endif; ?>
 </div>
 
 <!-- Payee flow panel -->

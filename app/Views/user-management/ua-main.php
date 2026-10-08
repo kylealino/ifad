@@ -174,9 +174,6 @@ echo view('templates/myheader.php');
                                 data-position="<?= esc($u['position'], 'attr') ?>"
                                 data-username="<?= esc($u['username'], 'attr') ?>"
                                 data-role_id="<?= $u['role_id'] ?>"
-                                data-cert_tag="<?= (int) $u['cert_tag'] ?>"
-                                data-ada_tag="<?= (int) $u['ada_tag'] ?>"
-                                data-is_ppmp_signatory="<?= (int) $u['is_ppmp_signatory'] ?>"
                                 data-status="<?= $u['is_active'] == 1 ? 'active' : 'inactive' ?>"
                                 data-hasrole="<?= empty($u['role_id']) ? '0' : '1' ?>">
                                 <td class="cell-primary">
@@ -380,32 +377,7 @@ echo view('templates/myheader.php');
                         </div>
                     </div>
 
-                    <div class="fods-section">Signatory designations</div>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-sm-6 col-md-5">
-                            <label class="form-label" for="cert_tag">Certifying officer</label>
-                            <select id="cert_tag" class="form-select">
-                                <option value="0">None</option>
-                                <option value="1">Certifier A</option>
-                                <option value="2">Certifier B</option>
-                                <option value="3">Certifier C</option>
-                            </select>
-                        </div>
-                        <div class="col-sm-6 col-md-4">
-                            <label class="form-label" for="ada_tag">ADA signatory</label>
-                            <select id="ada_tag" class="form-select">
-                                <option value="0">None</option>
-                                <option value="1">Signatory A</option>
-                                <option value="2">Signatory B</option>
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="is_ppmp_signatory">
-                                <label class="form-check-label small" for="is_ppmp_signatory">PPMP signatory</label>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Signatory designations (cert_tag, ada_tag, is_ppmp_signatory) are not set here: they stay as they are in the database -->
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
@@ -531,7 +503,7 @@ echo view('templates/myheader.php');
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="<?=base_url('assets/js/maintenance/myua.js?v=5');?>"></script>
+<script src="<?=base_url('assets/js/maintenance/myua.js?v=7');?>"></script>
 <script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
 <script>
     __mysys_myua_ent.__user_modal();

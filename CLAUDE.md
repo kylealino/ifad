@@ -50,7 +50,7 @@ The app uses one controller, one model, one view folder and one JS file per modu
 
 - Code format: `<2-digit family><3-digit action>`. Actions are 001 View, 002 Add, 003 Update, 004 Delete, 005 Approve. Families run from 20 Payee through 35 RCI, plus 36 Budget Approval, 37 Support Tickets, 38 ORS Approval, 39 BURS Approval, 40 Disbursement Approval, 41 LDDAP-ADA Approval, 42 ADA Approval, 43 Purchase Order, 44 PO Approval and 45 PR Approval. **Every approval page is its own module with only View (which opens the page) and Approve**. Entry modules never carry approve codes. On the approval pages, view-only users see a read-only review. **A new module takes the next family number (46)**, gets constants in `AccessCodes.php`, and gets rows in `tbl_access_modules` named `"<Module> - <Action>"` (the permissions modal splits on `" - "`).
 - `tbl_roles` + `tbl_role_access` define roles, and `myua_user.role_id` assigns them. `tbl_user_access` is a per-user **cache** that `MyUserManagementModel::syncUserAccess` regenerates, and the helper reads from it.
-- Signatory flags on `myua_user` (`ada_tag`, `cert_tag`, `is_ppmp_signatory`) are separate from module access. Passwords are SHA-512 in `hash_password`, and `is_active` is enforced at login.
+- Signatory flags on `myua_user` (`ada_tag`, `cert_tag`, `is_ppmp_signatory`) are separate from module access. None of them is **on the user form**: a new user gets 0 for all three, saving a user never changes them, and they are set directly in the database. Passwords are SHA-512 in `hash_password`, and `is_active` is enforced at login.
 
 ## Database conventions
 

@@ -132,9 +132,6 @@ function __mysys_myua_ent() {
 			jQuery('#position').val(d.position || '');
 			jQuery('#username').val(d.username || '');
 			jQuery('#role_id').val(d.role_id || '');
-			jQuery('#cert_tag').val(d.cert_tag || 0);
-			jQuery('#ada_tag').val(d.ada_tag || 0);
-			jQuery('#is_ppmp_signatory').prop('checked', d.is_ppmp_signatory == 1);
 
 			jQuery('#password').val('')
 				.prop('required', !isEdit)
@@ -181,9 +178,6 @@ function __mysys_myua_ent() {
 					username: jQuery('#username').val(),
 					password: jQuery('#password').val(),
 					role_id: jQuery('#role_id').val(),
-					cert_tag: jQuery('#cert_tag').val(),
-					ada_tag: jQuery('#ada_tag').val(),
-					is_ppmp_signatory: jQuery('#is_ppmp_signatory').is(':checked') ? 1 : '',
 					meaction: 'MAIN-SAVE'
 				};
 				post(mparam, '#userSubmitBtn', '[MYUA]');

@@ -55,9 +55,6 @@ class MyUserManagementModel extends Model
 		$username = $this->request->getPostGet('username');
 		$password = $this->request->getPostGet('password');
 		$role_id = $this->request->getPostGet('role_id');
-		$cert_tag = $this->request->getPostGet('cert_tag');
-		$ada_tag = $this->request->getPostGet('ada_tag');
-		$is_ppmp_signatory = $this->request->getPostGet('is_ppmp_signatory') ? 1 : 0;
 
 		if (empty($full_name)) { $this->errorOut('Full name is required!'); }
 		if (empty($division)) { $this->errorOut('Division is required!'); }
@@ -67,8 +64,9 @@ class MyUserManagementModel extends Model
 		if (empty($recid) && empty($password)) { $this->errorOut('Password is required for a new user!'); }
 
 		$role_id = !empty($role_id) ? $role_id : null;
-		$cert_tag = ($cert_tag !== null && $cert_tag !== '') ? $cert_tag : 0;
-		$ada_tag = ($ada_tag !== null && $ada_tag !== '') ? $ada_tag : 0;
+		// Signatory designations (cert_tag, ada_tag, is_ppmp_signatory) are not on
+		// the user form: a new user starts with none, and saving a user leaves
+		// them as they are in the database
 
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::USERMGMT_ADD, 'Saving');
@@ -81,10 +79,10 @@ class MyUserManagementModel extends Model
 					`position`, `role_id`, `cert_tag`, `ada_tag`, `is_ppmp_signatory`,
 					`added_at`, `added_by`
 				)
-				VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+				VALUES(?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW(), ?)
 			", [
 				$username, $hash_password, $full_name, $division, $section,
-				$position, $role_id, $cert_tag, $ada_tag, $is_ppmp_signatory,
+				$position, $role_id,
 				$this->cuser
 			]);
 
@@ -101,24 +99,22 @@ class MyUserManagementModel extends Model
 				$query = $this->db->query("
 					UPDATE `myua_user`
 					SET `username` = ?, `hash_password` = ?, `full_name` = ?, `division` = ?,
-						`section` = ?, `position` = ?, `role_id` = ?, `cert_tag` = ?,
-						`ada_tag` = ?, `is_ppmp_signatory` = ?
+						`section` = ?, `position` = ?, `role_id` = ?
 					WHERE `recid` = ?
 				", [
 					$username, $hash_password, $full_name, $division, $section,
-					$position, $role_id, $cert_tag, $ada_tag, $is_ppmp_signatory,
+					$position, $role_id,
 					$recid
 				]);
 			} else {
 				$query = $this->db->query("
 					UPDATE `myua_user`
 					SET `username` = ?, `full_name` = ?, `division` = ?,
-						`section` = ?, `position` = ?, `role_id` = ?, `cert_tag` = ?,
-						`ada_tag` = ?, `is_ppmp_signatory` = ?
+						`section` = ?, `position` = ?, `role_id` = ?
 					WHERE `recid` = ?
 				", [
 					$username, $full_name, $division, $section, $position,
-					$role_id, $cert_tag, $ada_tag, $is_ppmp_signatory,
+					$role_id,
 					$recid
 				]);
 			}
