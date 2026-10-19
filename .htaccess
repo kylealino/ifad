@@ -1,0 +1,25 @@
+# Only public/ is meant to be reached from the web. The project root also
+# holds secrets and data that must never be downloadable: .env (database and
+# API keys), the database dumps and migrations (*.sql, __db_backup/), the git
+# history (.git/), notes and tooling files.
+
+# Hidden files and folders (.env, .git, .htaccess, ...)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule (^|/)\. - [F,L]
+    RewriteRule ^(__db_backup|app|system|writable|tests|vendor|report-backup)(/|$) - [F,L]
+</IfModule>
+
+# Data dumps, notes, the env sample file and tooling at any depth
+<FilesMatch "(^\.|\.(sql|md|env|log|bak|ini|lock|dist|sh|bat|ps1)$|^(env|composer\.json|spark|phpunit\.xml.*|preload\.php|builds|LICENSE)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# No folder listings
+Options -Indexes

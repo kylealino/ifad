@@ -1,15 +1,11 @@
-// Topbar inbox for templates/myheader.php: unread badge (refreshed every
-// minute while the tab is visible) and the dropdown of latest chats and
-// ticket updates, loaded each time it opens. The Messages page calls
-// window.fodsInbox.refresh() after it marks things read.
+// Topbar for templates/myheader.php: the Messages icon (chats) and, beside
+// it, the Helpdesk icon (tickets). Each has an unread badge (refreshed every
+// minute while the tab is visible) and a dropdown loaded each time it opens.
+// The Messages and Helpdesk pages call window.fodsInbox.refresh() after they
+// mark things read.
 (function () {
-	var btn = document.getElementById('fodsInboxBtn');
-	if (!btn) { return; }
-
-	var url = btn.getAttribute('data-url');
-	var badge = document.getElementById('fodsInboxBadge');
-	var body = document.getElementById('fodsInboxBody');
 	var POLL_MS = 60000;
+	var boxes = [];
 
 	function esc(s) {
 		return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -35,52 +31,70 @@
 		return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
 	}
 
-	function setBadge(n) {
-		n = parseInt(n, 10) || 0;
-		badge.hidden = n <= 0;
-		badge.textContent = n > 99 ? '99+' : String(n);
-	}
-
-	function load() {
-		return fetch(url + '?meaction=INBOX', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-			.then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); });
-	}
-
-	function render(data) {
-		var html = '';
-		if (data.tickets.length) {
-			html += '<div class="fods-inbox-label">Ticket updates</div>';
-			data.tickets.forEach(function (t) {
-				html += '<a class="fods-inbox-item is-unread" href="' + url + '?meaction=MAIN&tab=tickets&ticket=' + t.recid + '">'
-					+ '<span class="fods-avatar tone-amber"><i class="ti ti-lifebuoy"></i></span>'
-					+ '<span class="fods-inbox-main"><span class="fods-inbox-title"><span>' + esc(t.subject) + '</span><small>' + ago(t.updated_at) + '</small></span>'
-					+ '<span class="fods-inbox-text d-block">' + esc(t.ticket_no) + ' · ' + esc(t.status) + '</span></span></a>';
-			});
-		}
-		html += '<div class="fods-inbox-label">Chats</div>';
+	// Messages: latest chats
+	function renderChats(url, data) {
 		if (!data.convs.length) {
-			html += '<div class="fods-inbox-empty">No chats yet — start one from Messages.</div>';
+			return '<div class="fods-inbox-empty">No chats yet — start one with New message.</div>';
 		}
-		data.convs.forEach(function (c) {
-			var text = c.last_message == null ? 'No messages yet' : (c.last_message === '' ? 'Sent an attachment' : c.last_message);
-			html += '<a class="fods-inbox-item' + (c.unread ? ' is-unread' : '') + '" href="' + url + '?meaction=MAIN&conv=' + c.recid + '">'
+		return data.convs.map(function (c) {
+			var typing = (c.members || []).filter(function (m) { return m.is_typing; }).length;
+			var text = typing ? 'typing…' : c.last_message == null ? 'No messages yet' : (c.last_message === '' ? 'Sent an attachment' : c.last_message);
+			return '<a class="fods-inbox-item' + (c.unread ? ' is-unread' : '') + '" href="' + url + '?meaction=MAIN&conv=' + c.recid + '">'
 				+ '<span class="fods-avatar ' + (c.conv_type === 'group' ? 'tone-indigo' : 'tone-teal') + '">' + (c.conv_type === 'group' ? '<i class="ti ti-users"></i>' : esc(initials(c.name))) + '</span>'
 				+ '<span class="fods-inbox-main"><span class="fods-inbox-title"><span>' + esc(c.name) + '</span><small>' + ago(c.last_at) + '</small></span>'
-				+ '<span class="fods-inbox-text d-block">' + esc(text) + '</span></span>'
+				+ '<span class="fods-inbox-text d-block' + (typing ? ' text-success' : '') + '">' + esc(text) + '</span></span>'
 				+ (c.unread ? '<span class="badge bg-danger rounded-pill">' + c.unread + '</span>' : '')
 				+ '</a>';
+		}).join('');
+	}
+
+	// Helpdesk: tickets with news first, then your other open tickets
+	function renderTickets(url, data) {
+		if (!data.tickets.length) {
+			return '<div class="fods-inbox-empty">No ticket updates. Need help? Use New ticket.</div>';
+		}
+		return data.tickets.map(function (t) {
+			var bug = t.category === 'Bug report';
+			return '<a class="fods-inbox-item' + (t.unread ? ' is-unread' : '') + '" href="' + url + '?meaction=MAIN&tab=' + (t.mine ? 'tickets' : 'desk') + '&ticket=' + t.recid + '">'
+				+ '<span class="fods-avatar ' + (bug ? 'tone-red' : 'tone-amber') + '"><i class="ti ' + (bug ? 'ti-bug' : 'ti-lifebuoy') + '"></i></span>'
+				+ '<span class="fods-inbox-main"><span class="fods-inbox-title"><span>' + esc(t.subject) + '</span><small>' + ago(t.updated_at) + '</small></span>'
+				+ '<span class="fods-inbox-text d-block">' + esc(t.ticket_no) + ' · ' + esc(t.status) + (t.unread ? ' · new reply' : '') + '</span></span>'
+				+ (t.unread ? '<span class="badge bg-danger rounded-pill">' + t.unread + '</span>' : '')
+				+ '</a>';
+		}).join('');
+	}
+
+	function setup(btnId, badgeId, bodyId, render) {
+		var btn = document.getElementById(btnId);
+		if (!btn) { return; }
+		var url = btn.getAttribute('data-url');
+		var badge = document.getElementById(badgeId);
+		var body = document.getElementById(bodyId);
+
+		function setBadge(n) {
+			n = parseInt(n, 10) || 0;
+			badge.hidden = n <= 0;
+			badge.textContent = n > 99 ? '99+' : String(n);
+		}
+
+		function load() {
+			return fetch(url + '?meaction=INBOX', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+				.then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); });
+		}
+
+		btn.addEventListener('show.bs.dropdown', function () {
+			load().then(function (data) { setBadge(data.unread); body.innerHTML = render(url, data); })
+				.catch(function () { body.innerHTML = '<div class="fods-inbox-empty">Couldn\'t load this. Try again.</div>'; });
 		});
-		body.innerHTML = html;
+
+		boxes.push(function () { return load().then(function (data) { setBadge(data.unread); return data; }).catch(function () {}); });
 	}
 
-	function refresh() {
-		return load().then(function (data) { setBadge(data.unread); return data; }).catch(function () {});
-	}
+	setup('fodsInboxBtn', 'fodsInboxBadge', 'fodsInboxBody', renderChats);
+	setup('fodsHelpdeskBtn', 'fodsHelpdeskBadge', 'fodsHelpdeskBody', renderTickets);
+	if (!boxes.length) { return; }
 
-	btn.addEventListener('show.bs.dropdown', function () {
-		load().then(function (data) { setBadge(data.unread); render(data); })
-			.catch(function () { body.innerHTML = '<div class="fods-inbox-empty">Couldn\'t load your messages. Try again.</div>'; });
-	});
+	function refresh() { return Promise.all(boxes.map(function (f) { return f(); })); }
 
 	setInterval(function () { if (!document.hidden) { refresh(); } }, POLL_MS);
 	document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); } });

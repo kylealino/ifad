@@ -1,0 +1,86 @@
+/* FODS Assistant: the chat (shared by the full page, myassistant, and the
+   floating panel every page gets from templates/myfooter.php) */
+.as-shell { display:flex; flex-direction:column; height:calc(100vh - 250px); min-height:520px; overflow:hidden; }
+.as-chat { display:flex; flex-direction:column; flex:1; min-height:0; }
+.as-log { flex:1; overflow-y:auto; padding:1.5rem; background:#fafbfc; }
+.as-inner { max-width:860px; margin:0 auto; }
+.as-row { display:flex; gap:.75rem; margin-bottom:1.1rem; align-items:flex-start; }
+.as-row.mine { justify-content:flex-end; }
+.as-avatar { width:34px; height:34px; border-radius:10px; flex-shrink:0; display:grid; place-items:center; background:var(--fods-teal-soft); color:var(--fods-teal); font-size:1.05rem; }
+.as-bubble { max-width:min(85%, 720px); padding:.7rem .95rem; border-radius:14px; background:#fff; border:1px solid var(--fods-border); color:var(--fods-text); font-size:.9rem; line-height:1.55; overflow-wrap:anywhere; }
+.as-row.mine .as-bubble { background:var(--fods-teal); border-color:var(--fods-teal); color:#fff; white-space:pre-wrap; }
+.as-bubble p { margin:0 0 .55rem; }
+.as-bubble p:last-child, .as-bubble ul:last-child, .as-bubble ol:last-child, .as-bubble .as-table:last-child { margin-bottom:0; }
+.as-bubble ul, .as-bubble ol { margin:0 0 .55rem; padding-left:1.25rem; }
+.as-bubble h6 { font-size:.85rem; font-weight:600; margin:.35rem 0 .35rem; }
+.as-bubble code { background:#f1f5f9; padding:.05rem .3rem; border-radius:5px; font-size:.82rem; }
+.as-bubble pre { background:#0f172a; color:#e2e8f0; padding:.7rem .85rem; border-radius:10px; font-size:.8rem; overflow-x:auto; margin:0 0 .55rem; }
+.as-bubble pre code { background:transparent; padding:0; color:inherit; }
+.as-table { overflow-x:auto; margin:0 0 .55rem; border:1px solid var(--fods-border); border-radius:10px; }
+.as-table table { width:100%; border-collapse:collapse; font-size:.8rem; }
+.as-table th { background:#f8fafc; color:var(--fods-muted); font-size:.68rem; text-transform:uppercase; letter-spacing:.04em; font-weight:600; padding:.45rem .6rem; border-bottom:1px solid var(--fods-border); text-align:left; white-space:nowrap; }
+.as-table td { padding:.45rem .6rem; border-bottom:1px solid #f1f4f8; vertical-align:top; }
+.as-table tr:last-child td { border-bottom:0; }
+.as-table td.num, .as-table th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.as-sources { font-size:.72rem; color:var(--fods-muted); margin-top:.35rem; display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; }
+.as-sources .fods-chip { font-size:.66rem; padding:.05rem .45rem; }
+.as-error { border-color:#f8d4d4; background:#fef6f6; color:#b91c1c; }
+.as-thinking { display:inline-flex; gap:4px; align-items:center; padding:.35rem 0; }
+.as-thinking i { width:6px; height:6px; border-radius:50%; background:#94a3b8; animation:asDot 1.2s infinite ease-in-out; }
+.as-thinking i:nth-child(2) { animation-delay:.15s; }
+.as-thinking i:nth-child(3) { animation-delay:.3s; }
+@keyframes asDot { 0%, 60%, 100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-3px); opacity:1; } }
+.as-welcome { text-align:center; padding:2.5rem 1rem 1rem; color:var(--fods-muted); }
+.as-welcome .fods-stat-icon { width:56px; height:56px; font-size:1.6rem; border-radius:16px; margin:0 auto .75rem; }
+.as-welcome h2 { font-size:1.2rem; font-weight:600; color:var(--fods-text); margin-bottom:.25rem; }
+.as-suggest { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:center; margin-top:1.25rem; }
+.as-suggest button { border:1px solid var(--fods-border); background:#fff; color:var(--fods-text); border-radius:999px; padding:.45rem .9rem; font-size:.8rem; transition:all .15s ease; }
+.as-suggest button:hover { border-color:var(--fods-teal); color:var(--fods-teal); background:var(--fods-teal-soft); }
+.as-compose { border-top:1px solid var(--fods-border); padding:.85rem 1.25rem; background:#fff; }
+.as-compose-inner { max-width:860px; margin:0 auto; display:flex; gap:.5rem; align-items:flex-end; }
+.as-compose textarea { resize:none; border-radius:12px; border-color:var(--fods-border); max-height:160px; font-size:.9rem; }
+.as-compose textarea:focus { border-color:var(--fods-teal); box-shadow:0 0 0 3px var(--fods-teal-soft); }
+.as-note { max-width:860px; margin:.45rem auto 0; font-size:.7rem; color:var(--fods-muted); text-align:center; }
+@media (max-width: 767.98px) {
+  .as-shell { height:calc(100vh - 200px); }
+  .as-log { padding:1rem .75rem; }
+  .as-bubble { max-width:100%; }
+  .as-row:not(.mine) .as-avatar { display:none; }
+  .as-compose { padding:.65rem .75rem; }
+  .as-compose textarea { font-size:16px; }
+}
+@media (prefers-reduced-motion: reduce) { .as-thinking i { animation:none; } }
+
+/* Floating button + panel (lower right, every page) */
+.fods-ai-fab { position:fixed; right:24px; bottom:24px; z-index:1040; width:56px; height:56px; border-radius:50%; border:0; background:var(--fods-teal); color:#fff; font-size:1.55rem; display:grid; place-items:center; box-shadow:0 8px 24px rgba(15,111,111,.35); transition:transform .15s ease, box-shadow .15s ease; }
+.fods-ai-fab:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(15,111,111,.42); }
+.fods-ai-fab:focus-visible { outline:3px solid var(--fods-teal-soft); outline-offset:3px; }
+.fods-ai-fab .ti-x { display:none; }
+.fods-ai-fab.is-open .ti-message-chatbot { display:none; }
+.fods-ai-fab.is-open .ti-x { display:block; }
+.fods-ai-panel { position:fixed; right:24px; bottom:92px; z-index:1040; width:400px; height:min(600px, calc(100vh - 120px)); background:#fff; border:1px solid var(--fods-border); border-radius:16px; box-shadow:0 20px 50px rgba(15,23,42,.22); display:flex; flex-direction:column; overflow:hidden; opacity:0; transform:translateY(12px) scale(.98); transform-origin:bottom right; pointer-events:none; visibility:hidden; transition:opacity .15s ease, transform .15s ease, visibility 0s linear .15s; }
+.fods-ai-panel.is-open { opacity:1; transform:none; pointer-events:auto; visibility:visible; transition:opacity .15s ease, transform .15s ease; }
+.fods-ai-head { display:flex; align-items:center; gap:.6rem; padding:.7rem .85rem; border-bottom:1px solid var(--fods-border); background:#fff; }
+.fods-ai-head .as-avatar { width:32px; height:32px; }
+.fods-ai-title { font-weight:600; font-size:.9rem; color:var(--fods-text); line-height:1.15; }
+.fods-ai-sub { font-size:.7rem; color:var(--fods-muted); }
+.fods-ai-head .fods-icon-btn { width:32px; height:32px; }
+/* the chat, compact inside the panel */
+.fods-ai-panel .as-log { padding:1rem .85rem; }
+.fods-ai-panel .as-welcome { padding:1.25rem .5rem .5rem; }
+.fods-ai-panel .as-welcome h2 { font-size:1rem; }
+.fods-ai-panel .as-welcome .fods-stat-icon { width:46px; height:46px; font-size:1.35rem; }
+.fods-ai-panel .as-suggest { margin-top:.9rem; }
+.fods-ai-panel .as-suggest button { font-size:.75rem; padding:.35rem .7rem; }
+.fods-ai-panel .as-row .as-avatar { display:none; }
+.fods-ai-panel .as-bubble { max-width:100%; font-size:.84rem; }
+.fods-ai-panel .as-compose { padding:.6rem .7rem; }
+.fods-ai-panel .as-note { font-size:.64rem; }
+@media (max-width: 575.98px) {
+  .fods-ai-fab { right:16px; bottom:16px; width:52px; height:52px; }
+  .fods-ai-panel { right:0; bottom:0; width:100%; height:100%; border-radius:0; border:0; }
+  .fods-ai-panel.is-open ~ .fods-ai-fab, .fods-ai-fab.is-open { display:none; }
+  .fods-ai-panel .as-compose textarea { font-size:16px; }
+}
+@media (prefers-reduced-motion: reduce) { .fods-ai-panel, .fods-ai-fab { transition:none; } }
+@media print { .fods-ai-fab, .fods-ai-panel { display:none !important; } }

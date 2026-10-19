@@ -15,9 +15,8 @@ class MyMessages extends BaseController
         $this->cuser = $this->session->get('__xsys_myuserzicas__');
     }
 
-    // Everyone signed in can chat and file/follow their own tickets. Support
-    // staff (37xxx): View = the Support desk (everyone's tickets), Update =
-    // reply as support and change status - checked in the model per ticket.
+    // Everyone signed in can chat. Tickets moved to the Helpdesk (myhelpdesk);
+    // links to the old ticket tabs here are sent there.
     public function index() {
 
         $meaction = $this->request->getPostGet('meaction');
@@ -58,35 +57,30 @@ class MyMessages extends BaseController
             case 'CONV-ARCHIVE':
                 return $this->json($this->mymessages->conv_archive());
 
+            case 'CONV-TYPING':
+                return $this->json($this->mymessages->conv_typing());
+
             case 'CHAT-FILE':
                 return $this->attachment($this->mymessages->chat_attachment($this->request->getGet('id')));
 
-            //TICKETS
-            case 'TICKET-SAVE':
-                $this->mymessages->ticket_save();
-                return redirect()->to('mymessages?meaction=MAIN&tab=tickets');
-
-            case 'TICKET-LIST':
-                return $this->response->setJSON(['tickets' => $this->mymessages->ticket_list()]);
-
-            case 'TICKET-LOAD':
-                $data = $this->mymessages->ticket_load($this->request->getGet('recid'));
-                if ($data === null) {
-                    return $this->response->setStatusCode(404)->setJSON(['error' => 'Ticket not found.']);
-                }
-                return $this->response->setJSON($data);
-
-            case 'TICKET-REPLY':
-                return $this->json($this->mymessages->ticket_reply());
-
-            case 'TICKET-STATUS':
-                return $this->json($this->mymessages->ticket_status());
-
+            //TICKETS - now in the Helpdesk: old links (and screenshot links) go there
             case 'ATTACHMENT':
-                return $this->attachment($this->mymessages->ticket_attachment($this->request->getGet('id')));
+                return redirect()->to('myhelpdesk?meaction=ATTACHMENT&id=' . (int) $this->request->getGet('id'));
 
             case 'MAIN':
             default:
+                $tab = (string) $this->request->getGet('tab');
+                // old ticket links only (they always carry tab= or ticket=); a bare
+                // new=1 is the topbar's "New message" and stays here
+                if (in_array($tab, ['tickets', 'desk'], true) || $this->request->getGet('ticket')) {
+                    $q = array_filter([
+                        'meaction' => 'MAIN',
+                        'tab' => $tab === 'desk' ? 'desk' : 'tickets',
+                        'ticket' => (int) $this->request->getGet('ticket') ?: null,
+                        'new' => $this->request->getGet('new') ? 1 : null,
+                    ]);
+                    return redirect()->to('myhelpdesk?' . http_build_query($q));
+                }
                 return $this->loadMainView();
         }
     }
@@ -112,42 +106,11 @@ class MyMessages extends BaseController
     }
 
     private function loadMainView() {
-
-        // Modules the user can open, for "Which part of FODS?" on a ticket
-        $modules = [];
-        foreach (fods_nav() as $group) {
-            foreach ($group['items'] as $item) {
-                $modules[] = $item['label'];
-            }
-        }
-        $modules[] = 'Messages';
-        $modules[] = 'Log in / account';
-        $modules[] = 'Other';
-
-        $canDesk = $this->mymessages->desk_access();
-        $tab = (string) $this->request->getGet('tab');
-        if (!in_array($tab, $canDesk ? ['tickets', 'desk'] : ['tickets'], true)) {
-            $tab = 'chats';
-        }
-
         return view('messages/messages-main', [
             'convs' => $this->mymessages->conv_list(),
-            'tickets' => $this->mymessages->ticket_list(),
             'users' => $this->mymessages->users_lookup(),
-            'modules' => array_values(array_unique($modules)),
-            'lookups' => [
-                'categories' => \App\Models\MyMessagesModel::CATEGORIES,
-                'priorities' => \App\Models\MyMessagesModel::PRIORITIES,
-                'statuses' => \App\Models\MyMessagesModel::STATUSES,
-            ],
-            'perms' => [
-                'desk' => $canDesk,
-                'work' => fods_has_access(\Config\AccessCodes::TICKET_UPDATE),
-            ],
             'open' => [
-                'tab' => $tab,
                 'conv' => (int) $this->request->getGet('conv'),
-                'ticket' => (int) $this->request->getGet('ticket'),
                 'to' => (string) $this->request->getGet('to'),
             ],
             'me' => (string) $this->cuser,

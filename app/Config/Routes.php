@@ -123,9 +123,17 @@ $routes->post('mylddapadaapproval', 'MyLDDAPADAApproval::index',['filter' => 'my
 $routes->get('myrci', 'MyRCI::index',['filter' => 'myauthuser']);
 $routes->post('myrci', 'MyRCI::index',['filter' => 'myauthuser']);
 
-//MESSAGES - chats between users + support tickets (topbar inbox)
+//MESSAGES - chats between users (topbar messages icon)
 $routes->get('mymessages', 'MyMessages::index',['filter' => 'myauthuser']);
 $routes->post('mymessages', 'MyMessages::index',['filter' => 'myauthuser']);
+
+//ASSISTANT - FODS Assistant: AI chat over FODS data (read-only, follows the user's access)
+$routes->get('myassistant', 'MyAssistant::index',['filter' => 'myauthuser']);
+$routes->post('myassistant', 'MyAssistant::index',['filter' => 'myauthuser']);
+
+//HELPDESK - support tickets (topbar helpdesk icon, beside messages)
+$routes->get('myhelpdesk', 'MyHelpdesk::index',['filter' => 'myauthuser']);
+$routes->post('myhelpdesk', 'MyHelpdesk::index',['filter' => 'myauthuser']);
 
 // SUPPORT - Support Chat System (old, replaced by mymessages)
 $routes->get('support', 'Support::index', ['filter' => 'myauthuser']);

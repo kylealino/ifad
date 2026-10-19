@@ -13,12 +13,19 @@ $org_unit = implode(' · ', array_filter([$user['division'], $user['section']], 
 // Pages outside the sidebar (e.g. Messages) name themselves
 $page_title = $pageTitle ?? ($current['label'] ?? 'Home');
 
-// Unread chats + ticket updates for the topbar badge (fods-inbox.js keeps it fresh)
+// Topbar badges: unread chats (Messages) and tickets with news (Helpdesk);
+// fods-inbox.js keeps them fresh
 $inbox_unread = 0;
+$helpdesk_unread = 0;
 try {
     $inbox_unread = model('App\Models\MyMessagesModel')->unread_total();
 } catch (\Throwable $e) {
-    log_message('error', 'Inbox badge: ' . $e->getMessage());
+    log_message('error', 'Messages badge: ' . $e->getMessage());
+}
+try {
+    $helpdesk_unread = model('App\Models\MyHelpdeskModel')->unread_total();
+} catch (\Throwable $e) {
+    log_message('error', 'Helpdesk badge: ' . $e->getMessage());
 }
 ?>
 <!DOCTYPE html>
@@ -81,9 +88,9 @@ try {
       <button type="button" class="fods-icon-btn" id="fodsSidebarToggle" aria-label="Toggle menu"><i class="ti ti-menu-2"></i></button>
 
       <div class="fods-topbar-end ms-auto">
-        <!-- Messages inbox (chats + ticket updates), before the user details -->
+        <!-- Messages (chats), then the Helpdesk (tickets), before the user details -->
         <div class="dropdown">
-          <button type="button" class="fods-topbar-btn" id="fodsInboxBtn" data-url="<?= site_url('mymessages') ?>" data-bs-toggle="dropdown" data-bs-offset="0,8" aria-expanded="false" aria-label="Messages" title="Messages">
+          <button type="button" class="fods-topbar-btn" id="fodsInboxBtn" data-inbox="chats" data-url="<?= site_url('mymessages') ?>" data-bs-toggle="dropdown" data-bs-offset="0,8" aria-expanded="false" aria-label="Messages" title="Messages">
             <i class="ti ti-message-circle"></i>
             <span class="fods-topbar-badge" id="fodsInboxBadge"<?= $inbox_unread > 0 ? '' : ' hidden' ?>><?= $inbox_unread > 99 ? '99+' : $inbox_unread ?></span>
           </button>
@@ -91,13 +98,33 @@ try {
           <div class="dropdown-menu dropdown-menu-end fods-inbox-menu">
             <div class="fods-inbox-head">
               <strong>Messages</strong>
-              <a href="<?= site_url('mymessages?meaction=MAIN&tab=tickets&new=1') ?>" class="fods-inbox-link"><i class="ti ti-lifebuoy"></i> New ticket</a>
+              <a href="<?= site_url('mymessages?meaction=MAIN&new=1') ?>" class="fods-inbox-link"><i class="ti ti-message-plus"></i> New message</a>
             </div>
             <div class="fods-inbox-body" id="fodsInboxBody">
               <div class="fods-inbox-empty"><span class="spinner-border spinner-border-sm"></span></div>
             </div>
             <div class="fods-inbox-foot">
               <a href="<?= site_url('mymessages?meaction=MAIN') ?>" class="btn btn-sm btn-fods-ghost w-100 py-2">Open messages</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="dropdown">
+          <button type="button" class="fods-topbar-btn" id="fodsHelpdeskBtn" data-inbox="tickets" data-url="<?= site_url('myhelpdesk') ?>" data-bs-toggle="dropdown" data-bs-offset="0,8" aria-expanded="false" aria-label="Helpdesk" title="Helpdesk">
+            <i class="ti ti-lifebuoy"></i>
+            <span class="fods-topbar-badge" id="fodsHelpdeskBadge"<?= $helpdesk_unread > 0 ? '' : ' hidden' ?>><?= $helpdesk_unread > 99 ? '99+' : $helpdesk_unread ?></span>
+          </button>
+
+          <div class="dropdown-menu dropdown-menu-end fods-inbox-menu">
+            <div class="fods-inbox-head">
+              <strong>Helpdesk</strong>
+              <a href="<?= site_url('myhelpdesk?meaction=MAIN&tab=tickets&new=1') ?>" class="fods-inbox-link"><i class="ti ti-plus"></i> New ticket</a>
+            </div>
+            <div class="fods-inbox-body" id="fodsHelpdeskBody">
+              <div class="fods-inbox-empty"><span class="spinner-border spinner-border-sm"></span></div>
+            </div>
+            <div class="fods-inbox-foot">
+              <a href="<?= site_url('myhelpdesk?meaction=MAIN') ?>" class="btn btn-sm btn-fods-ghost w-100 py-2">Open helpdesk</a>
             </div>
           </div>
         </div>
