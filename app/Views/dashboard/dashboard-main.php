@@ -154,6 +154,23 @@ echo view('templates/myheader.php');
 .db-link.empty { background:#f8fafc; color:#94a3b8; border:1px dashed #e2e8f0; }
 .db-waiting { font-size:.78rem; color:var(--fods-muted); display:flex; align-items:center; gap:.4rem; }
 
+/* Find a record */
+.db-find-bar { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; padding:1rem 1.15rem; }
+.db-find-input { position:relative; flex:1 1 320px; min-width:0; }
+.db-find-input i { position:absolute; left:.85rem; top:50%; transform:translateY(-50%); color:var(--fods-muted); font-size:1.05rem; pointer-events:none; }
+.db-find-input input { padding-left:2.4rem; border-radius:10px; border-color:var(--fods-border); height:42px; }
+.db-find-results { border-top:1px solid var(--fods-border); padding:.35rem 1.15rem .8rem; max-height:460px; overflow-y:auto; }
+.db-find-group { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin:.7rem 0 .2rem; font-size:.68rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--fods-muted); }
+.db-find-group button { border:0; background:transparent; color:var(--fods-teal); font-size:.74rem; font-weight:600; text-transform:none; letter-spacing:0; padding:0; }
+.db-find-row { display:flex; align-items:center; gap:.75rem; padding:.55rem .6rem; margin:0 -.6rem; border-radius:10px; text-decoration:none; color:inherit; }
+.db-find-row:hover, .db-find-row:focus-visible { background:#f6f8fb; outline:none; }
+.db-find-row .ic { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; flex-shrink:0; font-size:1rem; }
+.db-find-ref { font-weight:600; color:var(--fods-text); font-size:.86rem; overflow-wrap:anywhere; }
+.db-find-ref mark { padding:0 .1rem; border-radius:3px; background:#fef3c7; color:inherit; }
+.db-find-sub { font-size:.75rem; color:var(--fods-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.db-find-end { text-align:right; flex-shrink:0; }
+.db-find-empty { padding:1.2rem 0 .6rem; text-align:center; color:var(--fods-muted); font-size:.82rem; }
+
 @media (max-width: 1199.98px) {
   .db-pipeline { grid-template-columns:repeat(2, minmax(0,1fr)); }
   .db-stage:nth-child(2)::after { display:none; }
@@ -184,6 +201,27 @@ echo view('templates/myheader.php');
             </select>
         </form>
     </div>
+
+    <?php if (!empty($searchTypes)): $typeNames = \App\Models\MyDashboardModel::SEARCH_TYPES; ?>
+    <!-- Find a record -->
+    <div class="fods-card db-find mb-4">
+        <div class="db-find-bar">
+            <div class="db-find-input">
+                <i class="ti ti-search"></i>
+                <input type="search" class="form-control" id="findText" maxlength="100" autocomplete="off"
+                       placeholder="Find <?= esc(implode(', ', array_map(fn ($t) => $typeNames[$t][0], $searchTypes))) ?> by number, payee or particulars..."
+                       aria-label="Find a record">
+            </div>
+            <div class="fods-filter" id="findType">
+                <button type="button" class="active" data-type="all">All</button>
+                <?php foreach ($searchTypes as $t): ?>
+                    <button type="button" data-type="<?= $t ?>"><?= esc($typeNames[$t][0]) ?></button>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <div id="findResults" class="db-find-results" aria-live="polite" hidden></div>
+    </div>
+    <?php endif; ?>
 
     <!-- Pipeline -->
     <div class="db-pipeline">
@@ -379,7 +417,7 @@ echo view('templates/myheader.php');
     var __db_monthly = <?= json_encode($monthly, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 </script>
 <script src="<?=base_url('assets/libs/apexcharts/dist/apexcharts.min.js');?>"></script>
-<script src="<?=base_url('assets/js/dashboard/mydashboard.js?v=1');?>"></script>
+<script src="<?=base_url('assets/js/dashboard/mydashboard.js?v=3');?>"></script>
 <?php
     echo view('templates/myfooter.php');
 ?>

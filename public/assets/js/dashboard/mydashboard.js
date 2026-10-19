@@ -229,7 +229,123 @@ function __mysys_dashboard_ent() {
 	};
 }
 
+// Find a record: searches ORS, BURS, DV, LDDAP-ADA and RCI (only the ones this
+// user can open) as you type; each result opens that record on its own page.
+__mysys_dashboard_ent.__find = function () {
+	var input = document.getElementById('findText');
+	if (!input) { return; }
+	var mesiteurl = document.getElementById('__siteurl').getAttribute('data-mesiteurl');
+	var box = document.getElementById('findResults');
+	var pills = document.getElementById('findType');
+	var TYPES = {
+		ors: ['ORS', 'tone-teal', 'ti-file-invoice'],
+		burs: ['BURS', 'tone-teal', 'ti-receipt'],
+		dv: ['DV', 'tone-indigo', 'ti-file-dollar'],
+		lddapada: ['LDDAP-ADA', 'tone-amber', 'ti-building-bank'],
+		rci: ['RCI', 'tone-green', 'ti-receipt-2']
+	};
+	var type = 'all', timer = null, ctrl = null;
+
+	function esc(s) {
+		return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+			return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+		});
+	}
+	function mark(text, q) {   // highlight the search text (escaped first)
+		var t = esc(text), k = esc(q);
+		if (!k) { return t; }
+		var i = t.toLowerCase().indexOf(k.toLowerCase());
+		return i < 0 ? t : t.slice(0, i) + '<mark>' + t.slice(i, i + k.length) + '</mark>' + t.slice(i + k.length);
+	}
+	function money(n) { return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+	function fmtDate(d) {
+		if (!d || String(d).indexOf('0000') === 0) { return ''; }
+		var dt = new Date(String(d).replace(' ', 'T'));
+		return isNaN(dt) ? '' : dt.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+	}
+
+	function render(data) {
+		var q = data.q, html = '', any = false;
+		// a record whose own number is the search text comes first (Enter opens it)
+		var exact = function (t) { return data.results[t].rows.some(function (r) { return String(r.ref).toLowerCase() === q.toLowerCase(); }); };
+		Object.keys(data.results || {}).sort(function (a, b) { return exact(b) - exact(a); }).forEach(function (t) {
+			var g = data.results[t], meta = TYPES[t];
+			if (!g.rows.length) { return; }
+			any = true;
+			html += '<div class="db-find-group"><span>' + meta[0] + '</span>'
+				+ (g.more && type === 'all' ? '<button type="button" data-more="' + t + '">More ' + meta[0] + ' results <i class="ti ti-arrow-right"></i></button>' : '')
+				+ (g.more && type !== 'all' ? '<span class="text-lowercase fw-normal">first ' + g.rows.length + ' shown, type more to narrow it down</span>' : '')
+				+ '</div>';
+			html += g.rows.map(function (r) {
+				return '<a class="db-find-row" href="' + esc(r.link) + '">'
+					+ '<span class="ic ' + meta[1] + '"><i class="ti ' + meta[2] + '"></i></span>'
+					+ '<span class="flex-grow-1" style="min-width:0">'
+					+ '<span class="db-find-ref d-block">' + meta[0] + ' ' + mark(r.ref, q) + '</span>'
+					+ '<span class="db-find-sub d-block">' + [r.payee, r.sub].filter(Boolean).map(function (x) { return mark(x, q); }).join(' · ') + '</span>'
+					+ '</span>'
+					+ '<span class="db-find-end">'
+					+ '<span class="db-amt fw-semibold small d-block">' + money(r.amount) + '</span>'
+					+ (r.status ? '<span class="fods-chip ' + r.status[0] + '"><span class="fods-dot"></span>' + esc(r.status[1]) + '</span>' : '<span class="small text-muted">' + fmtDate(r.date) + '</span>')
+					+ '</span></a>';
+			}).join('');
+		});
+		box.innerHTML = any ? html : '<div class="db-find-empty"><i class="ti ti-search-off me-1"></i>Nothing found for “' + esc(q) + '”'
+			+ (type !== 'all' ? ' in ' + TYPES[type][0] + '. <a href="#" data-more="all">Search everything</a>' : '') + '.</div>';
+		box.hidden = false;
+	}
+
+	function search() {
+		var q = input.value.trim();
+		if (ctrl) { ctrl.abort(); }
+		if (q.length < 2) { box.hidden = true; box.innerHTML = ''; return; }
+		ctrl = window.AbortController ? new AbortController() : null;
+		box.hidden = false;
+		if (!box.innerHTML) { box.innerHTML = '<div class="db-find-empty"><span class="spinner-border spinner-border-sm"></span></div>'; }
+		fetch(mesiteurl + 'mydashboard?meaction=SEARCH&type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(q),
+			{ credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: ctrl ? ctrl.signal : undefined })
+			.then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
+			.then(function (data) { if (data.q === input.value.trim()) { render(data); } })
+			.catch(function (e) { if (e.name !== 'AbortError') { box.innerHTML = '<div class="db-find-empty text-danger">The search failed. Try again.</div>'; } });
+	}
+
+	function setType(t) {
+		type = t;
+		pills.querySelectorAll('button').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-type') === t); });
+		search();
+	}
+
+	input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(search, 250); });
+	input.addEventListener('keydown', function (e) {
+		if (e.key === 'Enter') {   // Enter opens the first result
+			e.preventDefault();
+			var first = box.querySelector('.db-find-row');
+			if (first) { location.href = first.href; } else { search(); }
+		} else if (e.key === 'Escape') {
+			input.value = ''; search();
+		} else if (e.key === 'ArrowDown') {
+			var row = box.querySelector('.db-find-row');
+			if (row) { e.preventDefault(); row.focus(); }
+		}
+	});
+	box.addEventListener('keydown', function (e) {   // arrow keys move through the results
+		var rows = Array.prototype.slice.call(box.querySelectorAll('.db-find-row'));
+		var i = rows.indexOf(document.activeElement);
+		if (i < 0) { return; }
+		if (e.key === 'ArrowDown' && rows[i + 1]) { e.preventDefault(); rows[i + 1].focus(); }
+		if (e.key === 'ArrowUp') { e.preventDefault(); (rows[i - 1] || input).focus(); }
+	});
+	pills.addEventListener('click', function (e) {
+		var b = e.target.closest('button[data-type]');
+		if (b) { setType(b.getAttribute('data-type')); }
+	});
+	box.addEventListener('click', function (e) {
+		var m = e.target.closest('[data-more]');
+		if (m) { e.preventDefault(); setType(m.getAttribute('data-more')); }
+	});
+};
+
 document.addEventListener('DOMContentLoaded', function () {
+	__mysys_dashboard_ent.__find();
 	__mysys_dashboard_ent.__chart(window.__db_monthly || []);
 	__mysys_dashboard_ent.__payee_table();
 	__mysys_dashboard_ent.__panel_events();

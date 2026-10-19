@@ -28,6 +28,20 @@ class MyDashboard extends BaseController
                     'obligations' => $payee === '' ? [] : $this->mydashboard->payeeFlow($payee),
                 ]);
 
+            // Find a record (the search card at the top): ?q=&type=all|ors|burs|dv|lddapada|rci
+            case 'SEARCH':
+                $q = trim(mb_substr((string) $this->request->getGet('q'), 0, 100));
+                $allowed = \App\Models\MyDashboardModel::searchTypes();
+                $type = (string) $this->request->getGet('type');
+                $types = in_array($type, $allowed, true) ? [$type] : $allowed;
+                if (mb_strlen($q) < 2 || !$types) {
+                    return $this->response->setJSON(['q' => $q, 'results' => new \stdClass()]);
+                }
+                return $this->response->setJSON([
+                    'q' => $q,
+                    'results' => $this->mydashboard->search($q, $types, count($types) === 1 ? 25 : 5),
+                ]);
+
             default:
                 return $this->loadMainView();
         }
@@ -45,6 +59,7 @@ class MyDashboard extends BaseController
             'monthly' => $this->mydashboard->monthly($year),
             'payees' => $this->mydashboard->payees($year),
             'recent' => $this->mydashboard->recent(8),
+            'searchTypes' => \App\Models\MyDashboardModel::searchTypes(),
         ]);
     }
 

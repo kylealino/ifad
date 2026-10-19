@@ -24,6 +24,24 @@ class MyDashboardModel extends Model
         $this->db = \Config\Database::connect();
     }
 
+    /**
+     * Amount per ORS / BURS (prefix 'ors' or 'burs') as a derived table
+     * (project_id, amt): the sum of its six detail tables. The header's
+     * gross_amount is empty on most older obligations, so use this instead:
+     * LEFT JOIN <this> a ON a.project_id = h.recid.
+     */
+    public static function obligationAmounts(string $prefix): string
+    {
+        $prefix = $prefix === 'burs' ? 'burs' : 'ors';
+        $parts = [];
+        foreach (['direct', 'indirect'] as $kind) {
+            foreach (['ps', 'mooe', 'co'] as $cls) {
+                $parts[] = "SELECT project_id, amount FROM tbl_{$prefix}_{$kind}_{$cls}_dt";
+            }
+        }
+        return '(SELECT project_id, SUM(amount) amt FROM (' . implode(' UNION ALL ', $parts) . ') x GROUP BY project_id)';
+    }
+
     /** Shared CTEs: obl, pay, rci, dv_agg, flow (one row per obligation). */
     private function cte(): string
     {
@@ -276,5 +294,120 @@ class MyDashboardModel extends Model
             }
         }
         return $obligations;
+    }
+
+    /**
+     * Find a record: ORS, BURS, DV, LDDAP-ADA and RCI by number, payee,
+     * particulars or a line's DV / ORS no., only in the modules this user can
+     * open. Matches on the record's own number come first, then newest.
+     * Returns [type => ['rows' => [...], 'more' => bool]].
+     */
+    public const SEARCH_TYPES = [
+        'ors'      => ['ORS', \Config\AccessCodes::ORS_VIEW],
+        'burs'     => ['BURS', \Config\AccessCodes::BURS_VIEW],
+        'dv'       => ['DV', \Config\AccessCodes::DISBURSEMENT_VIEW],
+        'lddapada' => ['LDDAP-ADA', \Config\AccessCodes::LDDAPADA_VIEW],
+        'rci'      => ['RCI', \Config\AccessCodes::RCI_VIEW],
+    ];
+
+    public static function searchTypes(): array
+    {
+        return array_keys(array_filter(self::SEARCH_TYPES, fn ($t) => fods_has_access($t[1])));
+    }
+
+    public function search(string $q, array $types, int $limit): array
+    {
+        $like = '%' . addcslashes($q, '%_\\') . '%';
+        $prefix = addcslashes($q, '%_\\') . '%';
+        $take = $limit + 1;   // one extra tells whether there are more
+        $out = [];
+
+        foreach ($types as $type) {
+            switch ($type) {
+                case 'ors':
+                case 'burs':
+                    $date = $type . '_date';
+                    $rows = $this->db->query("SELECT h.`recid`, h.`serialno` ref, h.`{$date}` d, h.`payee_name`, h.`particulars`, COALESCE(a.`amt`, 0) amount, h.`dvno`,
+                            h.`is_approved_certa`, h.`is_disapproved_certa`, h.`is_approved_certb`, h.`is_disapproved_certb`
+                        FROM tbl_{$type}_hd h LEFT JOIN " . self::obligationAmounts($type) . " a ON a.`project_id` = h.`recid`
+                        WHERE h.`serialno` LIKE ? OR h.`payee_name` LIKE ? OR h.`particulars` LIKE ? OR h.`dvno` LIKE ?
+                        ORDER BY h.`serialno` LIKE ? DESC, h.`{$date}` DESC, h.`recid` DESC LIMIT {$take}",
+                        [$like, $like, $like, $like, $prefix])->getResultArray();
+                    $statusOf = $type === 'ors' ? [\App\Controllers\MyOrs::class, 'statusOf'] : [\App\Controllers\MyBurs::class, 'statusOf'];
+                    $labels = ['pending_a' => ['tone-amber', 'Box A'], 'pending_b' => ['tone-indigo', 'Box B'], 'approved' => ['tone-green', 'Certified'], 'disapproved' => ['tone-red', 'Returned']];
+                    $route = $type === 'ors' ? 'myors' : 'myburs';
+                    $rows = array_map(fn ($r) => [
+                        'ref' => $r['ref'], 'date' => $r['d'], 'payee' => $r['payee_name'],
+                        'sub' => trim(mb_substr((string) $r['particulars'], 0, 90) . ($r['dvno'] ? ' · DV ' . $r['dvno'] : '')),
+                        'amount' => (float) $r['amount'], 'status' => $labels[$statusOf($r)] ?? null,
+                        'link' => site_url($route . '?meaction=MAIN&recid=' . (int) $r['recid']),
+                    ], $rows);
+                    break;
+
+                case 'dv':
+                    $rows = $this->db->query("SELECT h.`recid`, h.`dvno` ref, h.`disbursement_date` d, h.`payee_name`, h.`particulars`, h.`net_amount` amount, h.`serialno`,
+                            h.`is_approved_certa`, h.`is_disapproved_certa`, h.`is_approved_certc`, h.`is_disapproved_certc`, h.`is_approved_certd`, h.`is_disapproved_certd`
+                        FROM tbl_disbursement_hd h
+                        WHERE h.`dvno` LIKE ? OR h.`serialno` LIKE ? OR h.`payee_name` LIKE ? OR h.`particulars` LIKE ?
+                        ORDER BY h.`dvno` LIKE ? DESC, h.`disbursement_date` DESC, h.`recid` DESC LIMIT {$take}",
+                        [$like, $like, $like, $like, $prefix])->getResultArray();
+                    $labels = ['pending_a' => ['tone-amber', 'Box A'], 'pending_c' => ['tone-teal', 'Box C'], 'pending_d' => ['tone-indigo', 'Box D'], 'approved' => ['tone-green', 'Approved'], 'disapproved' => ['tone-red', 'Returned']];
+                    $rows = array_map(fn ($r) => [
+                        'ref' => $r['ref'] ?: '(no DV no. yet)', 'date' => $r['d'], 'payee' => $r['payee_name'],
+                        'sub' => trim(mb_substr((string) $r['particulars'], 0, 90) . ($r['serialno'] ? ' · ' . $r['serialno'] : '')),
+                        'amount' => (float) $r['amount'], 'status' => $labels[\App\Controllers\MyDisbursement::statusOf($r)] ?? null,
+                        'link' => site_url('mydisbursement?meaction=MAIN&recid=' . (int) $r['recid']),
+                    ], $rows);
+                    break;
+
+                case 'lddapada':
+                    $lineHit = "l.`dvno` LIKE ? OR l.`payee_name` LIKE ? OR l.`serialno` LIKE ?";
+                    $rows = $this->db->query("SELECT h.`recid`, h.`lddapadano` ref, h.`lddapada_date` d, h.`ckno`, h.`is_approved`, h.`is_disapproved`,
+                            (SELECT COUNT(*) FROM tbl_lddapada_dt l WHERE l.`lddapada_id` = h.`recid`) n,
+                            (SELECT SUM(l.`net_amount`) FROM tbl_lddapada_dt l WHERE l.`lddapada_id` = h.`recid`) amount,
+                            (SELECT l.`payee_name` FROM tbl_lddapada_dt l WHERE l.`lddapada_id` = h.`recid` ORDER BY l.`recid` LIMIT 1) payee,
+                            (SELECT CONCAT('DV ', l.`dvno`, ' · ', l.`payee_name`) FROM tbl_lddapada_dt l WHERE l.`lddapada_id` = h.`recid` AND ({$lineHit}) LIMIT 1) hit
+                        FROM tbl_lddapada_hd h
+                        WHERE h.`lddapadano` LIKE ? OR h.`ckno` LIKE ?
+                            OR EXISTS (SELECT 1 FROM tbl_lddapada_dt l WHERE l.`lddapada_id` = h.`recid` AND ({$lineHit}))
+                        ORDER BY h.`lddapadano` LIKE ? DESC, h.`lddapada_date` DESC, h.`recid` DESC LIMIT {$take}",
+                        [$like, $like, $like, $like, $like, $like, $like, $like, $prefix])->getResultArray();
+                    $labels = ['pending' => ['tone-amber', 'Pending'], 'approved' => ['tone-green', 'Approved'], 'disapproved' => ['tone-red', 'Returned']];
+                    $rows = array_map(fn ($r) => [
+                        'ref' => $r['ref'], 'date' => $r['d'],
+                        'payee' => $r['payee'] ? $r['payee'] . ((int) $r['n'] > 1 ? ' and ' . ((int) $r['n'] - 1) . ' more' : '') : '',
+                        'sub' => trim(($r['hit'] ? 'Has ' . $r['hit'] : (int) $r['n'] . ' DV' . ((int) $r['n'] === 1 ? '' : 's')) . ($r['ckno'] ? ' · Check ' . $r['ckno'] : '')),
+                        'amount' => (float) $r['amount'], 'status' => $labels[\App\Controllers\MyLDDAPADA::statusOf($r)] ?? null,
+                        'link' => site_url('mylddapada?meaction=MAIN&recid=' . (int) $r['recid']),
+                    ], $rows);
+                    break;
+
+                case 'rci':
+                    $lineHit = "l.`lddapadano` LIKE ? OR l.`dvno` LIKE ? OR l.`payee_name` LIKE ? OR l.`serialno` LIKE ? OR l.`ckno` LIKE ?";
+                    $rows = $this->db->query("SELECT h.`recid`, h.`reportno` ref, h.`created_at` d,
+                            (SELECT COUNT(*) FROM tbl_rci_dt l WHERE l.`hd_rid` = h.`recid`) n,
+                            (SELECT SUM(l.`net_amount`) FROM tbl_rci_dt l WHERE l.`hd_rid` = h.`recid`) amount,
+                            (SELECT MIN(l.`lddapada_date`) FROM tbl_rci_dt l WHERE l.`hd_rid` = h.`recid`) first_date,
+                            (SELECT CONCAT('DV ', l.`dvno`, ' · ', l.`payee_name`) FROM tbl_rci_dt l WHERE l.`hd_rid` = h.`recid` AND ({$lineHit}) LIMIT 1) hit
+                        FROM tbl_rci_hd h
+                        WHERE h.`reportno` LIKE ?
+                            OR EXISTS (SELECT 1 FROM tbl_rci_dt l WHERE l.`hd_rid` = h.`recid` AND ({$lineHit}))
+                        ORDER BY h.`reportno` LIKE ? DESC, h.`created_at` DESC, h.`recid` DESC LIMIT {$take}",
+                        array_merge(array_fill(0, 5, $like), [$like], array_fill(0, 5, $like), [$prefix]))->getResultArray();
+                    $rows = array_map(fn ($r) => [
+                        'ref' => $r['ref'] ?: '(no report no.)', 'date' => $r['d'],
+                        'payee' => (int) $r['n'] . ' DV' . ((int) $r['n'] === 1 ? '' : 's') . ' paid',
+                        'sub' => $r['hit'] ? 'Has ' . $r['hit'] : '',
+                        'amount' => (float) $r['amount'], 'status' => null,
+                        'link' => site_url('myrci?meaction=MAIN&recid=' . (int) $r['recid']),
+                    ], $rows);
+                    break;
+
+                default:
+                    continue 2;
+            }
+            $out[$type] = ['rows' => array_slice($rows, 0, $limit), 'more' => count($rows) > $limit];
+        }
+        return $out;
     }
 }

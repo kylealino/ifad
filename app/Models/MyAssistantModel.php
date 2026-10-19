@@ -472,9 +472,10 @@ PROMPT;
 		$want = (string) ($a['status'] ?? 'any');
 		$rows = [];
 		foreach ($sources as $label => [$table, $dateCol]) {
-			$sql = "SELECT '{$label}' type, h.`serialno`, h.`{$dateCol}` obl_date, h.`payee_name`, h.`particulars`, h.`gross_amount`, h.`net_amount`, h.`dvno`,
+			// the amount is the sum of the detail lines (the header's gross_amount is empty on most older ones)
+			$sql = "SELECT '{$label}' type, h.`serialno`, h.`{$dateCol}` obl_date, h.`payee_name`, h.`particulars`, COALESCE(a.`amt`, 0) gross_amount, h.`net_amount`, h.`dvno`,
 					h.`certified_a`, h.`certified_b`, h.`is_approved_certa`, h.`is_disapproved_certa`, h.`is_approved_certb`, h.`is_disapproved_certb`, h.`recid`
-				FROM {$table} h WHERE 1";
+				FROM {$table} h LEFT JOIN " . \App\Models\MyDashboardModel::obligationAmounts($table === 'tbl_burs_hd' ? 'burs' : 'ors') . " a ON a.`project_id` = h.`recid` WHERE 1";
 			$bind = [];
 			if ($text !== '') {
 				$sql .= " AND (h.`serialno` LIKE ? OR h.`payee_name` LIKE ? OR h.`particulars` LIKE ? OR h.`dvno` LIKE ?)";
@@ -594,8 +595,9 @@ PROMPT;
 		foreach ([['ORS', AccessCodes::ORSAPPROVAL_APPROVE, 'tbl_ors_hd', 'ors_date', 'myorsapproval'], ['BURS', AccessCodes::BURSAPPROVAL_APPROVE, 'tbl_burs_hd', 'burs_date', 'mybursapproval']] as [$label, $code, $table, $dateCol, $route]) {
 			if (!fods_has_access($code)) { continue; }
 			$items = [];
-			foreach ($this->db->query("SELECT `recid`, `serialno`, `{$dateCol}` d, `payee_name`, `gross_amount`, `is_approved_certa`, `is_disapproved_certa`, `is_approved_certb`, `is_disapproved_certb`
-				FROM {$table} WHERE `is_approved_certb` = 0 AND `is_disapproved_certa` = 0 AND `is_disapproved_certb` = 0 ORDER BY `recid` ASC")->getResultArray() as $r) {
+			foreach ($this->db->query("SELECT h.`recid`, h.`serialno`, h.`{$dateCol}` d, h.`payee_name`, COALESCE(a.`amt`, 0) gross_amount, h.`is_approved_certa`, h.`is_disapproved_certa`, h.`is_approved_certb`, h.`is_disapproved_certb`
+				FROM {$table} h LEFT JOIN " . \App\Models\MyDashboardModel::obligationAmounts($label === 'BURS' ? 'burs' : 'ors') . " a ON a.`project_id` = h.`recid`
+				WHERE h.`is_approved_certb` = 0 AND h.`is_disapproved_certa` = 0 AND h.`is_disapproved_certb` = 0 ORDER BY h.`recid` ASC")->getResultArray() as $r) {
 				$items[] = ['serial_no' => $r['serialno'], 'date' => $r['d'], 'payee' => $r['payee_name'], 'amount' => self::money($r['gross_amount']), 'step' => 'Box ' . strtoupper(substr(\App\Controllers\MyOrs::statusOf($r), -1)), 'link' => $route . '?recid=' . (int) $r['recid']];
 			}
 			$add($label, $items);
@@ -668,8 +670,8 @@ PROMPT;
 			if ($ors) {
 				$t = $this->db->query("
 					SELECT COUNT(*) n, COALESCE(SUM(amt), 0) amt FROM (
-						SELECT `gross_amount` amt FROM tbl_ors_hd WHERE `payee_name` = ?
-						UNION ALL SELECT `gross_amount` FROM tbl_burs_hd WHERE `payee_name` = ?
+						SELECT COALESCE(a.`amt`, 0) amt FROM tbl_ors_hd h LEFT JOIN " . \App\Models\MyDashboardModel::obligationAmounts('ors') . " a ON a.`project_id` = h.`recid` WHERE h.`payee_name` = ?
+						UNION ALL SELECT COALESCE(a.`amt`, 0) FROM tbl_burs_hd h LEFT JOIN " . \App\Models\MyDashboardModel::obligationAmounts('burs') . " a ON a.`project_id` = h.`recid` WHERE h.`payee_name` = ?
 					) x", [$r['payee_name'], $r['payee_name']])->getRowArray();
 				$r['obligations'] = ['count' => (int) $t['n'], 'amount' => self::money($t['amt'])];
 			}
