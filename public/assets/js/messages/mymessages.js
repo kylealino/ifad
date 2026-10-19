@@ -361,6 +361,7 @@ function __mysys_messages_ent() {
 		id = parseInt(id, 10);
 		if (id !== activeId) { stopTyping(); }
 		activeId = id;
+		if (window.fodsChatHeads) { window.fodsChatHeads.close(id); }   // not open twice
 		lastId = 0; lastDay = ''; lastSender = '';
 		document.getElementById('msgEmpty').classList.add('d-none');
 		var openEl = document.getElementById('msgOpen');
@@ -514,10 +515,10 @@ function __mysys_messages_ent() {
 				.always(function () { busy(btn, false); });
 		});
 
-		// Attach: button, paste into the message box, or drop onto the chat
+		// Attach: button, paste (anywhere on the page while a chat is open), or drop onto the chat
 		var fileInput = document.getElementById('msgFiles');
 		fileInput.addEventListener('change', function () { chatPicker.add(fileInput.files); fileInput.value = ''; });
-		pasteFiles(document.getElementById('msgText'), chatPicker);
+		pasteFiles(document, chatPicker, function () { return activeId && !document.querySelector('.modal.show'); });
 		var thread = document.querySelector('#msgShell .msg-thread');
 		['dragenter', 'dragover'].forEach(function (ev) {
 			thread.addEventListener(ev, function (e) { if (activeId) { e.preventDefault(); thread.classList.add('is-over'); } });
@@ -533,6 +534,22 @@ function __mysys_messages_ent() {
 		$(document).on('click', '#convList .msg-conv', function () { openConv($(this).data('conv')); });
 		$('#convSearch').on('input', renderConvs);
 		$('#msgBack').on('click', closeConv);
+
+		// Open as chat head: the chat moves to a Messenger-style window (with any
+		// unsent text) that stays open on every other page
+		if (window.fodsChatHeads) {
+			document.getElementById('msgPopout').classList.remove('d-none');
+			$('#msgPopout').on('click', function () {
+				var c = activeConv;
+				if (!c) { return; }
+				var draft = document.getElementById('msgText').value;
+				document.getElementById('msgText').value = '';
+				closeConv();
+				window.fodsChatHeads.open(c.recid, { name: c.name, type: c.conv_type }, true);
+				var t = document.querySelector('.fods-ch-win[data-conv="' + c.recid + '"] textarea');
+				if (t && draft) { t.value = draft; t.dispatchEvent(new Event('input')); }
+			});
+		}
 
 		var text = document.getElementById('msgText');
 		// grow with the text, up to the CSS max-height
@@ -726,10 +743,34 @@ function __mysys_messages_ent() {
 		};
 	}
 
-	// Files (e.g. screenshots) pasted into a textarea become attachments
-	function pasteFiles(textarea, picker) {
-		textarea.addEventListener('paste', function (e) {
-			var items = (e.clipboardData && e.clipboardData.files) || [];
+	// Files on the clipboard: a copied file, or a screenshot (Snipping Tool,
+	// PrtScn, Win+Shift+S), which some browsers only expose through items.
+	// Screenshots arrive as "image.png" or nameless, so they get a dated name.
+	function clipboardFiles(e) {
+		var cd = e.clipboardData;
+		if (!cd) { return []; }
+		var list = Array.prototype.slice.call(cd.files || []);
+		if (!list.length && cd.items) {
+			Array.prototype.forEach.call(cd.items, function (it) {
+				var f = it.kind === 'file' ? it.getAsFile() : null;
+				if (f) { list.push(f); }
+			});
+		}
+		var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
+		var stamp = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+		return list.map(function (f, i) {
+			if (!/^image\//.test(f.type) || (f.name && !/^image\.\w+$/i.test(f.name))) { return f; }
+			var ext = { 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' }[f.type] || 'png';
+			try { return new File([f], 'screenshot-' + stamp + (i ? '-' + (i + 1) : '') + '.' + ext, { type: f.type }); } catch (x) { return f; }
+		});
+	}
+
+	// Pasting files (e.g. screenshots) anywhere in scope attaches them,
+	// as long as when() says this is the place for them right now
+	function pasteFiles(scope, picker, when) {
+		scope.addEventListener('paste', function (e) {
+			if (e.defaultPrevented || (when && !when())) { return; }
+			var items = clipboardFiles(e);
 			if (items.length) { e.preventDefault(); picker.add(items); }
 		});
 	}

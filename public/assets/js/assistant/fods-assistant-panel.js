@@ -24,6 +24,7 @@
 		}
 		panel.classList.toggle('is-open', on);
 		fab.classList.toggle('is-open', on);
+		document.body.classList.toggle('fods-ai-open', on);   // chat heads make room for the panel
 		fab.setAttribute('aria-expanded', on ? 'true' : 'false');
 		panel.setAttribute('aria-hidden', on ? 'false' : 'true');
 		fab.title = on ? 'Close the FODS Assistant' : 'Ask the FODS Assistant';

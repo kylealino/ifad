@@ -1,10 +1,11 @@
 // Topbar for templates/myheader.php: the Messages icon (chats) and, beside
-// it, the Helpdesk icon (tickets). Each has an unread badge (refreshed every
-// minute while the tab is visible) and a dropdown loaded each time it opens.
-// The Messages and Helpdesk pages call window.fodsInbox.refresh() after they
-// mark things read.
+// it, the Helpdesk icon (tickets). Each has an unread badge (chats checked
+// every 20 s, tickets every minute, while the tab is visible) and a dropdown
+// loaded each time it opens. Each chats update is also announced as the
+// "fods:convs" event, which the chat heads (fods-chatheads.js) use to pop up
+// new messages. The Messages and Helpdesk pages call window.fodsInbox.refresh()
+// after they mark things read.
 (function () {
-	var POLL_MS = 60000;
 	var boxes = [];
 
 	function esc(s) {
@@ -39,7 +40,8 @@
 		return data.convs.map(function (c) {
 			var typing = (c.members || []).filter(function (m) { return m.is_typing; }).length;
 			var text = typing ? 'typing…' : c.last_message == null ? 'No messages yet' : (c.last_message === '' ? 'Sent an attachment' : c.last_message);
-			return '<a class="fods-inbox-item' + (c.unread ? ' is-unread' : '') + '" href="' + url + '?meaction=MAIN&conv=' + c.recid + '">'
+			return '<a class="fods-inbox-item' + (c.unread ? ' is-unread' : '') + '" href="' + url + '?meaction=MAIN&conv=' + c.recid + '"'
+				+ ' data-conv="' + c.recid + '" data-name="' + esc(c.name) + '" data-type="' + esc(c.conv_type) + '">'
 				+ '<span class="fods-avatar ' + (c.conv_type === 'group' ? 'tone-indigo' : 'tone-teal') + '">' + (c.conv_type === 'group' ? '<i class="ti ti-users"></i>' : esc(initials(c.name))) + '</span>'
 				+ '<span class="fods-inbox-main"><span class="fods-inbox-title"><span>' + esc(c.name) + '</span><small>' + ago(c.last_at) + '</small></span>'
 				+ '<span class="fods-inbox-text d-block' + (typing ? ' text-success' : '') + '">' + esc(text) + '</span></span>'
@@ -64,7 +66,7 @@
 		}).join('');
 	}
 
-	function setup(btnId, badgeId, bodyId, render) {
+	function setup(btnId, badgeId, bodyId, render, pollMs, onData) {
 		var btn = document.getElementById(btnId);
 		if (!btn) { return; }
 		var url = btn.getAttribute('data-url');
@@ -79,7 +81,8 @@
 
 		function load() {
 			return fetch(url + '?meaction=INBOX', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-				.then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); });
+				.then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
+				.then(function (data) { if (onData) { onData(data); } return data; });
 		}
 
 		btn.addEventListener('show.bs.dropdown', function () {
@@ -87,16 +90,22 @@
 				.catch(function () { body.innerHTML = '<div class="fods-inbox-empty">Couldn\'t load this. Try again.</div>'; });
 		});
 
-		boxes.push(function () { return load().then(function (data) { setBadge(data.unread); return data; }).catch(function () {}); });
+		var refreshOne = function () { return load().then(function (data) { setBadge(data.unread); return data; }).catch(function () {}); };
+		boxes.push(refreshOne);
+		setInterval(function () { if (!document.hidden) { refreshOne(); } }, pollMs);
 	}
 
-	setup('fodsInboxBtn', 'fodsInboxBadge', 'fodsInboxBody', renderChats);
-	setup('fodsHelpdeskBtn', 'fodsHelpdeskBadge', 'fodsHelpdeskBody', renderTickets);
+	setup('fodsInboxBtn', 'fodsInboxBadge', 'fodsInboxBody', renderChats, 20000, function (data) {
+		document.dispatchEvent(new CustomEvent('fods:convs', { detail: data.convs || [] }));
+	});
+	setup('fodsHelpdeskBtn', 'fodsHelpdeskBadge', 'fodsHelpdeskBody', renderTickets, 60000);
 	if (!boxes.length) { return; }
 
 	function refresh() { return Promise.all(boxes.map(function (f) { return f(); })); }
 
-	setInterval(function () { if (!document.hidden) { refresh(); } }, POLL_MS);
+	// the chat heads want the current unread counts as soon as the page is up
+	if (document.getElementById('fodsChatHeads')) { setTimeout(function () { boxes[0](); }, 800); }
+
 	document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); } });
 
 	window.fodsInbox = { refresh: refresh };

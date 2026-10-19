@@ -22,6 +22,8 @@
 .as-table td { padding:.45rem .6rem; border-bottom:1px solid #f1f4f8; vertical-align:top; }
 .as-table tr:last-child td { border-bottom:0; }
 .as-table td.num, .as-table th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.as-bubble a.as-link { color:var(--fods-teal); font-weight:600; text-decoration:underline; text-underline-offset:2px; }
+.as-bubble a.as-link:hover { color:#0b5757; }
 .as-sources { font-size:.72rem; color:var(--fods-muted); margin-top:.35rem; display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; }
 .as-sources .fods-chip { font-size:.66rem; padding:.05rem .45rem; }
 .as-error { border-color:#f8d4d4; background:#fef6f6; color:#b91c1c; }

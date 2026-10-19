@@ -77,9 +77,9 @@
                         <form class="msg-compose" id="tkForm" autocomplete="off">
                             <div class="tk-thumbs" id="tkReplyThumbs"></div>
                             <div class="msg-compose-row">
-                                <label for="tkReplyFiles" class="fods-icon-btn is-teal msg-attach" title="Attach screenshots (up to 5 images, 5 MB each)"><i class="ti ti-photo-plus"></i></label>
+                                <label for="tkReplyFiles" class="fods-icon-btn is-teal msg-attach" title="Attach screenshots (up to 5 images, 5 MB each). You can also paste one with Ctrl+V."><i class="ti ti-photo-plus"></i></label>
                                 <input type="file" id="tkReplyFiles" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp">
-                                <textarea class="form-control" id="tkReplyText" rows="1" maxlength="2000" placeholder="Write a reply..." title="Enter to send, Shift+Enter for a new line. Paste a screenshot to attach it."></textarea>
+                                <textarea class="form-control" id="tkReplyText" rows="1" maxlength="2000" placeholder="Write a reply... (Ctrl+V pastes a screenshot)" title="Enter to send, Shift+Enter for a new line. Paste a screenshot (Snipping Tool, Win+Shift+S) to attach it."></textarea>
                                 <button type="submit" class="btn btn-fods px-3" id="tkSendBtn" style="height:38px;"><i class="ti ti-send"></i></button>
                             </div>
                         </form>
@@ -233,7 +233,7 @@
                     <div class="fods-section">Screenshots</div>
                     <label class="tk-drop" id="tkDrop" for="tkFiles">
                         <i class="ti ti-photo-plus"></i>
-                        <span>Add images — click, drop them here, or paste a screenshot into Details. Up to 5 images, 5 MB each.</span>
+                        <span>Add images — click, drop them here, or paste a screenshot (Ctrl+V). Up to 5 images, 5 MB each.</span>
                     </label>
                     <input type="file" id="tkFiles" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
                     <div class="tk-thumbs" id="tkThumbs"></div>
@@ -272,7 +272,7 @@
                     <div class="tk-thumbs" id="tvThumbs"></div>
                     <input type="file" id="tvFiles" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
                     <div class="d-flex justify-content-between align-items-center mt-2">
-                        <label for="tvFiles" class="btn btn-sm btn-fods-ghost px-3 mb-0"><i class="ti ti-paperclip me-1"></i> Attach images</label>
+                        <span><label for="tvFiles" class="btn btn-sm btn-fods-ghost px-3 mb-0"><i class="ti ti-paperclip me-1"></i> Attach images</label><small class="text-muted ms-2 d-none d-sm-inline">or paste a screenshot (Ctrl+V)</small></span>
                         <button type="submit" class="btn btn-sm btn-fods px-4" id="tvReplyBtn"><i class="ti ti-send me-1"></i> Reply</button>
                     </div>
                 </form>
@@ -308,5 +308,5 @@
     var __hd_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __hd_me = <?= json_encode($me, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/helpdesk/myhelpdesk.js?v=1');?>"></script>
+<script src="<?=base_url('assets/js/helpdesk/myhelpdesk.js?v=2');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

@@ -20,7 +20,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
   <script src="<?=base_url('assets/js/fods-layout.js?v=1')?>"></script>
-  <script src="<?=base_url('assets/js/fods-inbox.js?v=3')?>"></script>
+  <script src="<?=base_url('assets/js/fods-inbox.js?v=4')?>"></script>
 <?php
 // FODS Assistant: floating button + chat panel in the lower right of every
 // page, for everyone signed in (its lookups follow each person's own access)
@@ -30,6 +30,7 @@ if (session('__xsys_myuserzicas_is_logged__') && session('__xsys_myuserzicas__')
         $fods_ai_user = fods_current_user();
         $fods_ai = [
             'url' => site_url('myassistant'),
+            'site' => site_url(),
             'me' => (string) session('__xsys_myuserzicas__'),
             'firstName' => explode(' ', trim((string) $fods_ai_user['full_name']))[0],
             'areas' => model('App\Models\MyAssistantModel')->areas(),
@@ -41,7 +42,7 @@ if (session('__xsys_myuserzicas_is_logged__') && session('__xsys_myuserzicas__')
 }
 ?>
 <?php if ($fods_ai): ?>
-  <link rel="stylesheet" href="<?=base_url('assets/css/fods-assistant.css?v=1')?>">
+  <link rel="stylesheet" href="<?=base_url('assets/css/fods-assistant.css?v=2')?>">
   <div class="fods-ai-panel" id="fodsAiPanel" role="dialog" aria-label="FODS Assistant" aria-hidden="true" data-opts="<?= esc(json_encode($fods_ai), 'attr') ?>">
     <div class="fods-ai-head">
       <div class="as-avatar"><i class="ti ti-message-chatbot"></i></div>
@@ -57,8 +58,17 @@ if (session('__xsys_myuserzicas_is_logged__') && session('__xsys_myuserzicas__')
     <div id="fodsAiChat"></div>
   </div>
   <button type="button" class="fods-ai-fab" id="fodsAiFab" aria-controls="fodsAiPanel" aria-expanded="false" aria-label="Ask the FODS Assistant" title="Ask the FODS Assistant"><i class="ti ti-message-chatbot"></i><i class="ti ti-x"></i></button>
-  <script src="<?=base_url('assets/js/assistant/fods-assistant.js?v=2')?>"></script>
-  <script src="<?=base_url('assets/js/assistant/fods-assistant-panel.js?v=1')?>"></script>
+  <script src="<?=base_url('assets/js/assistant/fods-assistant.js?v=3')?>"></script>
+  <script src="<?=base_url('assets/js/assistant/fods-assistant-panel.js?v=2')?>"></script>
+<?php endif; ?>
+<?php if ($fods_ai): ?>
+  <!-- Messenger-style chat heads (on the Messages page only for chats popped out there) -->
+  <link rel="stylesheet" href="<?=base_url('assets/css/fods-chatheads.css?v=2')?>">
+  <div id="fodsChatHeads" data-url="<?= site_url('mymessages') ?>" data-me="<?= esc((string) session('__xsys_myuserzicas__'), 'attr') ?>"<?= strpos(uri_string(), 'mymessages') === 0 ? ' data-page="messages"' : '' ?>>
+    <div class="fods-ch-dock" aria-label="Open chats"></div>
+    <div class="fods-ch-heads" aria-label="Minimized chats"></div>
+  </div>
+  <script src="<?=base_url('assets/js/messages/fods-chatheads.js?v=2')?>"></script>
 <?php endif; ?>
 </body>
 </html>

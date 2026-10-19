@@ -1,0 +1,65 @@
+/* Messenger-style chat heads (fods-chatheads.js, markup in templates/myfooter.php).
+   Windows dock at the bottom, left of the FODS Assistant button; minimized
+   chats stack as round heads above that button. Desktop / tablet only. */
+.fods-ch-dock { position:fixed; right:96px; bottom:0; z-index:1039; display:flex; flex-direction:row-reverse; align-items:flex-end; gap:12px; pointer-events:none; transition:right .15s ease; }
+.fods-ch-heads { position:fixed; right:28px; bottom:96px; z-index:1039; display:flex; flex-direction:column-reverse; gap:12px; }
+.fods-ai-open .fods-ch-dock { right:440px; }
+.fods-ai-open .fods-ch-heads { display:none; }
+
+.fods-ch-win { pointer-events:auto; width:328px; height:450px; max-height:calc(100vh - 90px); display:flex; flex-direction:column; background:#fff; border:1px solid var(--fods-border); border-bottom:0; border-radius:12px 12px 0 0; box-shadow:0 -4px 28px rgba(15,23,42,.18); overflow:hidden; }
+.fods-ch-win:focus { outline:none; }
+.fods-ch-top { display:flex; align-items:center; gap:.55rem; padding:.5rem .55rem .5rem .7rem; background:var(--fods-teal); color:#fff; cursor:pointer; flex-shrink:0; }
+.fods-ch-av { width:32px; height:32px; border-radius:50%; flex-shrink:0; display:grid; place-items:center; background:rgba(255,255,255,.2); font-size:.75rem; font-weight:600; }
+.fods-ch-title { min-width:0; flex:1; }
+.fods-ch-name { font-weight:600; font-size:.86rem; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fods-ch-sub { font-size:.68rem; opacity:.8; }
+.fods-ch-icon { width:28px; height:28px; border:0; border-radius:8px; background:transparent; color:inherit; display:grid; place-items:center; font-size:1rem; padding:0; cursor:pointer; flex-shrink:0; margin:0; }
+.fods-ch-top .fods-ch-icon:hover { background:rgba(255,255,255,.18); }
+
+.fods-ch-body { flex:1; overflow-y:auto; padding:.75rem .7rem; background:#fafbfc; }
+.fods-ch-loading, .fods-ch-none { text-align:center; color:var(--fods-muted); font-size:.78rem; padding:2rem .5rem; }
+.fods-ch-day { text-align:center; margin:.5rem 0; font-size:.64rem; color:var(--fods-muted); text-transform:uppercase; letter-spacing:.06em; }
+.fods-ch-note { text-align:center; margin:.4rem 0; font-size:.68rem; color:var(--fods-muted); }
+.fods-ch-row { display:flex; flex-direction:column; align-items:flex-start; margin-bottom:.35rem; }
+.fods-ch-row.mine { align-items:flex-end; }
+.fods-ch-sender { font-size:.66rem; color:var(--fods-muted); margin:0 .5rem .1rem; }
+.fods-ch-msg { max-width:82%; padding:.42rem .7rem; border-radius:16px; background:#fff; border:1px solid var(--fods-border); color:var(--fods-text); font-size:.82rem; white-space:pre-wrap; overflow-wrap:anywhere; }
+.fods-ch-row.mine .fods-ch-msg { background:var(--fods-teal); border-color:var(--fods-teal); color:#fff; }
+.fods-ch-text + .fods-ch-atts { margin-top:.35rem; }
+.fods-ch-atts { display:flex; flex-wrap:wrap; gap:.3rem; }
+.fods-ch-thumb img { width:110px; height:110px; object-fit:cover; border-radius:10px; display:block; }
+.fods-ch-file { display:flex; align-items:center; gap:.35rem; max-width:200px; padding:.3rem .5rem; border-radius:8px; background:#f1f5f9; color:var(--fods-text); text-decoration:none; font-size:.74rem; }
+.fods-ch-file span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fods-ch-row.mine .fods-ch-file { background:rgba(255,255,255,.18); color:#fff; }
+.fods-ch-status { font-size:.62rem; color:var(--fods-muted); margin:.1rem .4rem 0; }
+.fods-ch-status.is-seen { color:var(--fods-teal); font-weight:500; }
+
+.fods-ch-typing { display:flex; align-items:center; gap:.4rem; padding:.25rem .75rem .35rem; font-size:.7rem; color:var(--fods-muted); background:#fafbfc; flex-shrink:0; }
+.fods-ch-dots { display:inline-flex; gap:3px; padding:.32rem .5rem; border-radius:10px; background:#fff; border:1px solid var(--fods-border); }
+.fods-ch-dots i { width:4px; height:4px; border-radius:50%; background:#94a3b8; animation:fodsChDot 1.2s infinite ease-in-out; }
+.fods-ch-dots i:nth-child(2) { animation-delay:.15s; }
+.fods-ch-dots i:nth-child(3) { animation-delay:.3s; }
+@keyframes fodsChDot { 0%, 60%, 100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-2px); opacity:1; } }
+
+.fods-ch-files { display:flex; flex-wrap:wrap; gap:.3rem; padding:.4rem .6rem 0; border-top:1px solid var(--fods-border); flex-shrink:0; }
+.fods-ch-chip { display:inline-flex; align-items:center; gap:.25rem; max-width:100%; padding:.15rem .25rem .15rem .5rem; border-radius:999px; background:var(--fods-teal-soft); color:var(--fods-teal); font-size:.7rem; }
+.fods-ch-chip button { border:0; background:transparent; color:inherit; font-size:.9rem; line-height:1; padding:0 .2rem; }
+.fods-ch-compose { display:flex; align-items:flex-end; gap:.35rem; padding:.5rem .55rem; border-top:1px solid var(--fods-border); flex-shrink:0; }
+.fods-ch-compose textarea { flex:1; resize:none; border:0; background:#f1f5f9; border-radius:18px; padding:.45rem .8rem; font-size:.84rem; max-height:96px; line-height:1.35; }
+.fods-ch-compose textarea:focus { outline:none; box-shadow:0 0 0 2px var(--fods-teal-soft); }
+.fods-ch-attach { color:var(--fods-teal); }
+.fods-ch-attach:hover { background:var(--fods-teal-soft); }
+.fods-ch-send { width:34px; height:34px; border:0; border-radius:50%; background:var(--fods-teal); color:#fff; display:grid; place-items:center; flex-shrink:0; }
+.fods-ch-send:disabled { opacity:.6; }
+
+/* round heads */
+.fods-ch-bubblehead { position:relative; }
+.fods-ch-headbtn { width:50px; height:50px; border-radius:50%; border:2px solid #fff; background:var(--fods-teal); color:#fff; font-weight:600; font-size:.9rem; display:grid; place-items:center; box-shadow:0 6px 18px rgba(15,23,42,.25); }
+.fods-ch-headbtn .ti { font-size:1.25rem; }
+.fods-ch-badge { position:absolute; top:-3px; right:-3px; min-width:20px; height:20px; padding:0 5px; border-radius:999px; background:#dc2626; color:#fff; font-size:.66rem; font-weight:700; display:grid; place-items:center; border:2px solid #fff; pointer-events:none; }
+.fods-ch-headx { position:absolute; top:-6px; left:-6px; width:20px; height:20px; border-radius:50%; border:0; background:#334155; color:#fff; font-size:.7rem; display:none; place-items:center; padding:0; }
+.fods-ch-bubblehead:hover .fods-ch-headx, .fods-ch-headx:focus-visible { display:grid; }
+
+@media (max-width: 767.98px) { .fods-ch-dock, .fods-ch-heads, .msg-popout { display:none !important; } }
+@media (prefers-reduced-motion: reduce) { .fods-ch-dots i { animation:none; } .fods-ch-dock { transition:none; } }
+@media print { .fods-ch-dock, .fods-ch-heads { display:none !important; } }

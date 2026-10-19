@@ -7,6 +7,9 @@
 // before a small, safe subset of markdown is applied.
 (function () {
 	var KEEP = 12;              // earlier messages sent with each question
+	var SITE = '';              // FODS address the answer's links are relative to (set by mount)
+	// an answer may only link inside FODS: a route, optionally with a plain query string
+	var SAFE_LINK = /^[a-z][a-z0-9_-]*(\?[A-Za-z0-9_=&%.,-]*)?$/;
 	var TIMEOUT_MS = 120000;
 	var SUGGESTIONS = [
 		"What's waiting for my approval?",
@@ -22,8 +25,17 @@
 	}
 
 	//FORMATTING: escape everything first, then headings, bold, code, lists, tables
+	// [label](link) -> a link, only for FODS routes (t is already HTML-escaped)
+	function links(t) {
+		return t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (all, label, href) {
+			var raw = href.replace(/&amp;/g, '&');
+			if (!SAFE_LINK.test(raw)) { return label; }
+			return '<a class="as-link" href="' + esc(SITE + raw) + '">' + label + '</a>';
+		});
+	}
+
 	function inline(t) {
-		return t
+		return links(t)
 			.replace(/`([^`]+)`/g, '<code>$1</code>')
 			.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
 			.replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
@@ -84,6 +96,7 @@
 
 	function mount(root, opts) {
 		opts = opts || {};
+		if (opts.site) { SITE = String(opts.site).replace(/\/?$/, '/'); }
 		var storeKey = 'fods.assistant.' + String(opts.me || '').toUpperCase();
 		var history = [];        // [{ role: 'user'|'assistant', content, sources?, error? }]
 		var busy = false;

@@ -183,10 +183,34 @@ function __mysys_helpdesk_ent() {
 		};
 	}
 
-	// Files (e.g. screenshots) pasted into a textarea become attachments
-	function pasteFiles(textarea, picker) {
-		textarea.addEventListener('paste', function (e) {
-			var items = (e.clipboardData && e.clipboardData.files) || [];
+	// Files on the clipboard: a copied file, or a screenshot (Snipping Tool,
+	// PrtScn, Win+Shift+S), which some browsers only expose through items.
+	// Screenshots arrive as "image.png" or nameless, so they get a dated name.
+	function clipboardFiles(e) {
+		var cd = e.clipboardData;
+		if (!cd) { return []; }
+		var list = Array.prototype.slice.call(cd.files || []);
+		if (!list.length && cd.items) {
+			Array.prototype.forEach.call(cd.items, function (it) {
+				var f = it.kind === 'file' ? it.getAsFile() : null;
+				if (f) { list.push(f); }
+			});
+		}
+		var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
+		var stamp = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+		return list.map(function (f, i) {
+			if (!/^image\//.test(f.type) || (f.name && !/^image\.\w+$/i.test(f.name))) { return f; }
+			var ext = { 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' }[f.type] || 'png';
+			try { return new File([f], 'screenshot-' + stamp + (i ? '-' + (i + 1) : '') + '.' + ext, { type: f.type }); } catch (x) { return f; }
+		});
+	}
+
+	// Pasting files (e.g. screenshots) anywhere in scope attaches them,
+	// as long as when() says this is the place for them right now
+	function pasteFiles(scope, picker, when) {
+		scope.addEventListener('paste', function (e) {
+			if (e.defaultPrevented || (when && !when())) { return; }
+			var items = clipboardFiles(e);
 			if (items.length) { e.preventDefault(); picker.add(items); }
 		});
 	}
@@ -452,7 +476,7 @@ function __mysys_helpdesk_ent() {
 		var fileInput = document.getElementById('tkReplyFiles');
 		fileInput.addEventListener('change', function () { tkPicker.add(fileInput.files); fileInput.value = ''; });
 		var text = document.getElementById('tkReplyText');
-		pasteFiles(text, tkPicker);
+		pasteFiles(document, tkPicker, function () { return tkActive && !document.querySelector('.modal.show'); });
 		text.addEventListener('input', function () { text.style.height = 'auto'; text.style.height = text.scrollHeight + 'px'; });
 		text.addEventListener('keydown', function (e) {
 			if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#tkForm').trigger('submit'); }
@@ -680,7 +704,7 @@ function __mysys_helpdesk_ent() {
 		});
 
 		input.addEventListener('change', function () { picker.add(input.files); input.value = ''; });
-		pasteFiles(document.getElementById('tkDescription'), picker);
+		pasteFiles(modalEl, picker);
 		['dragenter', 'dragover'].forEach(function (ev) {
 			drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); });
 		});
@@ -788,7 +812,7 @@ function __mysys_helpdesk_ent() {
 
 		var input = document.getElementById('tvFiles');
 		input.addEventListener('change', function () { picker.add(input.files); input.value = ''; });
-		pasteFiles(document.getElementById('tvReplyText'), picker);
+		pasteFiles(modalEl, picker, function () { return !document.getElementById('tvReplyForm').classList.contains('d-none'); });
 
 		//SUPPORT DESK - REPLY
 		$('#tvReplyForm').on('submit', function (e) {

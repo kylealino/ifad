@@ -53,6 +53,7 @@
                         <div class="msg-thread-sub" id="msgSub"></div>
                     </div>
                     <div class="ms-auto d-flex gap-1 flex-shrink-0">
+                        <button type="button" class="fods-icon-btn is-teal d-none msg-popout" id="msgPopout" title="Open as chat head: keep this chat open while you go to other pages"><i class="ti ti-picture-in-picture"></i></button>
                         <button type="button" class="fods-icon-btn is-teal d-none" id="msgMembers" title="Group members"><i class="ti ti-users"></i></button>
                         <button type="button" class="fods-icon-btn is-teal" id="msgArchive" title="Archive chat"><i class="ti ti-archive"></i></button>
                     </div>
@@ -63,9 +64,9 @@
                 <form class="msg-compose" id="msgForm" autocomplete="off">
                     <div class="tk-thumbs" id="msgThumbs"></div>
                     <div class="msg-compose-row">
-                        <label for="msgFiles" class="fods-icon-btn is-teal msg-attach" title="Attach images or files (up to 5, 10 MB each)"><i class="ti ti-paperclip"></i></label>
+                        <label for="msgFiles" class="fods-icon-btn is-teal msg-attach" title="Attach images or files (up to 5, 10 MB each). You can also paste a screenshot with Ctrl+V."><i class="ti ti-paperclip"></i></label>
                         <input type="file" id="msgFiles" multiple hidden accept="image/png,image/jpeg,image/gif,image/webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip">
-                        <textarea class="form-control" id="msgText" rows="1" maxlength="2000" placeholder="Write a message..." title="Enter to send, Shift+Enter for a new line. Paste or drop files to attach them."></textarea>
+                        <textarea class="form-control" id="msgText" rows="1" maxlength="2000" placeholder="Write a message... (Ctrl+V pastes a screenshot)" title="Enter to send, Shift+Enter for a new line. Paste a screenshot (Snipping Tool, Win+Shift+S) or drop files to attach them."></textarea>
                         <button type="submit" class="btn btn-fods px-3" id="msgSendBtn" style="height:38px;"><i class="ti ti-send"></i></button>
                     </div>
                 </form>
@@ -161,5 +162,5 @@
     var __msg_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __msg_me = <?= json_encode($me, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/messages/mymessages.js?v=10');?>"></script>
+<script src="<?=base_url('assets/js/messages/mymessages.js?v=12');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>
