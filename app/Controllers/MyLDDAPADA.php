@@ -110,13 +110,22 @@ class MyLDDAPADA extends BaseController
         ORDER BY a.`recid` DESC
         ")->getResultArray();
 
-        $adaapprover = $this->db->query("SELECT `full_name`, `position` FROM myua_user WHERE ada_tag = '1' AND is_active = 1 ORDER BY `full_name` ASC")->getResultArray();
+        // The four printed signatures and the names offered for them
+        $signatories = [];
+        foreach (\App\Models\MyLDDAPADAModel::SIGNATORIES as $name => $position) {
+            $signatories[] = ['full_name' => $name, 'position' => $position];
+        }
+        $signatures = [];
+        foreach (\App\Models\MyLDDAPADAModel::SIGNATURES as $field => [$label, $default]) {
+            $signatures[] = ['field' => $field, 'position_field' => \App\Models\MyLDDAPADAModel::position_col($field), 'label' => $label, 'default' => $default];
+        }
 
         return view('cashier/lddapada-main', [
             'lddapdata' => $lddapdata,
             'lookups' => [
                 'dvs' => $dvdata,
-                'approvers' => $adaapprover,
+                'signatories' => $signatories,
+                'signatures' => $signatures,
                 'fund_clusters' => ['01', '07'],
                 // MDS sub-account per fund cluster, as on the previous form
                 'mds_accounts' => ['01' => '2182-9001-36', '07' => '2182-9006-16'],

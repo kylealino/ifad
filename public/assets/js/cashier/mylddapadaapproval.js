@@ -195,7 +195,12 @@ function __mysys_lddapada_approval_ent() {
 			+ field('MDS-GSB branch', hd.mds_branch)
 			+ field('MDS sub-account no.', hd.mds_accountno)
 			+ field('Internal creditor', String(hd.is_ci) === '1' ? 'Yes' : 'No')
-			+ field('ADA approver', hd.ada_approver)
+			+ field('ADA approver', hd.ada_approver || ((hd.print_signatures || {}).ada_approver || [])[0])
+			+ ['certified_by', 'approved_by', 'ada_approver2'].map(function (k) {
+				var s = (hd.print_signatures || {})[k] || [];
+				var label = { certified_by: 'Certified correct', approved_by: 'Approved', ada_approver2: 'ADA signatory 2' }[k];
+				return field(label, s[0] ? s[0] + (s[1] ? ' · ' + s[1] : '') : '');
+			}).join('')
 			+ field('Prepared by', (hd.added_by || '—') + ' · ' + fmtDate(hd.added_at));
 
 		var sum = function (k) { return lines.reduce(function (t, l) { return t + num(l[k]); }, 0); };

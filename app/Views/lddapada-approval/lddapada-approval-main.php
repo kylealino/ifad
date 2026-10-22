@@ -176,5 +176,5 @@ echo view('templates/myheader.php');
     var __approval_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __approval_perms = <?= json_encode($perms) ?>;
 </script>
-<script src="<?=base_url('assets/js/cashier/mylddapadaapproval.js?v=2');?>"></script>
+<script src="<?=base_url('assets/js/cashier/mylddapadaapproval.js?v=3');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

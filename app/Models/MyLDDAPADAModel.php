@@ -7,6 +7,89 @@ class MyLDDAPADAModel extends Model
 
     protected $db;
 
+    // The names offered for the four signatures on the LDDAP-ADA printout
+    // (name => position). The position is filled in on picking a name and can
+    // still be edited on the entry.
+    public const SIGNATORIES = [
+        'JOVY S. MEDINA'               => 'Administrative Officer V',
+        'JESTER C. VIRIÑA, CPA'        => 'Supervising Administrative Officer',
+        'ALEXIS M. ORTIZ'              => 'Chief Administrative Officer',
+        'SALVADOR C. SERRANO'          => 'Chief SRS & Officer-in-Charge',
+        'BONJOBIE F. CAJANO, CPA, CTT' => 'Accountant III',
+        'ATTY. LUCIEDEN G. RAZ'        => 'Director III',
+        'JACUS S. NACIS'               => 'Director IV',
+        'JAMES C. LUCENA, CPA'         => 'Accountant II',
+    ];
+
+    // Each signature on the form: request/column name => [label, default name].
+    // ada_approver (Agency Authorized Signatory 1) is the LDDAP-ADA's ADA approver,
+    // shown on LDDAP-ADA Approval; its default stays JOVY S. MEDINA.
+    // LDDAP-ADAs saved before these were picked keep blank values and print the defaults.
+    public const SIGNATURES = [
+        'certified_by'  => ['Certified Correct', 'BONJOBIE F. CAJANO, CPA, CTT'],
+        'approved_by'   => ['Approved', 'ALEXIS M. ORTIZ'],
+        'ada_approver'  => ['Agency Authorized Signatory 1', 'JOVY S. MEDINA'],
+        'ada_approver2' => ['Agency Authorized Signatory 2', 'ALEXIS M. ORTIZ'],
+    ];
+
+    // Position column of each signature
+    public static function position_col(string $field): string
+    {
+        return $field === 'certified_by' ? 'certified_position'
+            : ($field === 'approved_by' ? 'approved_position' : $field . '_position');
+    }
+
+    // The four signatures to print for an LDDAP-ADA row: [field => [name, position]].
+    // A blank name falls back to the default; a blank position to the list's, then
+    // to the user record's (older LDDAP-ADAs only stored the ADA approver's name).
+    public function signatures_for(array $hd): array
+    {
+        $out = [];
+        foreach (self::SIGNATURES as $field => [$label, $default]) {
+            $name = trim((string) ($hd[$field] ?? '')) ?: $default;
+            $pos = trim((string) ($hd[self::position_col($field)] ?? ''));
+            if ($pos === '') { $pos = self::SIGNATORIES[$name] ?? ''; }
+            if ($pos === '') {
+                $u = $this->db->query("SELECT `position` FROM myua_user WHERE `full_name` = ? LIMIT 1", [$name])->getRowArray();
+                $pos = (string) ($u['position'] ?? '');
+            }
+            $out[$field] = [$name, $pos];
+        }
+        return $out;
+    }
+
+    // The four signatures from the save request. A name must be one of SIGNATORIES,
+    // or the one this LDDAP-ADA already has; a blank position takes the list's.
+    private function signatures_from_request(array $saved = []): array
+    {
+        $vals = [];
+        foreach (self::SIGNATURES as $field => [$label, $default]) {
+            $name = trim((string) $this->request->getPostGet($field));
+            $pos = mb_substr(trim((string) $this->request->getPostGet(self::position_col($field))), 0, 150);
+            if ($name === '' || (!isset(self::SIGNATORIES[$name]) && $name !== trim((string) ($saved[$field] ?? '')))) {
+                echo "
+				<script>
+				toastr.error('Choose the {$label} signatory.', 'Oops!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				</script>
+				";
+                die();
+            }
+            $vals[$field] = $name;
+            $vals[self::position_col($field)] = $pos !== '' ? $pos : (self::SIGNATORIES[$name] ?? '');
+        }
+        return $vals;
+    }
+
+    // SET clause / values for the signature columns
+    private static function signature_set(array $vals): string
+    {
+        return implode(', ', array_map(fn ($c) => "`{$c}` = ?", array_keys($vals)));
+    }
+
     public function __construct(){
         parent::__construct();
         $this->session = session();
@@ -94,6 +177,7 @@ class MyLDDAPADAModel extends Model
 			// $cseqn =  $this->get_ctr_lddapada($fund_cluster_code,$funding_source,'CTRL_NO01');//TRANSACTION NO
 
 			$cseqn = $lddapadano;
+			$sigs = $this->signatures_from_request();
 
 			//INSERTING HD DATA
 			//disbursement SERIALNO
@@ -126,6 +210,7 @@ class MyLDDAPADAModel extends Model
 			);
 
 			$project_id = $this->db->insertID();
+			$this->db->query("UPDATE tbl_lddapada_hd SET " . self::signature_set($sigs) . " WHERE `recid` = ?", array_merge(array_values($sigs), [$project_id]));
 
 			if (!empty($dvno_list)) {
 				foreach($dvno_list as $dv) {
@@ -200,7 +285,7 @@ class MyLDDAPADAModel extends Model
 
 			// Once approved the LDDAP-ADA is locked; a disapproved one can be
 			// corrected and goes back for approval
-			$current = $this->db->query("SELECT `is_approved`, `is_disapproved` FROM tbl_lddapada_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			$current = $this->db->query("SELECT * FROM tbl_lddapada_hd WHERE `recid` = ?", [$recid])->getRowArray();
 			if (empty($current)) {
 				echo "
 				<script>
@@ -225,6 +310,7 @@ class MyLDDAPADAModel extends Model
 				";
 				die();
 			}
+			$sigs = $this->signatures_from_request($current);
 			$is_resubmit = $current['is_disapproved'] == '1';
 			if ($is_resubmit) {
 				$this->db->query("UPDATE tbl_lddapada_hd SET `is_pending` = '1', `is_disapproved` = '0' WHERE `recid` = ?", [$recid]);
@@ -255,6 +341,7 @@ class MyLDDAPADAModel extends Model
 				$is_ci,
 				$recid
 			]);
+			$this->db->query("UPDATE tbl_lddapada_hd SET " . self::signature_set($sigs) . " WHERE `recid` = ?", array_merge(array_values($sigs), [$recid]));
 
 			$project_id = $recid;
 
@@ -381,6 +468,8 @@ class MyLDDAPADAModel extends Model
 		$hd['dvno_list'] = array_column($this->db->query("
 			SELECT `dvno` FROM tbl_lddapada_dvno WHERE `lddapada_id` = ? ORDER BY `recid` ASC
 		", [$recid])->getResultArray(), 'dvno');
+		// what the printout will show for each signature (older LDDAP-ADAs: the previous fixed names)
+		$hd['print_signatures'] = $this->signatures_for($hd);
 		return $hd;
 	}
 

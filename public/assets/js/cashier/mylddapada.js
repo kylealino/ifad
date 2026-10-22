@@ -317,9 +317,18 @@ function __mysys_lddapada_ent() {
 		sel.value = current || '';
 	}
 
-	function showApproverPosition() {
-		var $ = window.jQuery;
-		$('#ada_approver_position').text($('#ada_approver').find(':selected').data('position') || '');
+	// Signatories: picking a name fills in its position (which can still be edited)
+	function fillSignatories(hd) {
+		(lookups.signatures || []).forEach(function (s) {
+			var name = hd && hd[s.field] ? hd[s.field] : s.default;
+			options(s.field, lookups.signatories || [], name);
+			var pos = hd && hd[s.position_field] ? hd[s.position_field] : '';
+			if (!pos) {
+				var opt = document.getElementById(s.field).selectedOptions[0];
+				pos = opt ? (opt.getAttribute('data-position') || '') : '';
+			}
+			setVal(s.position_field, pos);
+		});
 	}
 
 	// MDS sub-account follows the fund cluster, as on the previous form
@@ -331,7 +340,12 @@ function __mysys_lddapada_ent() {
 
 	this.__ld_details = function () {
 		document.getElementById('fund_cluster_code').addEventListener('change', syncAccount);
-		document.getElementById('ada_approver').addEventListener('change', showApproverPosition);
+		document.querySelectorAll('#ldModal .ld-signatory').forEach(function (sel) {
+			sel.addEventListener('change', function () {
+				var opt = sel.selectedOptions[0];
+				setVal(sel.getAttribute('data-position'), opt ? (opt.getAttribute('data-position') || '') : '');
+			});
+		});
 	};
 
 	function fill(hd) {
@@ -343,8 +357,7 @@ function __mysys_lddapada_ent() {
 		setVal('mds_branch', hd && hd.mds_branch ? hd.mds_branch : lookups.mds_branch);
 		setVal('lddapada_date', hd ? (String(hd.lddapada_date || '').indexOf('0000') === 0 ? '' : hd.lddapada_date) : new Date().toISOString().slice(0, 10));
 		options('fund_cluster_code', lookups.fund_clusters || [], hd ? hd.fund_cluster_code : '');
-		options('ada_approver', lookups.approvers || [], hd ? hd.ada_approver : '');
-		showApproverPosition();
+		fillSignatories(hd);
 		document.getElementById('is_ci').checked = !!hd && String(hd.is_ci) === '1';
 		if (!hd) { syncAccount(); }
 
@@ -435,6 +448,13 @@ function __mysys_lddapada_ent() {
 				fund_cluster_code: val('fund_cluster_code'),
 				funding_source: val('funding_source'),
 				ada_approver: val('ada_approver'),
+				ada_approver_position: val('ada_approver_position'),
+				ada_approver2: val('ada_approver2'),
+				ada_approver2_position: val('ada_approver2_position'),
+				certified_by: val('certified_by'),
+				certified_position: val('certified_position'),
+				approved_by: val('approved_by'),
+				approved_position: val('approved_position'),
 				is_ci: document.getElementById('is_ci').checked ? 1 : 0,
 				dvdtdata: collectLines(),
 				dvno_list: picked.slice(),

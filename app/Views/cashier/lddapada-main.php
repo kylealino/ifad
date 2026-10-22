@@ -184,11 +184,6 @@ echo view('templates/myheader.php');
                                     <label class="form-check-label" for="is_ci">Internal creditor</label>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label" for="ada_approver">ADA approver</label>
-                                <select class="form-select" id="ada_approver" name="ada_approver"></select>
-                                <div class="form-text" id="ada_approver_position"></div>
-                            </div>
                         </div>
                     </div></div>
 
@@ -217,6 +212,21 @@ echo view('templates/myheader.php');
                         </div>
                         <div class="ld-empty d-none" id="ldEmpty">No DVs yet — pick one above.</div>
                     </div>
+
+                    <!-- The four signatures on the printout. Picking a name fills in its position, which can be edited. -->
+                    <div class="fods-card mt-3"><div class="fods-card-body pt-3">
+                        <div class="fods-section mt-0">Signatories <small class="text-muted fw-normal text-lowercase">as printed on the LDDAP-ADA</small></div>
+                        <div class="row g-3">
+                            <?php foreach (\App\Models\MyLDDAPADAModel::SIGNATURES as $field => [$label]): $posField = \App\Models\MyLDDAPADAModel::position_col($field); ?>
+                            <div class="col-md-6 col-xl-3">
+                                <label class="form-label" for="<?= $field ?>"><?= esc($label) ?></label>
+                                <select class="form-select ld-signatory" id="<?= $field ?>" name="<?= $field ?>" data-position="<?= $posField ?>" required></select>
+                                <input type="text" class="form-control form-control-sm mt-1" id="<?= $posField ?>" name="<?= $posField ?>" maxlength="150" placeholder="Position" aria-label="<?= esc($label, 'attr') ?> position">
+                                <div class="invalid-feedback">Choose a signatory.</div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div></div>
                 </div>
 
                 <div class="modal-footer justify-content-between">
@@ -256,5 +266,5 @@ echo view('templates/myheader.php');
     var __ld_perms = <?= json_encode($perms) ?>;
     var __ld_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/cashier/mylddapada.js?v=2');?>"></script>
+<script src="<?=base_url('assets/js/cashier/mylddapada.js?v=3');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

@@ -124,8 +124,10 @@ WHERE
 $data = $query->getRowArray();
 if (empty($data)) { echo 'Record not found.'; return; }
 $ckno = $data['ckno'];
-$ada_approver = $data['ada_approver'];
-$position = $data['position'] ?? '';
+// The four signatures picked on the LDDAP-ADA (older ones print the previous fixed names)
+$hdFull = $this->db->query("SELECT * FROM `tbl_lddapada_hd` WHERE `recid` = ?", [$recid])->getRowArray();
+$sig = array_map(fn ($p) => array_map(fn ($t) => iconv('UTF-8', 'ISO-8859-1//TRANSLIT', (string) $t), $p),
+    model('App\Models\MyLDDAPADAModel')->signatures_for($hdFull));
 $fund_cluster_code = $data['fund_cluster_code'];
 $mds_accountno = $data['mds_accountno'];
 $lddapadano = $data['lddapadano'];
@@ -868,26 +870,26 @@ $pdf->Cell(15, 9, '' , 'R', 1, 'C');
 $Y = $pdf->GetY();
 $pdf->SetFont('Times', 'B', 7);
 $pdf->SetXY(10, $Y);
-$pdf->Cell(65, 4, 'BONJOBIE F. CAJANO, CPA, CTT' , 'L', 1, 'C');
+$pdf->Cell(65, 4, $sig['certified_by'][0] , 'L', 1, 'C');
 $pdf->SetXY(75, $Y);
 $pdf->Cell(30, 4, '' , 0, 1, 'C');
 $pdf->SetXY(105, $Y);
 $pdf->Cell(15, 4, '' , 0, 1, 'C');
 $pdf->SetXY(120, $Y);
-$pdf->Cell(65, 4, 'ALEXIS M. ORTIZ' , 0, 1, 'C');
+$pdf->Cell(65, 4, $sig['approved_by'][0] , 0, 1, 'C');
 $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 4, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
 $pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
-$pdf->Cell(65, 4, 'Accountant III' , 'L', 1, 'C');
+$pdf->Cell(65, 4, $sig['certified_by'][1] , 'L', 1, 'C');
 $pdf->SetXY(75, $Y);
 $pdf->Cell(30, 4, '' , 0, 1, 'C');
 $pdf->SetXY(105, $Y);
 $pdf->Cell(15, 4, '' , 0, 1, 'C');
 $pdf->SetXY(120, $Y);
-$pdf->Cell(65, 4, 'Chief Administrative Officer' , 0, 1, 'C');
+$pdf->Cell(65, 4, $sig['approved_by'][1] , 0, 1, 'C');
 $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 4, '' , 'R', 1, 'C');
 
@@ -974,32 +976,30 @@ $pdf->Cell(65, 9, '' , 'B', 1, 'L');
 $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 9, '' , 'R', 1, 'C');
 
-$ada_approver_converted = iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $ada_approver);
-$position_converted = iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $position);
 
 $Y = $pdf->GetY();
 $pdf->SetFont('Times', 'B', 7);
 $pdf->SetXY(10, $Y);
-$pdf->Cell(65, 4, $ada_approver_converted , 'L', 1, 'C');
+$pdf->Cell(65, 4, $sig['ada_approver'][0] , 'L', 1, 'C');
 $pdf->SetXY(75, $Y);
 $pdf->Cell(30, 4, '' , 0, 1, 'C');
 $pdf->SetXY(105, $Y);
 $pdf->Cell(15, 4, '' , 0, 1, 'C');
 $pdf->SetXY(120, $Y);
-$pdf->Cell(65, 4, 'ALEXIS M. ORTIZ' , 0, 1, 'C');
+$pdf->Cell(65, 4, $sig['ada_approver2'][0] , 0, 1, 'C');
 $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 4, '' , 'R', 1, 'C');
 
 $Y = $pdf->GetY();
 $pdf->SetFont('Times', '', 7);
 $pdf->SetXY(10, $Y);
-$pdf->Cell(65, 4, $position_converted , 'L', 1, 'C');
+$pdf->Cell(65, 4, $sig['ada_approver'][1] , 'L', 1, 'C');
 $pdf->SetXY(75, $Y);
 $pdf->Cell(30, 4, '' , 0, 1, 'C');
 $pdf->SetXY(105, $Y);
 $pdf->Cell(15, 4, '' , 0, 1, 'C');
 $pdf->SetXY(120, $Y);
-$pdf->Cell(65, 4, 'Chief Administrative Officer' , 0, 1, 'C');
+$pdf->Cell(65, 4, $sig['ada_approver2'][1] , 0, 1, 'C');
 $pdf->SetXY(185, $Y);
 $pdf->Cell(15, 4, '' , 'R', 1, 'C');
 
