@@ -6,12 +6,36 @@ $this->session = session();
 $this->cuser = $this->session->get('__xsys_myuserzicas__');
 
 $user = fods_current_user();
-$nav = fods_nav();
-$current = fods_nav_current();
-$role_name = $user['role_name'] !== '' ? $user['role_name'] : 'No role assigned';
+// IFAD Portal: the system this page belongs to sets the sidebar (FODS, SORF,
+// or the portal's own list of systems); a page may name it ($ifadSystem)
+$system = $ifadSystem ?? ifad_current_system();
+$systems = ifad_systems();
+$sys = $systems[$system] ?? null;
+$nav = ifad_nav($system, $sorfNav ?? '');
+$current = $system === 'fods' ? fods_nav_current() : null;
+// only the systems have a sidebar; the portal (and shared pages reached from it) has none
+$with_sidebar = $system !== 'portal';
 $org_unit = implode(' · ', array_filter([$user['division'], $user['section']], fn ($v) => $v !== '' && $v !== '-'));
+// the role shown is the one that applies here: the SORF role on SORF pages,
+// and on the portal the role in each system the user can open
+if ($system === 'portal') {
+    $role_rows = [];
+    if (ifad_can_open('fods')) {
+        $role_rows['FODS role'] = $user['role_name'] !== '' ? $user['role_name'] : 'No role';
+    }
+    if (ifad_can_open('sorf')) {
+        $role_rows['SORF role'] = drf_current_user()['role_name'];
+    }
+    $role_name = $user['position'] !== '' && $user['position'] !== '-' ? $user['position'] : $org_unit;
+} else {
+    $role_name = $system === 'sorf' ? drf_current_user()['role_name'] : $user['role_name'];
+    $role_name = $role_name !== '' ? $role_name : 'No role assigned';
+    $role_rows = ['Role' => $role_name];
+}
+$body_class = trim(($bodyClass ?? '') . ($with_sidebar ? '' : ' ifad-no-sidebar'));
 // Pages outside the sidebar (e.g. Messages) name themselves
 $page_title = $pageTitle ?? ($current['label'] ?? 'Home');
+$title_suffix = $sys ? $sys['short'] . ' · IFAD Portal' : 'IFAD Portal';
 
 // Topbar badges: unread chats (Messages) and tickets with news (Helpdesk);
 // fods-inbox.js keeps them fresh
@@ -34,23 +58,28 @@ try {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="shortcut icon" type="image/png" href="<?=base_url('assets/images/logos/fnrilogo.png')?>" />
-  <title><?= esc($page_title . ' · FODS') ?></title>
+  <title><?= esc($page_title . ' · ' . $title_suffix) ?></title>
   <link rel="stylesheet" href="<?=base_url('assets/css/styles.css')?>" />
-  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=8')?>" />
+  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=25')?>" />
+  <?= $headExtra ?? '' ?>
   <script>
     // Apply the remembered collapsed sidebar before first paint (no flicker)
     try { if (localStorage.getItem('fods.sidebar.collapsed') === '1') document.documentElement.classList.add('fods-collapsed'); } catch (e) {}
   </script>
 </head>
-<body<?= !empty($bodyClass) ? ' class="' . esc($bodyClass, 'attr') . '"' : '' ?>>
+<body<?= $body_class !== '' ? ' class="' . esc($body_class, 'attr') . '"' : '' ?>>
+  <?php if ($with_sidebar): ?>
   <div class="fods-overlay" id="fodsOverlay"></div>
 
   <!-- Sidebar -->
   <aside class="fods-sidebar" id="fodsSidebar">
     <div class="fods-brand">
-      <a href="<?=site_url('mydashboard');?>">
+      <a href="<?=site_url('portal');?>" title="IFAD Portal home">
         <img src="<?=base_url('assets/images/logos/fnrilogo.png')?>" alt="" />
-        <span class="fods-brand-text">FODS</span>
+        <span class="fods-brand-text">
+          IFAD Portal
+          <small class="fods-brand-sub"><?= esc($sys ? $sys['short'] : 'Integrated Finance & Admin') ?></small>
+        </span>
       </a>
       <button type="button" class="fods-sidebar-close d-xl-none" id="fodsSidebarClose" aria-label="Close menu"><i class="ti ti-x"></i></button>
     </div>
@@ -66,6 +95,8 @@ try {
                 <span class="fods-nav-text"><?= esc($item['label']) ?></span>
                 <?php if (!empty($item['badge'])): ?>
                   <span class="badge bg-danger rounded-pill" id="<?= $item['badge'] ?>" style="display:none;">0</span>
+                <?php elseif (!empty($item['count'])): ?>
+                  <span class="badge bg-danger rounded-pill"><?= $item['count'] > 99 ? '99+' : (int) $item['count'] ?></span>
                 <?php endif; ?>
               </a>
             </li>
@@ -81,11 +112,29 @@ try {
       </button>
     </div>
   </aside>
+  <?php endif; ?>
 
   <div class="fods-page">
     <!-- Topbar -->
     <header class="fods-topbar">
-      <button type="button" class="fods-icon-btn" id="fodsSidebarToggle" aria-label="Toggle menu"><i class="ti ti-menu-2"></i></button>
+      <?php if ($with_sidebar): ?>
+        <button type="button" class="fods-icon-btn" id="fodsSidebarToggle" aria-label="Toggle menu"><i class="ti ti-menu-2"></i></button>
+      <?php else: ?>
+        <a class="ifad-topbar-brand" href="<?= site_url('portal') ?>" title="IFAD Portal home">
+          <img src="<?=base_url('assets/images/logos/fnrilogo.png')?>" alt="" />
+          <span><strong>IFAD Portal</strong><small class="d-none d-sm-block">Integrated Finance and Administrative Division</small></span>
+        </a>
+      <?php endif; ?>
+
+      <!-- Systems (IFAD Portal): every system the user can open, one click away; the grid goes back to the systems page -->
+      <nav class="ifad-tabs" aria-label="Systems">
+        <?php foreach ($systems as $key => $s): if ($s['status'] !== 'live' || !ifad_can_open($key)) { continue; } ?>
+          <a class="ifad-tab<?= $key === $system ? ' is-current' : '' ?>" href="<?= site_url(ifad_home($key)) ?>" title="<?= esc($s['name'], 'attr') ?>"<?= $key === $system ? ' aria-current="page"' : '' ?>>
+            <i class="ti <?= $s['icon'] ?>"></i><span><?= esc($s['short']) ?></span>
+          </a>
+        <?php endforeach; ?>
+        <a class="ifad-tab-all<?= $system === 'portal' ? ' is-current' : '' ?>" href="<?= site_url('portal') ?>" title="All systems" aria-label="All systems"><i class="ti ti-layout-grid"></i></a>
+      </nav>
 
       <div class="fods-topbar-end ms-auto">
         <!-- Messages (chats), then the Helpdesk (tickets), before the user details -->
@@ -148,7 +197,9 @@ try {
               </div>
             </div>
             <div class="fods-profile-rows">
-              <div><span>Role</span><span><?= esc($role_name) ?></span></div>
+              <?php foreach ($role_rows as $label => $value): ?>
+                <div><span><?= esc($label) ?></span><span><?= esc($value) ?></span></div>
+              <?php endforeach; ?>
               <?php if ($user['position'] !== '' && $user['position'] !== '-'): ?>
                 <div><span>Position</span><span><?= esc($user['position']) ?></span></div>
               <?php endif; ?>

@@ -132,6 +132,7 @@ function __mysys_myua_ent() {
 			jQuery('#position').val(d.position || '');
 			jQuery('#username').val(d.username || '');
 			jQuery('#role_id').val(d.role_id || '');
+			jQuery('#sorf_role_id').val(d.sorf_role_id || '');
 
 			jQuery('#password').val('')
 				.prop('required', !isEdit)
@@ -180,6 +181,11 @@ function __mysys_myua_ent() {
 					role_id: jQuery('#role_id').val(),
 					meaction: 'MAIN-SAVE'
 				};
+				// IFAD Portal: the SORF role, when the form offers it
+				if (document.getElementById('sorf_role_id')) {
+					mparam.sorf_role_posted = 1;
+					mparam.sorf_role_id = jQuery('#sorf_role_id').val();
+				}
 				post(mparam, '#userSubmitBtn', '[MYUA]');
 			} catch(err) {
 				alert(err.message);

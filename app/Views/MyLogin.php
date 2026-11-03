@@ -1,1278 +1,254 @@
+<?php
+// IFAD Portal sign-in: one framed sheet on a quiet background. Left: the
+// portal and an index of its systems (Config\Systems); right: the sign-in form
+// (posts MyUsername / MyPassword to mylogin-auth). Both halves slide in on
+// arrival and slide out when signing in.
+$systems = config(\Config\Systems::class)->systems;
+$error = session()->getFlashdata('mesyszicas_memsg_login');
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FODS - Financial Obligation and Disbursement System</title>
+  <title>Sign in · IFAD Portal</title>
   <link rel="shortcut icon" type="image/png" href="<?=base_url('assets/images/logos/fnrilogo.png')?>" />
-  <!-- Bootstrap 5 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Bootstrap Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Toastr CSS -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-  <!-- Toastr JS (jQuery is required) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+  <link rel="stylesheet" href="<?=base_url('assets/css/styles.css')?>" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap" />
   <style>
     :root {
-      --primary-navy: #0a1a3a;
-      --primary-navy-light: #1e3260;
-      --primary-navy-soft: #2c3e6e;
-      --accent-teal: #0f6f6f;
-      --accent-teal-light: #148a8a;
-      --accent-gold: #c6a13b;
-      --neutral-white: #ffffff;
-      --neutral-gray-50: #f8fafc;
-      --neutral-gray-100: #f1f4f9;
-      --neutral-gray-200: #e9edf2;
-      --neutral-gray-300: #d0d7e2;
-      --text-primary: #1e293b;
-      --text-secondary: #475569;
-      --text-tertiary: #64748b;
-      --border-light: rgba(0, 0, 0, 0.05);
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+      --ink: #0b2a36; --ink-2: #0f3a48; --teal: #0f6f6f; --teal-hi: #5fc4bd;
+      --paper: #ffffff; --bg: #e9eef1; --line: #e3e8ee; --text: #1e293b; --muted: #64748b;
+      --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+      --ease: cubic-bezier(.65, 0, .35, 1);
     }
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
+    html, body { height: 100%; }
     body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      overflow: hidden;
-      background: var(--primary-navy);
-    }
-    
-    #main-wrapper {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: row-reverse;
-    }
-    
-    /* Interactive Canvas Background */
-    #interactive-bg {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 72%;
-      height: 100%;
-      z-index: 0;
-    }
-    
-    /* Right Side - Login Container */
-    .login-container {
-      position: relative;
-      z-index: 10;
-      width: 28%;
-      min-width: 360px;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--neutral-white);
-      box-shadow: -8px 0 32px rgba(0, 0, 0, 0.1);
-    }
-    
-    .auth-card {
-      width: 100%;
-      max-width: 300px;
-      padding: 2rem 1.5rem;
-    }
-    
-    /* Logo Section */
-    .logo-section {
-      margin-bottom: 2rem;
-      text-align: center;
-    }
-    
-    .institution-logo {
-      width: 70px;
-      height: 70px;
-      margin: 0 auto 0.75rem;
-      background: var(--neutral-gray-50);
-      border-radius: 12px;
-      padding: 8px;
-      border: 1px solid var(--neutral-gray-200);
-    }
-    
-    .institution-logo img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-    
-    .system-name {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: -0.01em;
-      margin-bottom: 0.15rem;
-    }
-    
-    .system-subtitle {
-      font-size: 0.65rem;
-      color: var(--text-tertiary);
-      font-weight: 500;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-    }
-    
-    .divider {
-      width: 40px;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--accent-teal), transparent);
-      margin: 0.75rem auto 0;
-    }
-    
-    /* Form Elements */
-    .form-group {
-      margin-bottom: 1.25rem;
-    }
-    
-    .form-label {
-      display: block;
-      color: var(--text-secondary);
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      margin-bottom: 0.35rem;
-    }
-    
-    .input-wrapper {
-      position: relative;
-    }
-    
-    .input-icon {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--accent-teal);
-      font-size: 0.9rem;
-      opacity: 0.6;
-    }
-    
-    .form-control {
-      width: 100%;
-      padding: 0.6rem 0.6rem 0.6rem 2.2rem;
-      font-size: 0.8rem;
-      border: 1px solid var(--neutral-gray-300);
-      border-radius: 8px;
-      background: var(--neutral-white);
-      color: var(--text-primary);
-      transition: all 0.2s ease;
-    }
-    
-    .form-control:focus {
-      outline: none;
-      border-color: var(--accent-teal);
-      box-shadow: 0 0 0 3px rgba(15, 111, 111, 0.1);
-    }
-    
-    .options-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1.5rem;
-    }
-    
-    .checkbox-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-    
-    .checkbox-wrapper input[type="checkbox"] {
-      width: 14px;
-      height: 14px;
-      accent-color: var(--accent-teal);
-      cursor: pointer;
-    }
-    
-    .checkbox-wrapper label {
-      font-size: 0.7rem;
-      color: var(--text-secondary);
-      cursor: pointer;
-    }
-    
-    .forgot-link {
-      font-size: 0.7rem;
-      color: var(--accent-teal);
-      text-decoration: none;
-      font-weight: 500;
-    }
-    
-    .forgot-link:hover {
-      text-decoration: underline;
-    }
-    
-    /* Sign In Button */
-    .btn-signin {
-      width: 100%;
-      padding: 0.7rem;
-      background: var(--primary-navy);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      margin-bottom: 1rem;
-    }
-    
-    .btn-signin:hover {
-      background: var(--primary-navy-light);
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-md);
-    }
-    
-    /* Agency Footer */
-    .agency-footer {
-      margin-top: 2rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--neutral-gray-200);
-      text-align: center;
-    }
-    
-    .agency-footer small {
-      font-size: 0.6rem;
-      color: var(--text-tertiary);
-      display: block;
-      line-height: 1.4;
-    }
-    
-    /* Top Left Agency Logo */
-    .agency-badge {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(10px);
-      padding: 6px 14px;
-      border-radius: 40px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .agency-badge img {
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
-    }
-    
-    .agency-badge span {
-      color: white;
-      font-weight: 500;
-      font-size: 0.7rem;
-      letter-spacing: 0.02em;
-      opacity: 0.9;
-    }
-    
-    /* INTERACTIVE DATA VISUALIZATIONS */
-    .viz-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 72%;
-      height: 100%;
-      z-index: 5;
-      pointer-events: none;
-      perspective: 1000px;
-    }
-    
-    /* Interactive Card Design */
-    .data-card {
-      position: absolute;
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 16px;
-      padding: 16px;
-      color: white;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-      min-width: 200px;
-      pointer-events: auto;
-      cursor: pointer;
-      transition: all 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.1);
-      animation: cardFloat 6s ease-in-out infinite;
-      transform-style: preserve-3d;
-    }
-    
-    .data-card:hover {
-      transform: translateY(-10px) scale(1.05) rotateX(2deg);
-      border-color: var(--accent-teal);
-      box-shadow: 0 30px 50px rgba(15, 111, 111, 0.3);
-      background: rgba(255, 255, 255, 0.08);
-    }
-    
-    .data-card:active {
-      transform: translateY(-5px) scale(1.02);
-    }
-    
-    @keyframes cardFloat {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-5px); }
-    }
-    
-    /* Card hover reveal effects */
-    .data-card:hover .card-header i {
-      transform: scale(1.2) rotate(5deg);
-      color: var(--accent-gold);
-    }
-    
-    .data-card:hover .bar {
-      opacity: 1;
-      filter: brightness(1.2);
-    }
-    
-    .data-card:hover .trend-line {
-      stroke: var(--accent-gold);
-      stroke-width: 3;
-    }
-    
-    .data-card:hover .metric-value {
-      color: var(--accent-gold);
-      transform: translateX(2px);
-    }
-    
-    .card-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      transition: all 0.3s ease;
-    }
-    
-    .card-header i {
-      color: var(--accent-teal);
-      font-size: 1rem;
-      opacity: 0.8;
-      transition: all 0.3s ease;
-    }
-    
-    .card-header span {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: rgba(255, 255, 255, 0.7);
-      transition: color 0.3s ease;
-    }
-    
-    .data-card:hover .card-header span {
-      color: white;
-    }
-    
-    /* Animated Bar Chart */
-    .chart-bars {
-      display: flex;
-      align-items: flex-end;
-      gap: 12px;
-      height: 100px;
-      margin: 12px 0;
-    }
-    
-    .bar-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-    }
-    
-    .bar {
-      width: 100%;
-      background: linear-gradient(180deg, var(--accent-teal-light), var(--accent-teal));
-      border-radius: 4px 4px 0 0;
-      opacity: 0.7;
-      transition: all 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.1);
-      animation: barPulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes barPulse {
-      0%, 100% { opacity: 0.7; }
-      50% { opacity: 0.9; }
-    }
-    
-    .data-card:hover .bar {
-      animation: barWave 0.5s ease-out;
-    }
-    
-    @keyframes barWave {
-      0% { transform: scaleY(1); }
-      50% { transform: scaleY(1.1); }
-      100% { transform: scaleY(1); }
-    }
-    
-    .bar-label {
-      font-size: 0.55rem;
-      color: rgba(255, 255, 255, 0.5);
-      text-transform: uppercase;
-      transition: color 0.3s ease;
-    }
-    
-    .data-card:hover .bar-label {
-      color: rgba(255, 255, 255, 0.9);
-    }
-    
-    /* Animated Line Graph */
-    .graph-container {
-      width: 100%;
-      height: 70px;
-      margin: 10px 0;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .trend-line {
-      stroke: var(--accent-teal);
-      stroke-width: 2;
-      fill: none;
-      stroke-linecap: round;
-      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-      transition: all 0.3s ease;
-      stroke-dasharray: 1000;
-      stroke-dashoffset: 0;
-    }
-    
-    .data-card:hover .trend-line {
-      animation: drawLine 1.5s ease-out;
-    }
-    
-    @keyframes drawLine {
-      0% { stroke-dashoffset: 1000; }
-      100% { stroke-dashoffset: 0; }
-    }
-    
-    .trend-area {
-      fill: rgba(15, 111, 111, 0.15);
-      transition: fill 0.3s ease;
-    }
-    
-    .data-card:hover .trend-area {
-      fill: rgba(15, 111, 111, 0.3);
-    }
-    
-    /* Animated Pie Chart */
-    .pie-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 10px 0;
-    }
-    
-    .pie-segment {
-      width: 70px;
-      height: 70px;
-      border-radius: 50%;
-      background: conic-gradient(
-        var(--accent-teal) 0deg 130deg,
-        var(--primary-navy-light) 130deg 240deg,
-        var(--accent-teal-light) 240deg 360deg
-      );
-      border: 2px solid rgba(255, 255, 255, 0.1);
-      transition: all 0.5s ease;
-      animation: pieRotate 10s linear infinite;
-    }
-    
-    @keyframes pieRotate {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    
-    .data-card:hover .pie-segment {
-      animation: piePulse 1s ease-out;
-      border-color: var(--accent-gold);
-    }
-    
-    @keyframes piePulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
-    }
-    
-    /* Metric animations */
-    .metric-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 4px 0;
-      font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.8);
-      transition: all 0.3s ease;
-      border-bottom: 1px solid transparent;
-    }
-    
-    .data-card:hover .metric-row {
-      border-bottom-color: rgba(198, 161, 59, 0.2);
-      padding-left: 5px;
-    }
-    
-    .metric-label {
-      color: rgba(255, 255, 255, 0.5);
-      transition: color 0.3s ease;
-    }
-    
-    .metric-value {
-      font-weight: 600;
-      color: var(--accent-teal);
-      transition: all 0.3s ease;
-    }
-    
-    /* Table animations */
-    .data-table {
-      width: 100%;
-      font-size: 0.65rem;
-      border-collapse: collapse;
-    }
-    
-    .data-table td {
-      padding: 4px 0;
-      color: rgba(255, 255, 255, 0.7);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      transition: all 0.3s ease;
-    }
-    
-    .data-table td:last-child {
-      text-align: right;
-      color: var(--accent-teal);
-      font-weight: 500;
-    }
-    
-    .data-card:hover .data-table tr {
-      animation: tableRowFade 0.5s ease-out;
-    }
-    
-    @keyframes tableRowFade {
-      0% { opacity: 0.5; transform: translateX(-5px); }
-      100% { opacity: 1; transform: translateX(0); }
-    }
-    
-    .data-card:hover .data-table td:last-child {
-      color: var(--accent-gold);
-    }
-    
-    /* Mini bar chart animations */
-    .mini-bar {
-      transition: all 0.3s ease;
-      animation: miniBarPulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes miniBarPulse {
-      0%, 100% { opacity: 0.5; }
-      50% { opacity: 0.8; }
-    }
-    
-    .data-card:hover .mini-bar {
-      animation: miniBarWave 0.5s ease-out;
-      opacity: 1;
-    }
-    
-    @keyframes miniBarWave {
-      0% { transform: scaleY(1); }
-      50% { transform: scaleY(1.2); }
-      100% { transform: scaleY(1); }
-    }
-    
-    /* Glow effect on hover */
-    .data-card::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border-radius: 16px;
-      background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), 
-                                 rgba(15, 111, 111, 0.2), 
-                                 transparent 70%);
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      pointer-events: none;
-    }
-    
-    .data-card:hover::after {
-      opacity: 1;
-    }
-    
-    /* POSITIONS with different float delays */
-    .pos-1 { top: 12%; left: 5%; animation-delay: 0s; }
-    .pos-2 { top: 25%; left: 38%; animation-delay: 1s; }
-    .pos-3 { top: 45%; left: 15%; animation-delay: 2s; }
-    .pos-4 { top: 65%; left: 42%; animation-delay: 0.5s; }
-    .pos-5 { top: 15%; left: 68%; animation-delay: 1.5s; }
-    .pos-6 { top: 35%; left: 79%; animation-delay: 2.5s; }
-    .pos-7 { top: 55%; left: 55%; animation-delay: 0.8s; }
-    .pos-8 { top: 75%; left: 18%; animation-delay: 1.8s; }
-    .pos-9 { top: 82%; left: 68%; animation-delay: 2.2s; }
-    
-    /* Mouse move effect */
-    .data-card {
-      --mouse-x: 50%;
-      --mouse-y: 50%;
-    }
-    
-    /* (responsive rules are at the end of this stylesheet) */
-    /* Executive-level interactive title */
-    .fods-title-container {
-        position: absolute;
-        top: 20px;
-        left: 36%;
-        transform: translateX(-50%);
-        z-index: 9999;
-        pointer-events: auto;
-    }
+      margin: 0; color: var(--text); overflow-x: hidden;
+      background:
+        radial-gradient(circle at 1px 1px, rgba(11,42,54,.09) 1px, transparent 0) 0 0 / 22px 22px,
+        linear-gradient(180deg, #eef2f4 0%, var(--bg) 100%);
+    }
+    .sheet-wrap { min-height: 100vh; display: flex; }
+    .sheet { position: relative; width: 100%; min-height: 100vh; display: grid; grid-template-columns: minmax(0, 65fr) minmax(0, 35fr); overflow: hidden; transition: transform .7s var(--ease), opacity .6s ease; }
 
-    .fods-title-container h1 {
-        font-size: 2.5rem !important;
-        font-weight: 400 !important;
-        background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.9) 100%) !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        background-clip: text !important;
-        letter-spacing: 10px !important;
-        text-shadow: 0 5px 15px rgba(0,0,0,0.3) !important;
-        transition: all 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.1) !important;
-        position: relative;
+    /* ---- Left: the portal ---- */
+    .panel { position: relative; display: flex; flex-direction: column; padding: clamp(2rem, 4vw, 3.5rem) clamp(2rem, 5vw, 5rem); color: #e6eef1; background: linear-gradient(160deg, var(--ink-2) 0%, var(--ink) 70%); overflow: hidden; transition: transform .7s var(--ease), opacity .6s ease; }
+    .panel::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 56px 100%; pointer-events: none; }
+    .panel::after { content: ""; position: absolute; left: 0; top: 2.5rem; width: 4px; height: 64px; background: var(--teal-hi); border-radius: 0 4px 4px 0; }
+    .panel > * { position: relative; z-index: 1; width: 100%; max-width: 640px; }
+    .panel::after { top: clamp(2rem, 4vw, 3.5rem); }
+    .agency { display: flex; align-items: center; gap: .7rem; font-size: .8rem; color: rgba(230,238,241,.75); }
+    .agency img { width: 38px; height: 38px; object-fit: contain; background: #fff; border-radius: 10px; padding: 4px; }
+    .agency strong { display: block; color: #fff; font-size: .86rem; letter-spacing: .02em; }
+    .title { margin: auto 0 0; padding-top: 2.5rem; }
+    .kicker { font-size: .7rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--teal-hi); }
+    .title h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(3rem, 4.2vw, 4.2rem); line-height: 1.02; letter-spacing: -.015em; color: #fff; margin: .7rem 0 .8rem; }
+    .title h1 em { font-style: italic; color: var(--teal-hi); }
+    .title p { margin: 0; max-width: 430px; font-size: .9rem; line-height: 1.55; color: rgba(230,238,241,.78); }
+
+    .index { margin-top: 2.5rem; }
+    .index-head { display: flex; justify-content: space-between; font-size: .66rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: rgba(230,238,241,.5); padding-bottom: .55rem; border-bottom: 1px solid rgba(255,255,255,.14); }
+    .index ol { list-style: none; margin: 0; padding: 0; }
+    .index li { display: grid; grid-template-columns: 2.1rem minmax(0, 1fr) auto; align-items: center; gap: .9rem; padding: .62rem 0; border-bottom: 1px solid rgba(255,255,255,.08); transition: transform .6s var(--ease), opacity .5s ease; transition-delay: calc(var(--i) * 70ms); }
+    .index-no { font-family: var(--serif); font-size: 1.05rem; color: var(--teal-hi); font-variant-numeric: tabular-nums; }
+    .index-name { min-width: 0; }
+    .index-name strong { display: block; font-size: .9rem; font-weight: 600; color: #fff; }
+    .index-name small { display: block; font-size: .74rem; color: rgba(230,238,241,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .index-state { display: inline-flex; align-items: center; gap: .4rem; font-size: .66rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(230,238,241,.5); white-space: nowrap; }
+    .index-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; }
+    .index li.is-live .index-state { color: #7ee2b8; }
+    .index li.is-live .index-state::before { background: currentColor; box-shadow: 0 0 0 3px rgba(126,226,184,.18); }
+    .index li.is-soon .index-name strong { color: rgba(255,255,255,.72); }
+    .panel-foot { margin-top: auto; padding-top: 2.5rem; font-size: .72rem; color: rgba(230,238,241,.5); }
+
+    /* ---- Right: sign in ---- */
+    .form-side { display: flex; flex-direction: column; padding: clamp(2rem, 4vw, 3.5rem) clamp(2rem, 4vw, 4rem); background: transparent; transition: transform .7s var(--ease), opacity .55s ease; }
+    .form-tag { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: 1.1rem; padding: .3rem .7rem; border: 1px solid #d5dde6; border-radius: 999px; background: #fff; font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    .form-tag .ti { color: var(--teal); font-size: .9rem; }
+    .form-body { margin: auto 0; width: 100%; max-width: 380px; align-self: center; }
+    .form-body h2 { font-family: var(--serif); font-weight: 500; font-size: 2rem; letter-spacing: -.01em; color: var(--ink); margin: 0 0 .35rem; }
+    .form-sub { margin: 0 0 1.75rem; font-size: .88rem; color: var(--muted); }
+    .alert-line { display: flex; gap: .55rem; align-items: flex-start; padding: .7rem .85rem; margin-bottom: 1.25rem; border-left: 3px solid #dc2626; border-radius: 0 10px 10px 0; background: #fef2f2; color: #991b1b; font-size: .85rem; }
+    .alert-line .ti { font-size: 1.05rem; margin-top: .05rem; }
+    .fld { margin-bottom: 1.1rem; }
+    .fld label { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); margin-bottom: .45rem; }
+    .fld-box { position: relative; }
+    .fld-box > .ti { position: absolute; left: .95rem; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 1.1rem; pointer-events: none; transition: color .2s ease; }
+    .fld-box input { width: 100%; height: 50px; padding: 0 1rem 0 2.75rem; border: 1px solid #d5dde6; border-radius: 12px; background: #f8fafc; font-size: .95rem; color: var(--text); outline: none; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+    .fld-box input::placeholder { color: #a0aab8; }
+    .fld-box input:focus { background: #fff; border-color: var(--teal); box-shadow: 0 0 0 4px rgba(15,111,111,.12); }
+    .fld-box:focus-within > .ti { color: var(--teal); }
+    #MyPassword { padding-right: 3rem; }
+    .eye { position: absolute; right: .45rem; top: 50%; transform: translateY(-50%); border: 0; background: none; color: #94a3b8; padding: .4rem .5rem; border-radius: 8px; font-size: 1.1rem; }
+    .eye:hover { color: var(--teal); }
+    .submit { position: relative; overflow: hidden; width: 100%; height: 52px; margin-top: .6rem; border: 0; border-radius: 12px; background: var(--ink); color: #fff; font-weight: 600; font-size: .95rem; letter-spacing: .02em; display: flex; align-items: center; justify-content: space-between; padding: 0 1.1rem 0 1.25rem; transition: background .2s ease; }
+    .submit::after { content: ""; position: absolute; inset: 0; background: var(--teal); transform: translateX(-101%); transition: transform .45s var(--ease); }
+    .submit > * { position: relative; z-index: 1; }
+    .submit:hover::after, .submit:focus-visible::after { transform: none; }
+    .submit .ti { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,.14); font-size: 1.05rem; transition: transform .25s ease; }
+    .submit:hover .ti { transform: translateX(3px); }
+    .submit:disabled { opacity: .85; }
+    .help { margin: 1.4rem 0 0; padding-top: 1.1rem; border-top: 1px dashed var(--line); font-size: .8rem; color: var(--muted); display: flex; gap: .45rem; align-items: center; }
+    .help .ti { color: var(--teal); font-size: 1rem; }
+    .form-foot { font-size: .72rem; color: var(--muted); text-align: center; }
+    .shake { animation: shake .35s ease; }
+    @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+    /* ---- Arrive / leave ---- */
+    .is-arriving .sheet { transform: translateY(18px) scale(.985); opacity: 0; }
+    .is-arriving .panel { transform: translateX(-60px); opacity: 0; }
+    .is-arriving .index li { transform: translateX(-30px); opacity: 0; }
+    .is-arriving .form-side { transform: translateX(60px); opacity: 0; }
+    .panel { transition-delay: .1s; }
+    .form-side { transition-delay: .18s; }
+    .is-leaving .index li { transform: translateX(-30px); opacity: 0; transition-delay: calc((4 - var(--i)) * 45ms); }
+    .is-leaving .form-side { transform: translateX(110%); opacity: 0; transition-delay: 0s; }
+    .is-leaving .panel { transform: translateX(-110%); opacity: 0; transition-delay: .2s; }
+    .is-leaving .sheet { transform: scale(.97); opacity: 0; transition-delay: .35s; }
+
+    @media (max-width: 991.98px) {
+      .sheet-wrap { justify-content: flex-start; padding: 0; }
+      .sheet { grid-template-columns: minmax(0, 1fr); min-height: 100vh; border-radius: 0; box-shadow: none; }
+      .panel { padding: 1.5rem 1.25rem 1.6rem; }
+      .panel::after { top: 1.5rem; height: 40px; }
+      .title { margin-top: 1.25rem; padding-top: 0; }
+      .title h1 { font-size: 2.3rem; }
+      .index, .panel-foot { display: none; }
+      .form-side { padding: 1.75rem 1.25rem 1.5rem; }
+      .form-body { margin: 0 0 2rem; max-width: none; }
+      .is-arriving .panel, .is-leaving .panel { transform: translateY(-40px); }
+      .is-arriving .form-side, .is-leaving .form-side { transform: translateY(40px); }
     }
-
-    /* Sophisticated data-inspired animation */
-    .fods-title-container:hover h1 {
-        letter-spacing: 12px !important;
-        text-shadow: 
-            0 5px 20px rgba(15,111,111,0.4),
-            0 0 40px rgba(198,161,59,0.2) !important;
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; transition-delay: 0s !important; animation-duration: .01ms !important; }
     }
-
-    /* Animated data bars that respond to hover */
-    .fods-title-container .title-bars {
-        position: absolute;
-        bottom: -15px;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        display: flex;
-        gap: 3px;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .fods-title-container:hover .title-bars {
-        opacity: 1;
-    }
-
-    .fods-title-container .title-bars span {
-        width: 8px;
-        height: 3px;
-        background: var(--accent-teal);
-        border-radius: 2px;
-        animation: barWave 1.5s ease-in-out infinite;
-        animation-delay: calc(var(--i) * 0.1s);
-    }
-
-    @keyframes barWave {
-        0%, 100% { height: 3px; background: var(--accent-teal); }
-        50% { height: 8px; background: var(--accent-gold); }
-    }
-
-    /* Subtle connection to background cards */
-    .fods-title-container:hover ~ .viz-container .data-card {
-        border-color: rgba(15, 111, 111, 0.2);
-        transition: border-color 0.5s ease;
-    }
-
-    .fods-title-container:hover ~ .viz-container .data-card:hover {
-        border-color: var(--accent-gold);
-    }
-
-/* New institution badge for login card */
-.institution-badge {
-    text-align: center;
-    margin-bottom: 0.5rem;
-}
-
-.institution-name {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--primary-navy);
-    letter-spacing: 0.5px;
-}
-
-.institution-tagline {
-    display: block;
-    font-size: 0.6rem;
-    color: var(--text-tertiary);
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-    margin-top: 2px;
-}
-
-/* Adjust logo section spacing */
-.logo-section {
-    margin-bottom: 1.5rem; /* Reduced from 2rem */
-}
-
-.institution-logo {
-    width: 70px;
-    height: 70px;
-    margin: 0 auto 0.5rem; /* Reduced bottom margin */
-}
-
-/* ============================= RESPONSIVE =============================
-   Desktop (993px and up): navy data wall on the left, login panel on the right.
-   Tablet and phone (992px and down): the wall becomes a full-screen background
-   and the login panel a centered card under the FODS title; the page scrolls
-   when the screen is short (landscape phones, on-screen keyboard). */
-
-/* phones with a dynamic browser bar: use the visible height */
-#main-wrapper { width: 100%; height: 100dvh; }
-.login-container { height: 100dvh; }
-
-/* Short desktop windows: the login panel scrolls instead of cutting the form */
-@media (min-width: 993px) and (max-height: 640px) {
-  .login-container { align-items: flex-start; overflow-y: auto; }
-  .auth-card { margin: auto; }
-}
-
-/* Small laptops / landscape tablets: fewer cards so they don't pile up */
-@media (min-width: 993px) and (max-width: 1280px) {
-  .login-container { width: 34%; }
-  #interactive-bg, .viz-container { width: 66%; }
-  .fods-title-container { left: 33%; }
-  /* six cards in two tidy columns (the desktop scatter overlaps at this width) */
-  .pos-6, .pos-7, .pos-9 { display: none; }
-  .data-card { width: 41%; min-width: 0; padding: 14px; }
-  .pos-1 { top: 14%; left: 6%; }
-  .pos-5 { top: 14%; left: 53%; }
-  .pos-3 { top: 43%; left: 6%; }
-  .pos-2 { top: 43%; left: 53%; }
-  .pos-8 { top: 70%; left: 6%; }
-  .pos-4 { top: 70%; left: 53%; }
-}
-
-/* ...and only the first two rows when that window is also short */
-@media (min-width: 993px) and (max-width: 1280px) and (max-height: 680px) {
-  .pos-8, .pos-4 { display: none; }
-  .pos-1, .pos-5 { top: 17%; }
-  .pos-3, .pos-2 { top: 56%; }
-}
-
-/* Tablets and phones */
-@media (max-width: 992px) {
-  body { overflow-x: hidden; overflow-y: auto; }
-
-  #main-wrapper {
-    height: auto;
-    min-height: 100vh;
-    min-height: 100dvh;
-    overflow: visible;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 76px 16px 28px;
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-    padding-bottom: max(28px, env(safe-area-inset-bottom));
-  }
-
-  /* the animated background fills the screen and stays put while scrolling */
-  #interactive-bg { position: fixed; width: 100%; height: 100%; }
-  .viz-container { display: none; }
-
-  /* FODS title sits above the card, in the page flow */
-  .fods-title-container {
-    position: relative;
-    top: auto;
-    left: auto;
-    transform: none;
-    z-index: 10;
-    margin-bottom: 1.5rem;
-    text-align: center;
-  }
-  .fods-title-container h1 { font-size: 2.25rem !important; letter-spacing: 10px !important; padding-left: 10px; }
-  .fods-title-container:hover h1 { letter-spacing: 10px !important; }
-
-  /* the login panel becomes a card */
-  .login-container {
-    width: 100%;
-    max-width: 440px;
-    min-width: 0;
-    height: auto;
-    border-radius: 20px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
-  }
-  .auth-card { max-width: 360px; padding: 2rem 1.75rem; }
-
-  /* comfortable to read and tap; 16px inputs stop iOS from zooming in on focus */
-  .form-label { font-size: 0.75rem; }
-  .form-control { font-size: 16px; padding: 0.75rem 0.75rem 0.75rem 2.5rem; border-radius: 10px; }
-  .input-icon { font-size: 1.05rem; left: 14px; }
-  .checkbox-wrapper input[type="checkbox"] { width: 18px; height: 18px; }
-  .checkbox-wrapper label, .forgot-link { font-size: 0.8rem; }
-  .options-row { flex-wrap: wrap; gap: 0.5rem 1rem; }
-  .btn-signin { font-size: 0.95rem; padding: 0.85rem; border-radius: 10px; }
-  .btn-signin:hover { transform: none; }
-  .institution-tagline { font-size: 0.65rem; }
-  .agency-footer small { font-size: 0.68rem; }
-  .agency-badge { top: 16px; left: 16px; left: max(16px, env(safe-area-inset-left)); }
-}
-
-/* Phones */
-@media (max-width: 576px) {
-  #main-wrapper { padding-top: 68px; padding-bottom: 20px; }
-  .fods-title-container { margin-bottom: 1.1rem; }
-  .fods-title-container h1 { font-size: 1.9rem !important; letter-spacing: 8px !important; padding-left: 8px; }
-  .fods-title-container:hover h1 { letter-spacing: 8px !important; }
-  .login-container { border-radius: 18px; }
-  .auth-card { max-width: none; padding: 1.75rem 1.25rem; }
-  .institution-name { font-size: 1.35rem; }
-}
-
-/* Very narrow phones (320px wide) */
-@media (max-width: 360px) {
-  #main-wrapper { padding-left: 10px; padding-right: 10px; }
-  .auth-card { padding: 1.5rem 1rem; }
-  .institution-logo { width: 60px; height: 60px; }
-}
-
-/* Landscape phones: little height, so drop the big title and tighten the card */
-@media (max-width: 992px) and (max-height: 520px) {
-  #main-wrapper { justify-content: flex-start; padding-top: 60px; }
-  .fods-title-container { display: none; }
-  .logo-section { margin-bottom: 1rem; }
-  .institution-logo { width: 52px; height: 52px; }
-  .form-group { margin-bottom: 0.9rem; }
-  .agency-footer { margin-top: 1rem; }
-}
-
-/* Less motion for people who ask for it */
-@media (prefers-reduced-motion: reduce) {
-  .data-card, .bar, .mini-bar, .pie-segment { animation: none !important; }
-  .data-card, .btn-signin, .form-control { transition: none !important; }
-}
   </style>
 </head>
 <body>
-  <div id="main-wrapper">
-    <!-- Agency Badge - Top Left -->
-    <div class="agency-badge">
-      <img src="<?=base_url('assets/images/logos/fnrilogo.png')?>" alt="DOST FNRI">
-      <span>DOST - FNRI</span>
-    </div>
+  <div class="sheet-wrap is-arriving" id="login">
+    <div class="sheet">
+      <section class="panel">
+        <div class="agency">
+          <img src="<?=base_url('assets/images/logos/fnrilogo.png')?>" alt="DOST-FNRI logo">
+          <span><strong>DOST-FNRI</strong>Food and Nutrition Research Institute</span>
+        </div>
 
-<!-- Interactive FODS Title with Data Bars -->
-<div class="fods-title-container">
-    <div class="title-glow"></div>
-    <h1>FODS</h1>
-    <div class="title-bars">
-        <span style="--i:1"></span>
-        <span style="--i:2"></span>
-        <span style="--i:3"></span>
-        <span style="--i:4"></span>
-        <span style="--i:5"></span>
-        <span style="--i:6"></span>
-    </div>
-</div>
-    
-    <!-- Right Side - Professional Login -->
-<div class="login-container">
-    <div class="auth-card">
-        <!-- Simplified logo section - removed FODS text since it's already in the background -->
-        <div class="logo-section">
-            <div class="institution-logo">
-                <img src="<?=base_url('assets/images/logos/fnrilogo.png')?>" alt="DOST FNRI">
-            </div>
-            <!-- Removed system-name and system-subtitle since FODS is now in the background -->
-            <!-- Just keeping a subtle institutional identifier -->
-            <div class="institution-badge">
-                <span class="institution-name">DOST - FNRI</span>
-                <span class="institution-tagline">Financial Obligation and Disbursement System</span>
-            </div>
-            <div class="divider"></div>
+        <div class="title">
+          <div class="kicker">Integrated Finance and Administrative Division</div>
+          <h1>IFAD <em>Portal</em></h1>
+          <p>Enterprise Resource Planning System &mdash; integrated, efficient, transparent and quality-driven.</p>
         </div>
-        
-        <form action="<?=site_url();?>mylogin-auth" method="post" novalidate>
-            <div class="form-group">
-                <label class="form-label">Username</label>
-                <div class="input-wrapper">
-                    <i class="bi bi-person input-icon"></i>
-                    <input type="text" class="form-control" name="MyUsername" id="MyUsername" placeholder="Enter your username" value="<?= old('MyUsername') ?>">
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Password</label>
-                <div class="input-wrapper">
-                    <i class="bi bi-lock input-icon"></i>
-                    <input type="password" class="form-control" placeholder="Enter your password" name="MyPassword" id="MyPassword">
-                </div>
-            </div>
-            
-            <div class="options-row">
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" id="remember">
-                    <label for="remember">Remember device</label>
-                </div>
-                <a href="#" class="forgot-link">Forgot password?</a>
-            </div>
-            
-            <button type="submit" class="btn-signin">Sign In</button>
-            
-            <div class="agency-footer">
-                <small>Department of Science and Technology<br>Food and Nutrition Research Institute</small>
-            </div>
-        </form>
 
-        <!-- Add this right before closing body tag -->
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+        <div class="index">
+          <div class="index-head"><span>One sign-in for every system</span><span>Status</span></div>
+          <ol>
+            <?php $i = 0; foreach ($systems as $s): $live = $s['status'] === 'live'; ?>
+              <li class="<?= $live ? 'is-live' : 'is-soon' ?>" style="--i:<?= $i++ ?>">
+                <span class="index-no"><?= sprintf('%02d', $s['no']) ?></span>
+                <span class="index-name">
+                  <strong><?= esc($live ? $s['short'] : $s['area']) ?></strong>
+                  <small><?= esc($s['name']) ?></small>
+                </span>
+                <span class="index-state"><?= $live ? 'Live' : 'Coming soon' ?></span>
+              </li>
+            <?php endforeach; ?>
+          </ol>
+        </div>
 
+        <div class="panel-foot">Department of Science and Technology &middot; Food and Nutrition Research Institute</div>
+      </section>
 
-        <script>
-        $(document).ready(function() {
-            // Toastr configuration
-            toastr.options = {
-                "closeButton": true,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "timeOut": "3000",
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            };
-            
-            // Show error toast if flashdata exists
-            <?php if(session()->getFlashdata('mesyszicas_memsg_login')): ?>
-                toastr.error(
-                    '<?= session()->getFlashdata('mesyszicas_memsg_login') ?>', 
-                    'Login Error', 
-                    {
-                        timeOut: 5000,
-                        progressBar: true,
-                        closeButton: true
-                    }
-                );
-            <?php endif; ?>
-        });
-        </script>
+      <main class="form-side">
+        <div class="form-body">
+          <span class="form-tag"><i class="ti ti-shield-lock"></i> Authorized personnel only</span>
+          <h2>Sign in</h2>
+          <p class="form-sub">Use your IFAD Portal account to continue.</p>
+
+          <?php if ($error): ?>
+            <div class="alert-line" role="alert"><i class="ti ti-alert-circle"></i><span><?= esc($error) ?></span></div>
+          <?php endif; ?>
+
+          <form action="<?=site_url('mylogin-auth');?>" method="post" id="loginForm" novalidate>
+            <div class="fld">
+              <label for="MyUsername">Username</label>
+              <div class="fld-box">
+                <i class="ti ti-user"></i>
+                <input type="text" name="MyUsername" id="MyUsername" placeholder="Enter your username" autocomplete="username" autofocus>
+              </div>
             </div>
+
+            <div class="fld">
+              <label for="MyPassword">Password</label>
+              <div class="fld-box">
+                <i class="ti ti-lock"></i>
+                <input type="password" name="MyPassword" id="MyPassword" placeholder="Enter your password" autocomplete="current-password">
+                <button type="button" class="eye" id="loginEye" aria-label="Show password" title="Show password"><i class="ti ti-eye"></i></button>
+              </div>
+            </div>
+
+            <button type="submit" class="submit" id="loginBtn"><span>Sign in</span><i class="ti ti-arrow-right"></i></button>
+          </form>
+
+          <p class="help"><i class="ti ti-info-circle"></i> Forgot your password? Ask the system administrator.</p>
         </div>
-    
-    <!-- Left Side - Interactive Data Visualizations -->
-    <canvas id="interactive-bg"></canvas>
-    
-    <div class="viz-container" id="vizContainer">
-      
-      <!-- Bar Chart Card -->
-      <div class="data-card pos-1" data-card="bar">
-        <div class="card-header">
-          <i class="bi bi-bar-chart"></i>
-          <span>Quarterly Obligations</span>
-        </div>
-        <div class="chart-bars">
-          <div class="bar-container">
-            <div class="bar" style="height: 45px;"></div>
-            <div class="bar-label">Q1</div>
-          </div>
-          <div class="bar-container">
-            <div class="bar" style="height: 65px;"></div>
-            <div class="bar-label">Q2</div>
-          </div>
-          <div class="bar-container">
-            <div class="bar" style="height: 55px;"></div>
-            <div class="bar-label">Q3</div>
-          </div>
-          <div class="bar-container">
-            <div class="bar" style="height: 80px;"></div>
-            <div class="bar-label">Q4</div>
-          </div>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
-          <span style="color: var(--accent-gold); font-size: 0.6rem;">↑ 12.3%</span>
-          <span style="color: rgba(255,255,255,0.4); font-size: 0.6rem;">vs prior year</span>
-        </div>
-      </div>
-      
-      <!-- Line Graph Card -->
-      <div class="data-card pos-2" data-card="line">
-        <div class="card-header">
-          <i class="bi bi-graph-up"></i>
-          <span>Disbursement Trend</span>
-        </div>
-        <div class="graph-container">
-          <svg width="100%" height="100%" viewBox="0 0 180 60" preserveAspectRatio="none">
-            <path class="trend-area" d="M5,50 L5,50 Q30,35 45,40 T75,25 T105,20 T135,15 T165,10 L165,50 Z" />
-            <path class="trend-line" d="M5,50 Q30,35 45,40 T75,25 T105,20 T135,15 T165,10" />
-          </svg>
-        </div>
-        <div style="text-align: center; margin-top: 5px;">
-          <span style="color: var(--accent-teal); font-size: 0.6rem;">+8.5% growth</span>
-        </div>
-      </div>
-      
-      <!-- Pie Chart Card -->
-      <div class="data-card pos-3" data-card="pie">
-        <div class="card-header">
-          <i class="bi bi-pie-chart"></i>
-          <span>Budget Allocation</span>
-        </div>
-        <div class="pie-container">
-          <div class="pie-segment"></div>
-        </div>
-        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 8px;">
-          <span style="color: var(--accent-teal); font-size: 0.55rem;">● PS 45%</span>
-          <span style="color: var(--primary-navy-light); font-size: 0.55rem;">● MOOE 32%</span>
-          <span style="color: var(--accent-teal-light); font-size: 0.55rem;">● CO 23%</span>
-        </div>
-      </div>
-      
-      <!-- Metrics Card -->
-      <div class="data-card pos-4" data-card="metrics">
-        <div class="card-header">
-          <i class="bi bi-calculator"></i>
-          <span>Key Metrics</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Total Appropriation</span>
-          <span class="metric-value">₱ 124.5M</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Obligations</span>
-          <span class="metric-value">₱ 89.2M</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Disbursements</span>
-          <span class="metric-value">₱ 76.8M</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Utilization Rate</span>
-          <span class="metric-value">71.6%</span>
-        </div>
-      </div>
-      
-      <!-- ORS Transactions Card -->
-      <div class="data-card pos-5" data-card="ors">
-        <div class="card-header">
-          <i class="bi bi-journal-text"></i>
-          <span>ORS Transactions</span>
-        </div>
-        <table class="data-table">
-          <tr><td>ORS-2024-001</td><td>₱ 125K</td></tr>
-          <tr><td>ORS-2024-002</td><td>₱ 87.5K</td></tr>
-          <tr><td>ORS-2024-003</td><td>₱ 210K</td></tr>
-          <tr><td>ORS-2024-004</td><td>₱ 42.3K</td></tr>
-        </table>
-        <div style="margin-top: 8px; text-align: right;">
-          <span style="color: var(--accent-gold); font-size: 0.55rem;">View all →</span>
-        </div>
-      </div>
-      
-      <!-- BURS Entries Card -->
-      <div class="data-card pos-6" data-card="burs">
-        <div class="card-header">
-          <i class="bi bi-cash-stack"></i>
-          <span>BURS Entries</span>
-        </div>
-        <table class="data-table">
-          <tr><td>BURS-2024-112</td><td>₱ 34.5K</td></tr>
-          <tr><td>BURS-2024-113</td><td>₱ 78.2K</td></tr>
-          <tr><td>BURS-2024-114</td><td>₱ 12.7K</td></tr>
-          <tr><td>BURS-2024-115</td><td>₱ 95.4K</td></tr>
-        </table>
-      </div>
-      
-      <!-- Procurement Status Card -->
-      <div class="data-card pos-7" data-card="procurement">
-        <div class="card-header">
-          <i class="bi bi-clipboard-data"></i>
-          <span>Procurement Status</span>
-        </div>
-        <table class="data-table">
-          <tr><td>PPMP-001</td><td>Q1</td><td>₱ 450K</td></tr>
-          <tr><td>PPMP-002</td><td>Q1</td><td>₱ 230K</td></tr>
-          <tr><td>PR-0245</td><td>For Approval</td><td>₱ 125K</td></tr>
-          <tr><td>PR-0246</td><td>Bidding</td><td>₱ 890K</td></tr>
-          <tr><td>ABSTRACT-01</td><td>Awarded</td><td>₱ 340K</td></tr>
-        </table>
-      </div>
-      
-      <!-- Computation Card -->
-      <div class="data-card pos-8" data-card="computation">
-        <div class="card-header">
-          <i class="bi bi-calculator"></i>
-          <span>Budget Computation</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Appropriation</span>
-          <span class="metric-value">₱ 12.5M</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Obligations</span>
-          <span class="metric-value">₱ 8.2M</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-label">Disbursements</span>
-          <span class="metric-value">₱ 6.8M</span>
-        </div>
-        <div class="metric-row" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 4px; padding-top: 4px;">
-          <span class="metric-label">Balance</span>
-          <span class="metric-value">₱ 5.7M</span>
-        </div>
-      </div>
-      
-      <!-- Mini Bar Chart Card -->
-      <div class="data-card pos-9" data-card="monthly">
-        <div class="card-header">
-          <i class="bi bi-bar-chart-steps"></i>
-          <span>Monthly Trend</span>
-        </div>
-        <div style="display: flex; gap: 6px; align-items: flex-end; height: 50px;">
-          <div class="mini-bar" style="flex: 1; height: 25px; background: var(--accent-teal); opacity: 0.5;"></div>
-          <div class="mini-bar" style="flex: 1; height: 40px; background: var(--accent-teal); opacity: 0.7;"></div>
-          <div class="mini-bar" style="flex: 1; height: 55px; background: var(--accent-teal);"></div>
-          <div class="mini-bar" style="flex: 1; height: 35px; background: var(--accent-teal); opacity: 0.6;"></div>
-          <div class="mini-bar" style="flex: 1; height: 20px; background: var(--accent-teal); opacity: 0.4;"></div>
-          <div class="mini-bar" style="flex: 1; height: 45px; background: var(--accent-teal); opacity: 0.8;"></div>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
-          <span style="color: rgba(255,255,255,0.3); font-size: 0.5rem;">J</span>
-          <span style="color: rgba(255,255,255,0.3); font-size: 0.5rem;">F</span>
-          <span style="color: rgba(255,255,255,0.3); font-size: 0.5rem;">M</span>
-          <span style="color: rgba(255,255,255,0.3); font-size: 0.5rem;">A</span>
-          <span style="color: rgba(255,255,255,0.3); font-size: 0.5rem;">M</span>
-          <span style="color: rgba(255,255,255,0.3); font-size: 0.5rem;">J</span>
-        </div>
-      </div>
+
+        <div class="form-foot">&copy; <?= date('Y') ?> IFAD Portal &mdash; Integrated Finance and Administrative Division</div>
+      </main>
     </div>
   </div>
-  
-  <!-- Interactive Background Animation Script -->
+
   <script>
-    (function() {
-      const canvas = document.getElementById('interactive-bg');
-      const ctx = canvas.getContext('2d');
-      const container = document.getElementById('vizContainer');
-      
-      let mouseX = 0, mouseY = 0;
-      let time = 0;
-      
-      // Mouse move effect for cards
-      document.querySelectorAll('.data-card').forEach(card => {
-        card.addEventListener('mousemove', (e) => {
-          const rect = card.getBoundingClientRect();
-          const x = ((e.clientX - rect.left) / rect.width) * 100;
-          const y = ((e.clientY - rect.top) / rect.height) * 100;
-          card.style.setProperty('--mouse-x', `${x}%`);
-          card.style.setProperty('--mouse-y', `${y}%`);
-        });
+    (function () {
+      var root = document.getElementById('login');
+      var form = document.getElementById('loginForm');
+      var user = document.getElementById('MyUsername');
+      var pass = document.getElementById('MyPassword');
+      var eye = document.getElementById('loginEye');
+      var btn = document.getElementById('loginBtn');
+      var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // slide in on arrival
+      requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('is-arriving'); }); });
+
+      eye.addEventListener('click', function () {
+        var show = pass.type === 'password';
+        pass.type = show ? 'text' : 'password';
+        eye.innerHTML = '<i class="ti ' + (show ? 'ti-eye-off' : 'ti-eye') + '"></i>';
+        eye.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        eye.title = eye.getAttribute('aria-label');
+        pass.focus();
       });
-      
-      function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+
+      function shake(input) {
+        var box = input.parentNode;
+        box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+        input.focus();
       }
-      
-      canvas.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        mouseX = (e.clientX - rect.left) / canvas.width;
-        mouseY = (e.clientY - rect.top) / canvas.height;
+
+      // sign in: the form and the panel slide away, then the form posts
+      var leaving = false;
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (leaving) { return; }
+        if (user.value.trim() === '') { shake(user); return; }
+        if (pass.value === '') { shake(pass); return; }
+        leaving = true;
+        btn.disabled = true;
+        btn.innerHTML = '<span>Signing in…</span><span class="spinner-border spinner-border-sm"></span>';
+        root.classList.add('is-leaving');
+        setTimeout(function () { form.submit(); }, reduced ? 0 : 850);
       });
-      
-      // Enhanced interactive background
-      function drawGrid() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Animated navy gradient that responds to mouse
-        const gradient = ctx.createLinearGradient(
-          0, 0, 
-          canvas.width * (0.5 + mouseX * 0.3), 
-          canvas.height * (0.5 + mouseY * 0.3)
-        );
-        gradient.addColorStop(0, '#0a1a3a');
-        gradient.addColorStop(0.6, '#1e3260');
-        gradient.addColorStop(1, '#2c3e6e');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Interactive data grid that responds to mouse
-        ctx.strokeStyle = 'rgba(15, 111, 111, 0.15)';
-        ctx.lineWidth = 0.5;
-        
-        // Horizontal lines with mouse influence
-        for (let i = 0; i < canvas.height; i += 40) {
-          ctx.beginPath();
-          const offset = Math.sin(i * 0.01 + time) * 5 * mouseX;
-          ctx.moveTo(0, i + offset);
-          ctx.lineTo(canvas.width, i + Math.cos(i * 0.01 + time) * 5 * mouseY);
-          ctx.strokeStyle = `rgba(15, 111, 111, ${0.05 + Math.sin(i * 0.01 + time) * 0.02 + mouseX * 0.02})`;
-          ctx.stroke();
-        }
-        
-        // Vertical lines with mouse influence
-        for (let i = 0; i < canvas.width; i += 40) {
-          ctx.beginPath();
-          const offset = Math.cos(i * 0.01 + time) * 5 * mouseY;
-          ctx.moveTo(i + offset, 0);
-          ctx.lineTo(i + Math.sin(i * 0.01 + time) * 5 * mouseX, canvas.height);
-          ctx.strokeStyle = `rgba(15, 111, 111, ${0.05 + Math.cos(i * 0.01 + time) * 0.02 + mouseY * 0.02})`;
-          ctx.stroke();
-        }
-        
-        // Interactive floating particles that follow mouse
-        for (let i = 0; i < 40; i++) {
-          const x = (Math.sin(i * 0.5 + time) * 0.3 + 0.5 + mouseX * 0.1) * canvas.width;
-          const y = (Math.cos(i * 0.3 + time * 0.5) * 0.3 + 0.5 + mouseY * 0.1) * canvas.height;
-          
-          ctx.beginPath();
-          ctx.arc(x, y, 2 + Math.sin(time + i) * 1, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(15, 111, 111, ${0.1 + mouseX * 0.1})`;
-          ctx.fill();
-        }
-        
-        time += 0.002;
-        requestAnimationFrame(drawGrid);
-      }
-      
-      window.addEventListener('resize', resizeCanvas);
-      resizeCanvas();
-      drawGrid();
+
+      // back to this page with the browser's Back button: undo the slide-out
+      window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) { return; }
+        leaving = false;
+        root.classList.remove('is-leaving');
+        btn.disabled = false;
+        btn.innerHTML = '<span>Sign in</span><i class="ti ti-arrow-right"></i>';
+      });
     })();
   </script>
-  
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Add this right before closing </body> tag -->
-
-      <!-- Toastr CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-    <!-- jQuery (make sure this is loaded first) -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Toastr JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-
-
 </body>
 </html>

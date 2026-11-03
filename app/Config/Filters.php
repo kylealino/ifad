@@ -13,6 +13,7 @@ use CodeIgniter\Filters\PageCache;
 use CodeIgniter\Filters\PerformanceMetrics;
 use CodeIgniter\Filters\SecureHeaders;
 use App\Filters\Myauthuser;
+use App\Filters\SorfAccess;
 
 class Filters extends BaseFilters
 {
@@ -36,6 +37,7 @@ class Filters extends BaseFilters
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'myauthuser'    => Myauthuser::class,
+        'sorfaccess'    => SorfAccess::class,
     ];
 
     /**
@@ -105,5 +107,10 @@ class Filters extends BaseFilters
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [];
+    public array $filters = [
+        // SORF pages (IFAD Portal system 2) are CSRF-protected: their scripts
+        // send the token from the page (X-CSRF-TOKEN), Config\Security keeps it
+        // for the session. The FODS pages are not covered yet.
+        'csrf' => ['before' => ['sorf', 'sorf/*']],
+    ];
 }

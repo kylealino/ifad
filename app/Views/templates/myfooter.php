@@ -1,7 +1,8 @@
     </main>
 
-    <footer class="fods-footer">&copy; <?= date('Y') ?> FODS &mdash; All rights reserved.</footer>
+    <footer class="fods-footer">&copy; <?= date('Y') ?> IFAD Portal &mdash; Integrated Finance and Administrative Division</footer>
   </div>
+  <?= $footHtml ?? '' ?>
 
   <script src="<?=base_url('assets/js/vendor.min.js')?>"></script>
   <script src="<?=base_url('assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js')?>"></script>
@@ -21,11 +22,14 @@
   <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
   <script src="<?=base_url('assets/js/fods-layout.js?v=1')?>"></script>
   <script src="<?=base_url('assets/js/fods-inbox.js?v=4')?>"></script>
+  <?php foreach ($footScripts ?? [] as $script): ?>
+  <script src="<?= esc($script, 'attr') ?>"></script>
+  <?php endforeach; ?>
 <?php
 // FODS Assistant: floating button + chat panel in the lower right of every
 // page, for everyone signed in (its lookups follow each person's own access)
 $fods_ai = null;
-if (session('__xsys_myuserzicas_is_logged__') && session('__xsys_myuserzicas__')) {
+if (session('__xsys_myuserzicas_is_logged__') && session('__xsys_myuserzicas__') && ifad_can_open('fods')) {
     try {
         $fods_ai_user = fods_current_user();
         $fods_ai = [
@@ -61,7 +65,7 @@ if (session('__xsys_myuserzicas_is_logged__') && session('__xsys_myuserzicas__')
   <script src="<?=base_url('assets/js/assistant/fods-assistant.js?v=3')?>"></script>
   <script src="<?=base_url('assets/js/assistant/fods-assistant-panel.js?v=2')?>"></script>
 <?php endif; ?>
-<?php if ($fods_ai): ?>
+<?php if (session('__xsys_myuserzicas_is_logged__') && session('__xsys_myuserzicas__')): ?>
   <!-- Messenger-style chat heads (on the Messages page only for chats popped out there) -->
   <link rel="stylesheet" href="<?=base_url('assets/css/fods-chatheads.css?v=2')?>">
   <div id="fodsChatHeads" data-url="<?= site_url('mymessages') ?>" data-me="<?= esc((string) session('__xsys_myuserzicas__'), 'attr') ?>"<?= strpos(uri_string(), 'mymessages') === 0 ? ' data-page="messages"' : '' ?>>

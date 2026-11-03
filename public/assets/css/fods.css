@@ -401,3 +401,95 @@ button.fods-stat.is-active { border-color:var(--fods-teal); box-shadow:0 0 0 3px
 .fods-inbox-item.is-unread .fods-inbox-title span:first-child, .fods-inbox-item.is-unread .fods-inbox-text { font-weight:600; color:var(--fods-text); }
 .fods-inbox-empty { padding:1.5rem 1.1rem; text-align:center; color:var(--fods-muted); font-size:.84rem; }
 .fods-inbox-foot { padding:.7rem 1.1rem .9rem; border-top:1px solid var(--fods-border); }
+
+/* ---------------------------------------------------------------------
+   IFAD Portal: brand, current system, system switcher, portal page
+   --------------------------------------------------------------------- */
+.fods-brand-text { display:flex; flex-direction:column; line-height:1.15; }
+.fods-brand-sub { font-size:.68rem; font-weight:500; letter-spacing:.04em; opacity:.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:170px; }
+/* System tabs (topbar, left): every system the user can open, one click away */
+.ifad-tabs { display:flex; align-items:center; gap:.25rem; min-width:0; margin-left:.25rem; padding:.25rem; border-radius:12px; background:#f1f5f9; }
+.ifad-tab { display:inline-flex; align-items:center; gap:.4rem; padding:.4rem .8rem; border-radius:9px; color:var(--fods-muted); font-size:.84rem; font-weight:600; text-decoration:none; white-space:nowrap; transition:background .15s ease, color .15s ease; }
+.ifad-tab .ti { font-size:1.05rem; }
+.ifad-tab:hover { color:var(--fods-text); background:rgba(255,255,255,.7); }
+.ifad-tab.is-current { background:#fff; color:var(--fods-teal); box-shadow:0 1px 2px rgba(16,24,40,.08), 0 1px 6px rgba(16,24,40,.06); }
+.ifad-tab-all { display:grid; place-items:center; width:34px; height:34px; border-radius:9px; color:var(--fods-muted); font-size:1.05rem; text-decoration:none; transition:background .15s ease, color .15s ease; }
+.ifad-tab-all:hover { color:var(--fods-teal); background:rgba(255,255,255,.7); }
+.ifad-tab-all.is-current { background:#fff; color:var(--fods-teal); }
+.ifad-tab:focus-visible, .ifad-tab-all:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(15,111,111,.25); }
+@media (max-width: 575.98px) { .ifad-tabs { gap:.15rem; padding:.2rem; } .ifad-tab { padding:.4rem .5rem; } .ifad-tab span { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; } .ifad-tab-all { width:30px; height:30px; } .ifad-topbar-brand small { display:none; } .ifad-topbar-brand span { display:none; } }
+@media (min-width: 1200px) { .fods-collapsed .fods-brand-sub { display:none; } }
+
+/* Portal home (portal/portal-main.php): no sidebar, the brand sits in the topbar */
+.ifad-no-sidebar .fods-page { margin-left: 0 !important; }
+.ifad-topbar-brand { display:flex; align-items:center; gap:.65rem; text-decoration:none; color:var(--fods-text); min-width:0; }
+.ifad-topbar-brand img { width:34px; height:34px; object-fit:contain; flex-shrink:0; }
+.ifad-topbar-brand strong { display:block; font-size:1rem; line-height:1.15; color:var(--fods-text); }
+.ifad-topbar-brand small { font-size:.72rem; color:var(--fods-muted); white-space:nowrap; }
+.ifad-topbar-brand:hover strong { color:var(--fods-teal); }
+
+/* Launcher: greeting panel + a grid of system tiles filling the screen. Motion is
+   CSS only (transform / opacity, ~250 ms) and never delays opening a system. */
+.fods-content > .container-fluid.ifad-home { max-width:1280px; }
+.ifad-hello { position:relative; overflow:hidden; display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:1rem 2rem; padding:1.5rem 1.75rem; margin-bottom:1.25rem; border-radius:18px; color:#e6eef1; background:linear-gradient(120deg, #0f3a48 0%, #0b2a36 80%); }
+.ifad-hello::before { content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 48px 100%; pointer-events:none; }
+.ifad-hello > * { position:relative; }
+.ifad-hello-kicker { font-size:.66rem; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:#5fc4bd; }
+.ifad-hello h1 { font-family:'Fraunces', Georgia, serif; font-weight:500; font-size:1.9rem; line-height:1.1; color:#fff; margin:.35rem 0 .3rem; letter-spacing:-.01em; }
+.ifad-hello h1 em { color:#5fc4bd; }
+.ifad-hello p { margin:0; font-size:.88rem; color:rgba(230,238,241,.78); }
+.ifad-hello-side { display:flex; flex-direction:column; align-items:flex-end; gap:.45rem; }
+.ifad-hello-date { display:inline-flex; align-items:center; gap:.4rem; padding:.3rem .7rem; border-radius:999px; background:rgba(255,255,255,.08); font-size:.76rem; color:rgba(230,238,241,.85); }
+.ifad-hello-tag { font-style:italic; font-size:.74rem; color:rgba(230,238,241,.55); }
+.ifad-note { display:flex; gap:.5rem; align-items:flex-start; padding:.7rem .9rem; margin-bottom:1.25rem; border-radius:12px; background:#fef4e2; border:1px solid #fde3b0; color:#92400e; font-size:.85rem; }
+.ifad-note .ti { font-size:1rem; margin-top:.05rem; }
+
+.ifad-grid { display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); grid-auto-rows:1fr; gap:1rem; }
+.ifad-tile { grid-column:span var(--span, 2); position:relative; overflow:hidden; min-width:0; display:flex; flex-direction:column; padding:1.25rem 1.4rem; border-radius:18px; background:#fff; border:1px solid var(--fods-border); color:var(--fods-text); text-decoration:none; animation:ifad-rise .25s ease-out both; animation-delay:calc(var(--i, 0) * 35ms); }
+@keyframes ifad-rise { from { opacity:0; transform:translateY(10px); } }
+.ifad-tile.is-open { box-shadow:0 1px 2px rgba(16,24,40,.04), 0 6px 20px rgba(16,24,40,.06); transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.ifad-tile.is-open::before { content:""; position:absolute; left:0; right:0; top:0; height:4px; background:var(--fods-teal); transform:scaleX(0); transform-origin:left; transition:transform .25s ease; }
+.ifad-tile.is-open:hover, .ifad-tile.is-open:focus-visible { transform:translateY(-3px); border-color:rgba(15,111,111,.45); box-shadow:0 14px 32px -8px rgba(11,42,54,.2); color:var(--fods-text); outline:none; }
+.ifad-tile.is-open:hover::before, .ifad-tile.is-open:focus-visible::before { transform:none; }
+.ifad-tile.is-open:active { transform:translateY(-1px) scale(.995); }
+.ifad-tile.is-soon { background:#fff repeating-linear-gradient(135deg, rgba(15,111,111,.035) 0 10px, transparent 10px 20px); border:1px dashed #c9d4de; }
+.ifad-tile.is-soon .ifad-tile-state { background:#fef4e2; color:#b45309; }
+.ifad-tile.is-locked { background:#f8fafc; }
+.ifad-tile-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; }
+.ifad-tile-state { display:inline-flex; align-items:center; gap:.3rem; padding:.25rem .6rem; border-radius:999px; background:#eef2f6; color:var(--fods-muted); font-size:.66rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
+.ifad-tile-state.is-live { background:#e7f6ee; color:#15803d; }
+.ifad-tile-state.is-live::before { content:""; width:7px; height:7px; border-radius:50%; background:currentColor; }
+.ifad-tile-body { margin-top:auto; padding-top:1rem; display:flex; flex-direction:column; min-width:0; }
+.ifad-tile-icon { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:1.3rem; }
+.ifad-tile.is-locked .ifad-tile-icon { filter:grayscale(1); opacity:.5; }
+.ifad-tile.is-soon .ifad-tile-icon { opacity:.85; }
+.ifad-tile-area { font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--fods-muted); }
+.ifad-tile-name { font-size:1.02rem; line-height:1.3; margin-top:.2rem; color:var(--fods-text); }
+.ifad-tile.is-open .ifad-tile-name, .ifad-tile.is-locked .ifad-tile-name { font-size:1.55rem; letter-spacing:-.01em; line-height:1.1; }
+.ifad-tile.is-locked .ifad-tile-name { color:#64748b; }
+.ifad-tile.is-soon .ifad-tile-name { color:#334155; }
+.ifad-tile-full { font-size:.88rem; color:var(--fods-muted); margin-top:.15rem; }
+.ifad-tile-go { display:flex; align-items:center; gap:.6rem; margin-top:1rem; padding-top:.8rem; border-top:1px solid var(--fods-border); font-weight:600; font-size:.9rem; color:var(--fods-teal); }
+.ifad-tile-go span { flex:1; }
+.ifad-tile-go .ti { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; background:var(--fods-teal); color:#fff; font-size:1.05rem; transition:transform .18s ease; }
+.ifad-tile.is-open:hover .ifad-tile-go .ti { transform:translateX(3px); }
+
+@media (max-width: 767.98px) {
+  .ifad-hello { padding:1.25rem; }
+  .ifad-hello h1 { font-size:1.55rem; }
+  .ifad-hello-side { align-items:flex-start; }
+  .ifad-hello-tag { display:none; }
+}
+@media (min-width: 768px) and (max-height: 820px) {
+  .ifad-hello { padding:1.1rem 1.5rem; margin-bottom:1rem; }
+  .ifad-hello h1 { font-size:1.6rem; margin:.25rem 0 .2rem; }
+}
+@media (max-width: 767.98px) {
+  .ifad-grid { grid-template-columns:minmax(0, 1fr); grid-auto-rows:auto; gap:.85rem; }
+  .ifad-tile { grid-column:auto; padding:1.15rem 1.2rem; }
+    .ifad-tile.is-open .ifad-tile-name, .ifad-tile.is-locked .ifad-tile-name { font-size:1.5rem; }
+  }
+@media (prefers-reduced-motion: reduce) {
+  .ifad-tile { animation:none; }
+  .ifad-tile, .ifad-tile::before, .ifad-tile .ti { transition:none !important; }
+}

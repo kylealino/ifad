@@ -10,21 +10,13 @@ class Home extends BaseController
         $this->session = session();
         $this->cuser = $this->session->get('__xsys_myuserzicas__');
 	}
-    public function index(): string
+    public function index()
     {
         if (!session('__xsys_myuserzicas_is_logged__')) {
             return view('MyLogin');
         }
-    
-
-        // Check if cuser starts with "NAMD"
-        // if (str_starts_with($this->cuser, 'BS')) {
-        //     return view('MyDashboard');       // For users starting with NAMD
-        // } else {
-        //     return view('MyDashboardDev');    // For all others
-        // }
-
-        return view('MyDashboardDev'); 
+        // signed in: the IFAD Portal
+        return redirect()->to(site_url('portal'));
     }
     
 }

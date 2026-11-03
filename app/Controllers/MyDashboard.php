@@ -16,6 +16,12 @@ class MyDashboard extends BaseController
         if (!session('__xsys_myuserzicas_is_logged__')) {
             return view('MyLogin');
         }
+        // FODS figures are for people with a FODS role (IFAD Portal: someone
+        // with only another system goes back to the portal)
+        if (!ifad_can_open('fods')) {
+            session()->setFlashdata('ifad_notice', 'You do not have access to FODS. Ask the administrator for a FODS role.');
+            return redirect()->to(site_url('portal'));
+        }
 
         $meaction = $this->request->getPostGet('meaction');
 

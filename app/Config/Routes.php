@@ -147,3 +147,15 @@ $routes->post('myada', 'MyADA::index',['filter' => 'myauthuser']);
 //ADA APPROVAL
 $routes->get('myadaapproval', 'MyADAApproval::index',['filter' => 'myauthuser']);
 $routes->post('myadaapproval', 'MyADAApproval::index',['filter' => 'myauthuser']);
+//IFAD PORTAL - the systems a user may open (FODS, SORF, more to come)
+$routes->get('portal', 'Portal::index',['filter' => 'myauthuser']);
+
+//IFAD PORTAL - SYSTEM 2: DOCUMENT REQUEST SYSTEM (SORF). Its pages live under
+// sorf/, need a SORF role (sorfaccess) and are CSRF-protected (Config\Filters)
+$routes->group('sorf', ['namespace' => 'App\Controllers\Sorf', 'filter' => ['myauthuser', 'sorfaccess']], static function ($routes) {
+    $routes->get('/', 'SorfHome::index');
+    foreach (['myrequest' => 'MyRequest', 'myapproval' => 'MyApproval', 'myhrrequest' => 'MyHRRequest', 'myhrdoc' => 'MyHRDocument', 'myroles' => 'MyRoles'] as $path => $controller) {
+        $routes->get($path, $controller . '::index');
+        $routes->post($path, $controller . '::index');
+    }
+});

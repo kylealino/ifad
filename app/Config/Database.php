@@ -51,6 +51,41 @@ class Database extends Config
         ],
     ];
 
+    /**
+     * IFAD Portal - system 2: Document Request System (SORF). Its own
+     * database: requests, their conversation and documents, and the SORF
+     * roles. Accounts and passwords stay in the default (FODS) database.
+     * SORF code connects with \Config\Database::connect('sorf').
+     *
+     * @var array<string, mixed>
+     */
+    public array $sorf = [
+        'DSN'          => '',
+        'hostname'     => 'localhost',
+        'username'     => 'root',
+        'password'     => '',
+        'database'     => 'sorf-staging',
+        'DBDriver'     => 'MySQLi',
+        'DBPrefix'     => '',
+        'pConnect'     => false,
+        'DBDebug'      => true,
+        'charset'      => 'utf8mb4',
+        'DBCollat'     => 'utf8mb4_general_ci',
+        'swapPre'      => '',
+        'encrypt'      => false,
+        'compress'     => false,
+        'strictOn'     => false,
+        'failover'     => [],
+        'port'         => 3306,
+        'numberNative' => false,
+        'foundRows'    => false,
+        'dateFormat'   => [
+            'date'     => 'Y-m-d',
+            'datetime' => 'Y-m-d H:i:s',
+            'time'     => 'H:i:s',
+        ],
+    ];
+
     //    /**
     //     * Sample database connection for SQLite3.
     //     *

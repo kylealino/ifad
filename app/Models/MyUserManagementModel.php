@@ -64,6 +64,14 @@ class MyUserManagementModel extends Model
 		if (empty($recid) && empty($password)) { $this->errorOut('Password is required for a new user!'); }
 
 		$role_id = !empty($role_id) ? $role_id : null;
+		// IFAD Portal: the account's role in the Document Request System (SORF)
+		$sorf_posted = (bool) $this->request->getPostGet('sorf_role_posted');
+		$sorf_role_id = (int) $this->request->getPostGet('sorf_role_id');
+		$old_username = '';
+		if (!empty($recid)) {
+			$old = $this->db->query("SELECT `username` FROM `myua_user` WHERE `recid` = ?", [$recid])->getRowArray();
+			$old_username = (string) ($old['username'] ?? '');
+		}
 		// Signatory designations (cert_tag, ada_tag, is_ppmp_signatory) are not on
 		// the user form: a new user starts with none, and saving a user leaves
 		// them as they are in the database
@@ -127,9 +135,35 @@ class MyUserManagementModel extends Model
 		}
 
 		if ($query && $this->db->transStatus()) {
+			// the same person in SORF: a changed username follows, then the SORF role
+			$sorf_error = $this->syncSorf($old_username, (string) $username, (string) $full_name, (string) $position, $sorf_posted, $sorf_role_id);
+			if ($sorf_error !== '') {
+				$this->errorOut(addslashes('Saved in FODS, but not in SORF: ' . $sorf_error));
+			}
 			$this->successOut($status, $color);
 		} else {
 			$this->errorOut('An error occurred while executing the query.');
+		}
+	}
+
+	/**
+	 * IFAD Portal: keep the account's SORF member row (SORF database) in step
+	 * with the portal account - a changed username, and the SORF role chosen on
+	 * the form (0 = no access). Returns '' or what went wrong.
+	 */
+	private function syncSorf($old_username, $username, $full_name, $position, $posted, $sorf_role_id) {
+		try {
+			$members = model('App\Models\Sorf\SorfMemberModel');
+			if ($old_username !== '' && $old_username !== $username) {
+				$error = $members->rename($old_username, $username);
+				if ($error !== '') {
+					return $error;
+				}
+			}
+			return $posted ? $members->set_role($username, $full_name, $position, $sorf_role_id) : '';
+		} catch (\Throwable $e) {
+			log_message('error', 'User Management - SORF: ' . $e->getMessage());
+			return 'the Document Request System could not be reached.';
 		}
 	}
 

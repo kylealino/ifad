@@ -96,4 +96,35 @@ class Navigation extends BaseConfig
             ],
         ],
     ];
+
+    /**
+     * Sidebar of the Document Request System (SORF, IFAD Portal system 2).
+     * Item keys:
+     *   path  - the page under sorf/ (with its query)
+     *   key   - the page's own menu key (each SORF view passes 'nav')
+     *   perm  - the SORF permission that shows it (Config\Sorf\Permissions)
+     *   count - 'approvals': requests waiting for your "Noted by" signature
+     */
+    public array $sorf = [
+        [
+            'label' => 'HR Desk',
+            'items' => [
+                ['label' => 'All Requests', 'icon' => 'ti-inbox', 'path' => 'myhrrequest', 'key' => 'hr', 'perm' => 'hr.view'],
+            ],
+        ],
+        [
+            'label' => 'Requests',
+            'items' => [
+                ['label' => 'My Requests', 'icon' => 'ti-files', 'path' => 'myrequest', 'key' => 'list', 'perm' => 'request.file'],
+                ['label' => 'New Request', 'icon' => 'ti-file-plus', 'path' => 'myrequest?meaction=FORM', 'key' => 'form', 'perm' => 'request.file'],
+                ['label' => 'For My Approval', 'icon' => 'ti-writing-sign', 'path' => 'myapproval', 'key' => 'approval', 'perm' => 'request.approve', 'count' => 'approvals'],
+            ],
+        ],
+        [
+            'label' => 'Administration',
+            'items' => [
+                ['label' => 'Roles & Permissions', 'icon' => 'ti-shield-lock', 'path' => 'myroles', 'key' => 'admin', 'perm' => 'admin.roles'],
+            ],
+        ],
+    ];
 }

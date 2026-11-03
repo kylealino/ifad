@@ -116,9 +116,23 @@ class MyUserManagement extends BaseController
 
         $tab = $this->request->getPostGet('tab');
 
+        // IFAD Portal: each account's role in the Document Request System (SORF),
+        // kept in the SORF database (null = SORF's database cannot be reached)
+        $sorfRoles = null;
+        $sorfMembers = [];
+        try {
+            $members = model('App\Models\Sorf\SorfMemberModel');
+            $sorfRoles = $members->roles();
+            $sorfMembers = $members->member_roles();
+        } catch (\Throwable $e) {
+            log_message('error', 'User Management - SORF roles: ' . $e->getMessage());
+        }
+
         return view('user-management/ua-main', [
             'myuadata' => $myuadata,
             'rolesdata' => $rolesdata,
+            'sorfRoles' => $sorfRoles,
+            'sorfMembers' => $sorfMembers,
             'modulefamilies' => $modulefamilies,
             'active_tab' => ($tab === 'roles') ? 'roles' : 'users',
         ]);

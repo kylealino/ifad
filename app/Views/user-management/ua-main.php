@@ -166,7 +166,9 @@ echo view('templates/myheader.php');
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($myuadata as $u): ?>
+                            <?php foreach ($myuadata as $u):
+                                $sorf = $sorfMembers[strtolower($u['username'])] ?? null;
+                            ?>
                             <tr data-recid="<?= $u['recid'] ?>"
                                 data-full_name="<?= esc($u['full_name'], 'attr') ?>"
                                 data-division="<?= esc($u['division'], 'attr') ?>"
@@ -174,6 +176,7 @@ echo view('templates/myheader.php');
                                 data-position="<?= esc($u['position'], 'attr') ?>"
                                 data-username="<?= esc($u['username'], 'attr') ?>"
                                 data-role_id="<?= $u['role_id'] ?>"
+                                data-sorf_role_id="<?= $sorf ? $sorf['role_id'] : '' ?>"
                                 data-status="<?= $u['is_active'] == 1 ? 'active' : 'inactive' ?>"
                                 data-hasrole="<?= empty($u['role_id']) ? '0' : '1' ?>">
                                 <td class="cell-primary">
@@ -196,9 +199,12 @@ echo view('templates/myheader.php');
                                 <td class="d-none d-xl-table-cell"><?= esc($u['position']) ?></td>
                                 <td class="cell-left">
                                     <?php if (!empty($u['role_name'])): ?>
-                                        <span class="fods-chip tone-teal"><i class="ti ti-shield"></i><?= esc($u['role_name']) ?></span>
+                                        <span class="fods-chip tone-teal" title="FODS role"><i class="ti ti-shield"></i><?= esc($u['role_name']) ?></span>
                                     <?php else: ?>
-                                        <span class="fods-chip tone-amber">No role</span>
+                                        <span class="fods-chip tone-amber" title="No FODS role">No FODS role</span>
+                                    <?php endif; ?>
+                                    <?php if ($sorf): ?>
+                                        <span class="fods-chip tone-indigo mt-1" title="Document Request System (SORF) role"><i class="ti ti-file-description"></i>SORF · <?= esc($sorf['role_name']) ?><?= $sorf['role_active'] ? '' : ' (off)' ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="cell-right">
@@ -375,6 +381,18 @@ echo view('templates/myheader.php');
                             </select>
                             <div class="form-text">The user gets every module permission of this role.</div>
                         </div>
+                        <?php if ($sorfRoles !== null): ?>
+                        <div class="col-12">
+                            <label class="form-label" for="sorf_role_id">Document Request System (SORF) role</label>
+                            <select id="sorf_role_id" class="form-select">
+                                <option value="">No access to SORF</option>
+                                <?php foreach ($sorfRoles as $r): ?>
+                                    <option value="<?= $r['recid'] ?>"><?= esc($r['role_name']) ?><?= $r['is_active'] == 0 ? ' (switched off)' : '' ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">IFAD Portal system 2. What each SORF role may do is set in SORF under Roles &amp; Permissions.</div>
+                        </div>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Signatory designations (cert_tag, ada_tag, is_ppmp_signatory) are not set here: they stay as they are in the database -->
@@ -503,7 +521,7 @@ echo view('templates/myheader.php');
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="<?=base_url('assets/js/maintenance/myua.js?v=7');?>"></script>
+<script src="<?=base_url('assets/js/maintenance/myua.js?v=8');?>"></script>
 <script src="<?=base_url('assets/js/mysysapps.js');?>"></script>
 <script>
     __mysys_myua_ent.__user_modal();
