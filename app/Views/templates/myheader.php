@@ -36,7 +36,7 @@ try {
   <link rel="shortcut icon" type="image/png" href="<?=base_url('assets/images/logos/fnrilogo.png')?>" />
   <title><?= esc($page_title . ' · FODS') ?></title>
   <link rel="stylesheet" href="<?=base_url('assets/css/styles.css')?>" />
-  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=8')?>" />
+  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=9')?>" />
   <script>
     // Apply the remembered collapsed sidebar before first paint (no flicker)
     try { if (localStorage.getItem('fods.sidebar.collapsed') === '1') document.documentElement.classList.add('fods-collapsed'); } catch (e) {}

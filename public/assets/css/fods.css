@@ -215,6 +215,8 @@ button.fods-stat.is-active { border-color:var(--fods-teal); box-shadow:0 0 0 3px
 .btn-fods:hover, .btn-fods:focus { background:var(--fods-teal-2); border-color:var(--fods-teal-2); color:#fff; }
 .btn-fods-ghost { background:transparent; border:1px solid var(--fods-border); color:var(--fods-text); border-radius:10px; }
 .btn-fods-ghost:hover { background:#f8fafc; }
+.fods-page-actions .btn-fods-ghost { background:var(--fods-surface); border-color:var(--fods-teal); color:var(--fods-teal); font-weight:500; }
+.fods-page-actions .btn-fods-ghost:hover, .fods-page-actions .btn-fods-ghost:focus { background:var(--fods-teal-soft); border-color:var(--fods-teal); color:var(--fods-teal); }
 .fods-icon-btn { width:32px; height:32px; border-radius:9px; display:inline-grid; place-items:center; border:1px solid transparent; background:transparent; color:var(--fods-muted); font-size:1.05rem; transition:all .15s ease; }
 .fods-icon-btn:hover { background:#f1f5f9; color:var(--fods-text); border-color:var(--fods-border); }
 .fods-icon-btn.is-danger:hover { background:#fdecec; color:#b91c1c; border-color:#f8d4d4; }
