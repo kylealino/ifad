@@ -1,10 +1,39 @@
 <?php
 // IFAD Portal sign-in: one framed sheet on a quiet background. Left: the
-// portal and an index of its systems (Config\Systems); right: the sign-in form
-// (posts MyUsername / MyPassword to mylogin-auth). Both halves slide in on
-// arrival and slide out when signing in.
+// portal and an index of its systems (Config\Systems, named and labelled as
+// on the portal page: Live / In development), plus Ifa, the portal guide, with
+// a few sign-in tips (wide screens only); right: the sign-in form (posts
+// MyUsername / MyPassword to mylogin-auth). Both halves slide in on arrival
+// and slide out when signing in.
 $systems = config(\Config\Systems::class)->systems;
 $error = session()->getFlashdata('mesyszicas_memsg_login');
+// "A, B and C"
+$andList = fn (array $names) => count($names) > 1 ? implode(', ', array_slice($names, 0, -1)) . ' and ' . end($names) : implode('', $names);
+$byStage = ['live' => [], 'development' => [], 'integration' => []];
+foreach ($systems as $s) {
+    $byStage[ifad_stage($s)['key']][] = $s['short'];
+}
+$words = [1 => 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+$devCount = count($byStage['development']);
+// e.g. "FODS and SORF are live today. Three more are in development, and IHRMIS is being connected."
+$status = $andList($byStage['live']) . (count($byStage['live']) === 1 ? ' is' : ' are') . ' live today.';
+$more = [];
+if ($devCount) {
+    $more[] = ucfirst($words[$devCount] ?? (string) $devCount) . ' more ' . ($devCount === 1 ? 'is' : 'are') . ' in development';
+}
+if ($byStage['integration']) {
+    $more[] = $andList($byStage['integration']) . (count($byStage['integration']) === 1 ? ' is' : ' are') . ' being connected';
+}
+if ($more) {
+    $status .= ' ' . implode(', and ', $more) . '. Preview them after signing in.';
+}
+// Ifa's tips here: plain text, escaped on output
+$tips = [
+    "Hi! I'm Ifa, your portal guide. Sign in once to open every system you have a role in.",
+    $status,
+    'After you sign in, the bell at the top shows what is waiting for your approval.',
+    'Forgot your password? The system administrator can reset it for you.',
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -59,7 +88,49 @@ $error = session()->getFlashdata('mesyszicas_memsg_login');
     .index-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; }
     .index li.is-live .index-state { color: #7ee2b8; }
     .index li.is-live .index-state::before { background: currentColor; box-shadow: 0 0 0 3px rgba(126,226,184,.18); }
-    .index li.is-soon .index-name strong { color: rgba(255,255,255,.72); }
+    .index li.is-soon .index-name strong { color: rgba(255,255,255,.85); }
+    .index-name strong .ti { font-size: .95rem; color: var(--teal-hi); margin-right: .15rem; vertical-align: -1px; }
+    /* same wording and colours as the portal: Live (green), In development (amber, pulsing) */
+    .index li.is-soon .index-state { color: #fbbf24; }
+    .index li.is-soon .index-state::before { border: 0; background: #f59e0b; animation: ping 1.6s ease-out infinite; }
+    @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(245,158,11,.55); } 80%, 100% { box-shadow: 0 0 0 6px rgba(245,158,11,0); } }
+    /* Integration in progress (an existing system being connected): blue */
+    .index li.is-int .index-state { color: #93c5fd; }
+    .index li.is-int .index-state::before { background: #60a5fa; animation-name: ping-int; }
+    @keyframes ping-int { 0% { box-shadow: 0 0 0 0 rgba(96,165,250,.55); } 80%, 100% { box-shadow: 0 0 0 6px rgba(96,165,250,0); } }
+    .values { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; margin-top: 1rem; font-size: .78rem; font-weight: 600; color: rgba(230,238,241,.85); }
+    .values span { display: inline-flex; align-items: center; gap: .3rem; }
+    .values .ti { color: var(--teal-hi); font-size: .95rem; }
+
+    /* The systems list and Ifa, the portal guide, side by side: Ifa stands
+       beside the list, feet level with its last row (wide screens only) */
+    .panel > .systems { max-width: none; display: flex; align-items: flex-end; gap: clamp(2.5rem, 4vw, 4.5rem); margin-top: 2.5rem; }
+    .systems .index { flex: 0 1 640px; min-width: 0; margin-top: 0; }
+    .guide { flex: 0 0 250px; display: none; flex-direction: column; align-items: center; gap: .6rem; padding-bottom: .2rem; transition: transform .7s var(--ease), opacity .6s ease; transition-delay: .45s; }
+    @media (min-width: 1440px) { .guide { display: flex; } }
+    .bubble { position: relative; width: 100%; padding: .8rem .95rem .65rem; border-radius: 14px; background: #fff; color: var(--text); box-shadow: 0 14px 34px -12px rgba(0,0,0,.55); }
+    .bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -8px; border: 8px solid transparent; border-top-color: #fff; border-bottom: 0; }
+    .bubble p { margin: 0; min-height: 4.35em; font-size: .82rem; line-height: 1.45; }
+    .bubble p.is-in { animation: tipIn .3s ease-out; }
+    @keyframes tipIn { from { opacity: 0; transform: translateY(4px); } }
+    .dots { display: flex; gap: 4px; margin-top: .45rem; }
+    .dots i { width: 6px; height: 6px; border-radius: 50%; background: #d6dee6; transition: width .2s ease, background .2s ease; }
+    .dots i.is-on { width: 14px; border-radius: 3px; background: var(--teal); }
+    .mascot { border: 0; background: none; padding: 0; line-height: 0; cursor: pointer; border-radius: 12px; }
+    .mascot:focus-visible { outline: 2px solid var(--teal-hi); outline-offset: 3px; }
+    .mascot svg { display: block; width: 132px; height: 157px; overflow: visible; }
+    .mascot .m-body { animation: bob 3.2s ease-in-out infinite; }
+    .mascot .m-shadow { fill: rgba(0,0,0,.3); transform-box: fill-box; transform-origin: center; animation: shadow 3.2s ease-in-out infinite; }
+    .mascot .m-eyes { transform-box: fill-box; transform-origin: center; animation: blink 4.5s infinite; }
+    .mascot .m-wave { transform-origin: 106px 112px; animation: wave 2.6s ease-in-out infinite; }
+    .mascot .m-bulb { animation: glow 1.8s ease-in-out infinite; }
+    @keyframes bob { 50% { transform: translateY(-5px); } }
+    @keyframes shadow { 50% { transform: scaleX(.85); opacity: .7; } }
+    @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+    @keyframes wave { 0%, 60%, 100% { transform: rotate(0); } 15%, 45% { transform: rotate(-14deg); } 30% { transform: rotate(10deg); } }
+    @keyframes glow { 50% { fill: #fde68a; } }
+    .is-arriving .guide { transform: translateY(16px); opacity: 0; }
+    .is-leaving .guide { opacity: 0; transition-delay: 0s; }
     .panel-foot { margin-top: auto; padding-top: 2.5rem; font-size: .72rem; color: rgba(230,238,241,.5); }
 
     /* ---- Right: sign in ---- */
@@ -114,7 +185,7 @@ $error = session()->getFlashdata('mesyszicas_memsg_login');
       .panel::after { top: 1.5rem; height: 40px; }
       .title { margin-top: 1.25rem; padding-top: 0; }
       .title h1 { font-size: 2.3rem; }
-      .index, .panel-foot { display: none; }
+      .systems, .panel-foot { display: none; }
       .form-side { padding: 1.75rem 1.25rem 1.5rem; }
       .form-body { margin: 0 0 2rem; max-width: none; }
       .is-arriving .panel, .is-leaving .panel { transform: translateY(-40px); }
@@ -137,23 +208,41 @@ $error = session()->getFlashdata('mesyszicas_memsg_login');
         <div class="title">
           <div class="kicker">Integrated Finance and Administrative Division</div>
           <h1>IFAD <em>Portal</em></h1>
-          <p>Enterprise Resource Planning System &mdash; integrated, efficient, transparent and quality-driven.</p>
+          <p>The division's single sign-in for finance, document requests, facilities, quality and human resources. Every request moves along one clear, trackable path.</p>
+          <div class="values">
+            <span><i class="ti ti-plug-connected"></i> Integrated</span>
+            <span><i class="ti ti-bolt"></i> Efficient</span>
+            <span><i class="ti ti-eye-check"></i> Transparent</span>
+            <span><i class="ti ti-discount-check"></i> Quality-Driven</span>
+          </div>
         </div>
 
+        <!-- the systems list, with Ifa standing beside it (wide screens) -->
+        <div class="systems">
         <div class="index">
           <div class="index-head"><span>One sign-in for every system</span><span>Status</span></div>
           <ol>
-            <?php $i = 0; foreach ($systems as $s): $live = $s['status'] === 'live'; ?>
-              <li class="<?= $live ? 'is-live' : 'is-soon' ?>" style="--i:<?= $i++ ?>">
+            <?php $i = 0; foreach ($systems as $s): $live = $s['status'] === 'live'; $stage = ifad_stage($s); ?>
+              <li class="<?= $live ? 'is-live' : 'is-soon ' . $stage['class'] ?>" style="--i:<?= $i++ ?>">
                 <span class="index-no"><?= sprintf('%02d', $s['no']) ?></span>
                 <span class="index-name">
-                  <strong><?= esc($live ? $s['short'] : $s['area']) ?></strong>
+                  <strong><i class="ti <?= $s['icon'] ?>"></i> <?= esc($s['short']) ?></strong>
                   <small><?= esc($s['name']) ?></small>
                 </span>
-                <span class="index-state"><?= $live ? 'Live' : 'Coming soon' ?></span>
+                <span class="index-state"><?= esc($stage['label']) ?></span>
               </li>
             <?php endforeach; ?>
           </ol>
+        </div>
+
+        <!-- Ifa, the portal guide (wide screens): a speech bubble of sign-in tips -->
+        <div class="guide" aria-live="polite">
+          <div class="bubble">
+            <p id="guideTip"><?= esc($tips[0]) ?></p>
+            <span class="dots" aria-hidden="true"><?php foreach ($tips as $n => $t): ?><i class="<?= $n === 0 ? 'is-on' : '' ?>"></i><?php endforeach; ?></span>
+          </div>
+          <button type="button" class="mascot" id="guideMascot" aria-label="Ifa, the portal guide: show the next tip"><?= view('portal/ifa-mascot') ?></button>
+        </div>
         </div>
 
         <div class="panel-foot">Department of Science and Technology &middot; Food and Nutrition Research Institute</div>
@@ -210,6 +299,24 @@ $error = session()->getFlashdata('mesyszicas_memsg_login');
 
       // slide in on arrival
       requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove('is-arriving'); }); });
+
+      // Ifa's tips: next on a click; they also turn every 8 s (not with reduced motion)
+      var tips = <?= json_encode($tips, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      var tipEl = document.getElementById('guideTip');
+      var dots = document.querySelectorAll('.dots i');
+      var at = 0, tipTimer = null;
+      function showTip(n) {
+        at = (n + tips.length) % tips.length;
+        tipEl.classList.remove('is-in'); void tipEl.offsetWidth;
+        tipEl.textContent = tips[at];
+        tipEl.classList.add('is-in');
+        dots.forEach(function (d, i) { d.classList.toggle('is-on', i === at); });
+      }
+      document.getElementById('guideMascot').addEventListener('click', function () {
+        if (tipTimer) { clearInterval(tipTimer); tipTimer = null; }
+        showTip(at + 1);
+      });
+      if (!reduced) { tipTimer = setInterval(function () { if (!document.hidden) { showTip(at + 1); } }, 8000); }
 
       eye.addEventListener('click', function () {
         var show = pass.type === 'password';

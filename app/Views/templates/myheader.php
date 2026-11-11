@@ -13,12 +13,14 @@ $systems = ifad_systems();
 $sys = $systems[$system] ?? null;
 $nav = ifad_nav($system, $sorfNav ?? '');
 $current = $system === 'fods' ? fods_nav_current() : null;
-// only the systems have a sidebar; the portal (and shared pages reached from it) has none
-$with_sidebar = $system !== 'portal';
+// only the live systems have a sidebar; the portal (and shared pages reached
+// from it) and the "under development" pages of coming-soon systems have none
+$soon = array_filter($systems, fn ($s) => $s['status'] !== 'live');
+$with_sidebar = $system !== 'portal' && !isset($soon[$system]);
 $org_unit = implode(' · ', array_filter([$user['division'], $user['section']], fn ($v) => $v !== '' && $v !== '-'));
 // the role shown is the one that applies here: the SORF role on SORF pages,
 // and on the portal the role in each system the user can open
-if ($system === 'portal') {
+if (!$with_sidebar) {
     $role_rows = [];
     if (ifad_can_open('fods')) {
         $role_rows['FODS role'] = $user['role_name'] !== '' ? $user['role_name'] : 'No role';
@@ -60,7 +62,7 @@ try {
   <link rel="shortcut icon" type="image/png" href="<?=base_url('assets/images/logos/fnrilogo.png')?>" />
   <title><?= esc($page_title . ' · ' . $title_suffix) ?></title>
   <link rel="stylesheet" href="<?=base_url('assets/css/styles.css')?>" />
-  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=25')?>" />
+  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=30')?>" />
   <?= $headExtra ?? '' ?>
   <script>
     // Apply the remembered collapsed sidebar before first paint (no flicker)
@@ -126,18 +128,45 @@ try {
         </a>
       <?php endif; ?>
 
-      <!-- Systems (IFAD Portal): every system the user can open, one click away; the grid goes back to the systems page -->
+      <!-- Systems (IFAD Portal): every system the user can open, then the
+           coming-soon ones (muted, with an amber dot; each opens its "under
+           development" page, portal/<key>), all one click away; tabs use the
+           system's 'tab' label; the grid goes back to the systems page -->
       <nav class="ifad-tabs" aria-label="Systems">
-        <?php foreach ($systems as $key => $s): if ($s['status'] !== 'live' || !ifad_can_open($key)) { continue; } ?>
-          <a class="ifad-tab<?= $key === $system ? ' is-current' : '' ?>" href="<?= site_url(ifad_home($key)) ?>" title="<?= esc($s['name'], 'attr') ?>"<?= $key === $system ? ' aria-current="page"' : '' ?>>
-            <i class="ti <?= $s['icon'] ?>"></i><span><?= esc($s['short']) ?></span>
+        <?php foreach ($systems as $key => $s):
+            $isSoon = isset($soon[$key]);
+            if (!$isSoon && !ifad_can_open($key)) { continue; }
+            $here = $key === $system;
+        ?>
+          <a class="ifad-tab<?= $isSoon ? ' is-soon ' . ifad_stage($s)['class'] : '' ?><?= $here ? ' is-current' : '' ?>" href="<?= site_url($isSoon ? 'portal/' . $key : ifad_home($key)) ?>"
+             title="<?= esc($s['name'] . ($isSoon ? ' (' . strtolower(ifad_stage($s)['label']) . ')' : ''), 'attr') ?>"<?= $here ? ' aria-current="page"' : '' ?>>
+            <i class="ti <?= $s['icon'] ?>"></i><span><?= esc($s['tab'] ?? $s['short']) ?></span>
           </a>
         <?php endforeach; ?>
         <a class="ifad-tab-all<?= $system === 'portal' ? ' is-current' : '' ?>" href="<?= site_url('portal') ?>" title="All systems" aria-label="All systems"><i class="ti ti-layout-grid"></i></a>
       </nav>
 
       <div class="fods-topbar-end ms-auto">
-        <!-- Messages (chats), then the Helpdesk (tickets), before the user details -->
+        <!-- Notifications (what is waiting for you, MyNotifications; its badge
+             loads after the page so it never slows it down), then Messages
+             (chats), then the Helpdesk (tickets), before the user details -->
+        <div class="dropdown">
+          <button type="button" class="fods-topbar-btn" id="fodsNotifBtn" data-url="<?= site_url('mynotifications') ?>" data-bs-toggle="dropdown" data-bs-offset="0,8" aria-expanded="false" aria-label="Notifications" title="Notifications">
+            <i class="ti ti-bell"></i>
+            <span class="fods-topbar-badge" id="fodsNotifBadge" hidden></span>
+          </button>
+
+          <div class="dropdown-menu dropdown-menu-end fods-inbox-menu">
+            <div class="fods-inbox-head">
+              <strong>Notifications</strong>
+              <span class="fods-inbox-note">Waiting for you</span>
+            </div>
+            <div class="fods-inbox-body" id="fodsNotifBody">
+              <div class="fods-inbox-empty"><span class="spinner-border spinner-border-sm"></span></div>
+            </div>
+          </div>
+        </div>
+
         <div class="dropdown">
           <button type="button" class="fods-topbar-btn" id="fodsInboxBtn" data-inbox="chats" data-url="<?= site_url('mymessages') ?>" data-bs-toggle="dropdown" data-bs-offset="0,8" aria-expanded="false" aria-label="Messages" title="Messages">
             <i class="ti ti-message-circle"></i>

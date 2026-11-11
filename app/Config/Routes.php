@@ -134,6 +134,7 @@ $routes->post('myassistant', 'MyAssistant::index',['filter' => 'myauthuser']);
 //HELPDESK - support tickets (topbar helpdesk icon, beside messages)
 $routes->get('myhelpdesk', 'MyHelpdesk::index',['filter' => 'myauthuser']);
 $routes->post('myhelpdesk', 'MyHelpdesk::index',['filter' => 'myauthuser']);
+$routes->get('mynotifications', 'MyNotifications::index',['filter' => 'myauthuser']);
 
 // SUPPORT - Support Chat System (old, replaced by mymessages)
 $routes->get('support', 'Support::index', ['filter' => 'myauthuser']);
@@ -149,6 +150,7 @@ $routes->get('myadaapproval', 'MyADAApproval::index',['filter' => 'myauthuser'])
 $routes->post('myadaapproval', 'MyADAApproval::index',['filter' => 'myauthuser']);
 //IFAD PORTAL - the systems a user may open (FODS, SORF, more to come)
 $routes->get('portal', 'Portal::index',['filter' => 'myauthuser']);
+$routes->get('portal/(:segment)', 'Portal::soon/$1',['filter' => 'myauthuser']);
 
 //IFAD PORTAL - SYSTEM 2: DOCUMENT REQUEST SYSTEM (SORF). Its pages live under
 // sorf/, need a SORF role (sorfaccess) and are CSRF-protected (Config\Filters)

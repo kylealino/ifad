@@ -1,4 +1,6 @@
-// Topbar for templates/myheader.php: the Messages icon (chats) and, beside
+// Topbar for templates/myheader.php: the bell (notifications: approvals
+// waiting for you, MyNotifications; badge loaded after the page, then every
+// minute; fresh numbers when opened), the Messages icon (chats) and, beside
 // it, the Helpdesk icon (tickets). Each has an unread badge (chats checked
 // every 20 s, tickets every minute, while the tab is visible) and a dropdown
 // loaded each time it opens. Each chats update is also announced as the
@@ -66,7 +68,25 @@
 		}).join('');
 	}
 
-	function setup(btnId, badgeId, bodyId, render, pollMs, onData) {
+	// Notifications (the bell): one row per module with something waiting for
+	// you, linking to the page where it is decided
+	function renderNotifs(url, data) {
+		if (!data.groups || !data.groups.length) {
+			return '<div class="fods-inbox-empty"><i class="ti ti-circle-check d-block mb-1" style="font-size:1.5rem;color:#15803d"></i>You\'re all caught up. Nothing is waiting for you.</div>';
+		}
+		return data.groups.map(function (g) {
+			return '<a class="fods-inbox-item is-unread" href="' + esc(g.url) + '">'
+				+ '<span class="fods-avatar ' + (g.system === 'SORF' ? 'tone-indigo' : 'tone-green') + '"><i class="ti ' + esc(g.icon) + '"></i></span>'
+				+ '<span class="fods-inbox-main"><span class="fods-inbox-title"><span>' + esc(g.count) + ' ' + esc(g.label) + ' to approve</span><small>' + esc(g.system) + '</small></span>'
+				+ (g.oldest ? '<span class="fods-inbox-text d-block">' + esc(g.oldest) + '</span>' : '')
+				+ '</span>'
+				+ '<span class="badge bg-danger rounded-pill">' + esc(g.count) + '</span>'
+				+ '</a>';
+		}).join('');
+	}
+
+	// openQuery: extra query string when the dropdown opens (fresh numbers)
+	function setup(btnId, badgeId, bodyId, render, pollMs, onData, openQuery) {
 		var btn = document.getElementById(btnId);
 		if (!btn) { return; }
 		var url = btn.getAttribute('data-url');
@@ -79,14 +99,14 @@
 			badge.textContent = n > 99 ? '99+' : String(n);
 		}
 
-		function load() {
-			return fetch(url + '?meaction=INBOX', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+		function load(extra) {
+			return fetch(url + '?meaction=INBOX' + (extra || ''), { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
 				.then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
 				.then(function (data) { if (onData) { onData(data); } return data; });
 		}
 
 		btn.addEventListener('show.bs.dropdown', function () {
-			load().then(function (data) { setBadge(data.unread); body.innerHTML = render(url, data); })
+			load(openQuery).then(function (data) { setBadge(data.unread); body.innerHTML = render(url, data); })
 				.catch(function () { body.innerHTML = '<div class="fods-inbox-empty">Couldn\'t load this. Try again.</div>'; });
 		});
 
@@ -99,7 +119,11 @@
 		document.dispatchEvent(new CustomEvent('fods:convs', { detail: data.convs || [] }));
 	});
 	setup('fodsHelpdeskBtn', 'fodsHelpdeskBadge', 'fodsHelpdeskBody', renderTickets, 60000);
+	var notifAt = boxes.length;
+	setup('fodsNotifBtn', 'fodsNotifBadge', 'fodsNotifBody', renderNotifs, 60000, null, '&fresh=1');
 	if (!boxes.length) { return; }
+	// the bell's badge is not rendered with the page (it can take a moment): load it now
+	if (boxes.length > notifAt) { setTimeout(boxes[notifAt], 600); }
 
 	function refresh() { return Promise.all(boxes.map(function (f) { return f(); })); }
 

@@ -33,4 +33,27 @@ class Portal extends BaseController
             'openCount' => count($open),
         ]);
     }
+
+    /**
+     * portal/<key>: the "under development" page of a coming-soon system
+     * (what it will cover, an animated scene). A live system goes to its
+     * start page (or back to the portal if the user can't open it); an
+     * unknown key goes back to the portal.
+     */
+    public function soon(string $key)
+    {
+        $systems = ifad_systems();
+        $system = $systems[$key] ?? null;
+        if ($system === null) {
+            return redirect()->to(site_url('portal'));
+        }
+        if ($system['status'] === 'live') {
+            return redirect()->to(site_url(ifad_can_open($key) ? ifad_home($key) : 'portal'));
+        }
+
+        return view('portal/portal-soon', [
+            'key' => $key,
+            'system' => $system,
+        ]);
+    }
 }

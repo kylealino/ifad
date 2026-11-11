@@ -578,6 +578,11 @@ PROMPT;
 	}
 
 	// ---------------------------------------------------------------- approvals waiting for me
+	// Also the FODS part of the topbar notifications (MyNotificationsModel)
+	public function pending_approvals() {
+		return $this->tool_pending();
+	}
+
 	private function tool_pending() {
 		if (!$this->approve_codes()) {
 			return ['note' => 'This user does not approve anything in FODS.', 'waiting' => []];
