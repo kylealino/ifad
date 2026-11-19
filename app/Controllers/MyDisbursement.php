@@ -21,7 +21,7 @@ class MyDisbursement extends BaseController
 
         switch ($meaction) {
             case 'MAIN':
-                if (fods_has_access(\Config\AccessCodes::DISBURSEMENT_VIEW)) {
+                if (fods_has_any_access([\Config\AccessCodes::DISBURSEMENT_VIEW, \Config\AccessCodes::DISBURSEMENTAPPROVAL_VIEW])) {
                     return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -29,7 +29,7 @@ class MyDisbursement extends BaseController
 
             // One DV with its line items and history, for the editor modal
             case 'MAIN-LOAD':
-                if (!fods_has_access(\Config\AccessCodes::DISBURSEMENT_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::DISBURSEMENT_VIEW, \Config\AccessCodes::DISBURSEMENTAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $record = $this->mydisbursement->disbursement_load($this->request->getGet('recid'));
@@ -69,7 +69,7 @@ class MyDisbursement extends BaseController
                 break;
 
             case 'PRINT-DISBURSEMENT':
-                if (!fods_has_access(\Config\AccessCodes::DISBURSEMENT_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::DISBURSEMENT_VIEW, \Config\AccessCodes::DISBURSEMENTAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('disbursement/disbursement-pdf');
                 break;
 
@@ -154,7 +154,8 @@ class MyDisbursement extends BaseController
         ORDER BY a.`responsibility_code` ASC
         ")->getResultArray();
 
-        $certifiers = fn ($tag) => $this->db->query("SELECT `full_name`, `position` FROM myua_user WHERE cert_tag = ? AND is_active = 1 ORDER BY `full_name` ASC", [$tag])->getResultArray();
+        // Signatories offered on each box, from Approver Mapping
+        $certifiers = fn ($box) => \App\Models\MyApproverMapModel::options('dv', $box);
 
         return view('disbursement/disbursement-main', [
             'disbursementhddata' => $disbursementhddata,
@@ -162,8 +163,9 @@ class MyDisbursement extends BaseController
                 'obligations' => $obligations,
                 'payees' => $payeedata,
                 'projects' => $projectdata,
-                'certifya' => $certifiers('1'),
-                'certifyc' => $certifiers('3'),
+                'certifya' => $certifiers('a'),
+                'certifyc' => $certifiers('c'),
+                'certifyd' => $certifiers('d'),
                 'funding_sources' => ['101101', '102101', '102406', '102407', '104102', '105462', '308601', '308602', '308603'],
                 'fund_clusters' => ['01', '07'],
                 'categories' => ['Goods', 'Services', 'Manual', 'Payroll', 'Income Tax'],
@@ -171,6 +173,7 @@ class MyDisbursement extends BaseController
             'perms' => [
                 'add' => fods_has_access(\Config\AccessCodes::DISBURSEMENT_ADD),
                 'edit' => fods_has_access(\Config\AccessCodes::DISBURSEMENT_UPDATE),
+                'approve' => fods_has_access(\Config\AccessCodes::DISBURSEMENTAPPROVAL_APPROVE),
             ],
             'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that DV directly
         ]);

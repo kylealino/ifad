@@ -15,7 +15,7 @@ echo view('templates/myheader.php');
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
-                    <li class="breadcrumb-item"><a href="#">Maintenance</a></li>
+                    <li class="breadcrumb-item"><a href="#">Library</a></li>
                     <li class="breadcrumb-item active" aria-current="page">UACS</li>
                 </ol>
             </nav>
@@ -76,7 +76,7 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- Add / edit -->
-<div class="modal fade fods-modal" id="uacsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade fods-modal fods-flat" id="uacsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
             <form id="uacsForm" novalidate>
@@ -88,38 +88,47 @@ echo view('templates/myheader.php');
                             <div class="fods-modal-sub" id="uacsModalSub">An object / sub-object code and its UACS code.</div>
                         </div>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="uacs" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal"></button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="recid">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label" for="allotment_class">Allotment class</label>
-                            <select class="form-select" id="allotment_class" name="allotment_class" required>
-                                <option value="">Choose…</option>
-                                <?php foreach ($classes as $name => $c): ?>
-                                    <option value="<?= esc($name, 'attr') ?>"><?= esc($name) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="invalid-feedback">Choose an allotment class.</div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>UACS code</h6>
                         </div>
-                        <div class="col-12">
-                            <label class="form-label" for="object_code">Object code</label>
-                            <input type="text" class="form-control" id="object_code" name="object_code" required>
-                            <div class="invalid-feedback">Object code is required.</div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label req" for="allotment_class">Allotment class</label>
+                                <select class="form-select" id="allotment_class" name="allotment_class" required>
+                                    <option value="">Choose…</option>
+                                    <?php foreach ($classes as $name => $c): ?>
+                                        <option value="<?= esc($name, 'attr') ?>"><?= esc($name) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="invalid-feedback">Choose an allotment class.</div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label req" for="object_code">Object code</label>
+                                <input type="text" class="form-control" id="object_code" name="object_code" required>
+                                <div class="invalid-feedback">Object code is required.</div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label req" for="sub_object_code">Sub-object code</label>
+                                <input type="text" class="form-control" id="sub_object_code" name="sub_object_code" required>
+                                <div class="invalid-feedback">Sub-object code is required.</div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label req" for="uacs_code">UACS code</label>
+                                <input type="text" class="form-control" id="uacs_code" name="uacs_code" placeholder="e.g. 50203010-00" required>
+                                <div class="invalid-feedback">UACS code is required.</div>
+                            </div>
                         </div>
-                        <div class="col-12">
-                            <label class="form-label" for="sub_object_code">Sub-object code</label>
-                            <input type="text" class="form-control" id="sub_object_code" name="sub_object_code" required>
-                            <div class="invalid-feedback">Sub-object code is required.</div>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label" for="uacs_code">UACS code</label>
-                            <input type="text" class="form-control" id="uacs_code" name="uacs_code" placeholder="e.g. 50203010-00" required>
-                            <div class="invalid-feedback">UACS code is required.</div>
-                        </div>
-                    </div>
+                    </section>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Create</button>
@@ -133,5 +142,5 @@ echo view('templates/myheader.php');
     var __uacs_data = <?= json_encode($uacsdata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __uacs_perms = <?= json_encode($perms) ?>;
 </script>
-<script src="<?=base_url('assets/js/maintenance/myuacs.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/maintenance/myuacs.js?v=5');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

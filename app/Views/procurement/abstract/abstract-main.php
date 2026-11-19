@@ -100,6 +100,9 @@ echo view('templates/myheader.php');
                             </h6>
                         </div>
                         <div class="col-sm-6 text-end">
+                            <?php if (!empty($recid)): ?>
+                                <button type="button" class="btn btn-sm btn-light" data-history-module="abstract" data-history-recid="<?= esc($recid, 'attr') ?>" data-history-title="Abstract"><i class="ti ti-history me-1"></i>History</button>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>						

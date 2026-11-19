@@ -22,10 +22,10 @@ function __mysys_ors_ent() {
 	};
 
 	const STATUS = {
-		pending_a: ['tone-amber', 'Requesting office'],
-		pending_b: ['tone-indigo', 'Budget review'],
+		pending_a: ['tone-amber', 'For approval · Box A (Requesting office)'],
+		pending_b: ['tone-indigo', 'For approval · Box B (Budget)'],
 		approved: ['tone-green', 'Approved'],
-		disapproved: ['tone-red', 'Disapproved']
+		disapproved: ['tone-red', 'Returned']
 	};
 
 	function esc(s) {
@@ -87,7 +87,7 @@ function __mysys_ors_ent() {
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label() + ' · ' + money(amount(l)));
 		};
-		card('pending', 'pending', function () { return 'Pending · Box A ' + count('pending_a').toLocaleString() + ' · Box B ' + count('pending_b').toLocaleString(); });
+		card('pending', 'pending', function () { return 'For approval · Box A ' + count('pending_a').toLocaleString() + ' · Box B ' + count('pending_b').toLocaleString(); });
 		card('returned', 'disapproved', function () { return 'Returned'; });
 		card('approved', 'approved', function () { return 'Approved'; });
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -531,6 +531,13 @@ function __mysys_ors_ent() {
 		sel.value = current || '';
 	}
 
+	// A box's signatories with the saved one; a new ORS starts with the box's default (Approver Mapping)
+	function signatory(id, posId, list, hd) {
+		var def = (list || []).filter(function (o) { return String(o.is_default) === '1'; })[0];
+		options(id, list || [], hd ? hd[id] : (def ? def.full_name : ''), hd ? hd[posId] : '');
+		if (!hd) { setVal(posId, def ? def.position : ''); }
+	}
+
 	this.__ors_details = function () {
 		var $ = window.jQuery;
 		(lookups.payees || []).forEach(function (p) { payeeIndex[String(p.value).trim().toLowerCase()] = p; });
@@ -587,8 +594,8 @@ function __mysys_ors_ent() {
 		options('funding_source', lookups.funding_sources || [], hd ? hd.funding_source : '');
 		options('fund_cluster_code', lookups.fund_clusters || [], hd ? hd.fund_cluster_code : '');
 		options('category', lookups.categories || [], hd ? hd.category : '');
-		options('certified_a', lookups.certifya || [], hd ? hd.certified_a : '', hd ? hd.position_a : '');
-		options('certified_b', lookups.certifyb || [], hd ? hd.certified_b : '', hd ? hd.position_b : '');
+		signatory('certified_a', 'position_a', lookups.certifya, hd);
+		signatory('certified_b', 'position_b', lookups.certifyb, hd);
 		document.getElementById('is_vatable').checked = !!hd && String(hd.is_vatable) === '1';
 
 		toggleFields();
@@ -627,7 +634,7 @@ function __mysys_ors_ent() {
 		var banner = $('#orsBanner').removeClass('alert-success alert-danger alert-info d-none');
 		if (status === 'pending_b') {
 			banner.addClass('alert-info').html('<b>Certified by the requesting office</b>' + (hd.certa_approver ? ' (' + esc(hd.certa_approver) + ')' : '')
-				+ ' and waiting for budget. It can no longer be edited.');
+				+ '; pending certification by budget (Box B). It can no longer be edited.');
 		} else if (status === 'approved') {
 			banner.addClass('alert-success').html('<b>Fully certified</b> — Box A by ' + esc(hd.certa_approver || '—') + ', Box B by ' + esc(hd.certb_approver || '—') + '.');
 		} else if (status === 'disapproved') {
@@ -642,9 +649,69 @@ function __mysys_ors_ent() {
 		signStatus('a', hd);
 		signStatus('b', hd);
 
+		// Certify / disapprove the box it is at (one Approve right covers Box A and Box B)
+		var box = decideBox(hd);
+		$('#orsApproveBtn, #orsDisapproveBtn').toggleClass('d-none', !box);
+		$('#orsApproveBtn').html('<i class="ti ti-check me-1"></i>Certify Box ' + box.toUpperCase());
+
 		$('#submitBtn').toggleClass('d-none', !canSave())
 			.text(!hd ? 'Create ORS' : (status === 'disapproved' ? 'Save & resubmit' : 'Save changes'));
 	}
+
+	// Box this user can certify now ('' when none)
+	function decideBox(hd) {
+		var status = hd ? statusOf(hd) : '';
+		return perms.approve && (status === 'pending_a' || status === 'pending_b') ? status.slice(-1) : '';
+	}
+
+	//ORS - CERTIFY / DISAPPROVE (remarks required to disapprove)
+	this.__ors_decision = function () {
+		var $ = window.jQuery;
+		// Box => [step, the one after it]
+		var STEPS = {
+			A: ['Box A · Requesting office', 'Box B · Budget'],
+			B: ['Box B · Budget', 'Certified']
+		};
+
+		function openDecision(mode) {
+			var box = decideBox(record);
+			if (!box) { return; }
+			var approve = mode === 'approve';
+			var B = box.toUpperCase();
+			FodsDecision.open({
+				host: document.getElementById('orsModal'),
+				mode: mode,
+				verb: 'Certify',
+				title: (approve ? 'Certify' : 'Disapprove') + ' ORS · Box ' + B,
+				subtitle: (record.serialno || 'ORS #' + record.recid) + ' · ' + (record.payee_name || ''),
+				facts: [
+					['Amount', $('#orsGross').text(), true],
+					['Step', (STEPS[B] || ['Box ' + B])[0]],
+					['After this', approve ? (STEPS[B] || ['', ''])[1] : 'Returned to the preparer']
+				],
+				maxlength: 100,
+				submit: function (remarks, done) {
+					$.ajax({
+						type: 'POST',
+						url: mesiteurl + 'myors',
+						data: {
+							recid: record.recid,
+							remarks: remarks,
+							meaction: (approve ? 'MAIN-APPROVE-' : 'MAIN-DISAPPROVE-') + B
+						},
+						global: false,
+						cache: false,
+						success: function (data) { $('.me-outp-msg').html(data); FodsDecision.close(); },
+						error: function (xhr, status, error) { toastr.error('[ORS]', 'Error loading page...' + error, { closeButton: true }); },
+						complete: done
+					});
+				}
+			});
+		}
+
+		document.getElementById('orsApproveBtn').addEventListener('click', function () { openDecision('approve'); });
+		document.getElementById('orsDisapproveBtn').addEventListener('click', function () { openDecision('disapprove'); });
+	};
 
 	this.__open_ors = function (recid) {
 		var $ = window.jQuery;
@@ -776,7 +843,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_ors_ent.__ors_details();
 	__mysys_ors_ent.__ors_saving();
 	__mysys_ors_ent.__ors_print();
+	__mysys_ors_ent.__ors_decision();
 
-	// Deep link (e.g. from ORS Approval): open that ORS right away
+	// Deep link (e.g. an old ORS Approval link): open that ORS right away
 	if (window.__ors_open) { __mysys_ors_ent.__open_ors(window.__ors_open); }
 });

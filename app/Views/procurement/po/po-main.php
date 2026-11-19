@@ -98,7 +98,7 @@ echo view('templates/myheader.php');
         <div class="col-6 col-xl-3">
             <button type="button" class="fods-stat" data-table="poTable" data-filter="pending">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -124,8 +124,8 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="poTableFilter">
-                <button type="button" class="active" data-filter="all">All</button>
-                <button type="button" data-filter="pending">Pending</button>
+                <button type="button" class="active" data-filter="all">All records</button>
+                <button type="button" data-filter="pending">For approval</button>
                 <button type="button" data-filter="disapproved">Returned</button>
                 <button type="button" data-filter="approved">Approved</button>
             </div>
@@ -153,11 +153,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="poModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="poModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down po-dialog">
         <div class="modal-content">
             <form id="poForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-receipt"></i></div>
                         <div style="min-width:0">
@@ -167,192 +167,211 @@ echo view('templates/myheader.php');
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="poPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
+                        <button type="button" class="btn btn-sm btn-danger d-none" id="poDisapproveBtn"><i class="ti ti-x me-1"></i>Disapprove</button>
+                        <button type="button" class="btn btn-sm btn-success d-none" id="poApproveBtn"><i class="ti ti-check me-1"></i>Approve</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="po" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <ul class="nav fods-tabs" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#poPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#poPaneItems"><i class="ti ti-list-details"></i>Items<span class="po-tab-amt" data-tab-total></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#poPaneTerms"><i class="ti ti-truck-delivery"></i>Delivery &amp; funds</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#poPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
+                </ul>
+
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
                     <input type="hidden" id="pr_id" name="pr_id">
 
-                    <div id="poBanner" class="alert d-none mb-3"></div>
-
-                    <ul class="nav fods-segment mb-3 flex-nowrap fods-scroll-x" role="tablist" style="max-width:100%;">
-                        <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#poPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#poPaneItems"><i class="ti ti-list-details"></i>Items<span class="po-tab-amt" data-tab-total></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#poPaneTerms"><i class="ti ti-truck-delivery"></i>Delivery &amp; funds</button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#poPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
-                    </ul>
+                    <div id="poBanner" class="alert d-none mt-3 mb-0"></div>
 
                     <div class="tab-content">
                         <!-- Details -->
                         <div class="tab-pane fade show active" id="poPaneDetails">
-                            <div class="row g-3">
-                                <div class="col-lg-6">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="po-source mb-3">
-                                            <label class="form-label" for="prno">Purchase request</label>
-                                            <input type="text" class="form-control" id="prno" name="prno" maxlength="100" placeholder="Type or pick the PR no. this PO is for" autocomplete="off">
-                                            <div class="form-text" id="poSourceHint">Picking one copies its charge-to, end-user, fund cluster and items into this PO.</div>
-                                        </div>
-
-                                        <div class="fods-section mt-0">Order</div>
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="pono">PO no.</label>
-                                                <input type="text" class="form-control" id="pono" name="pono" maxlength="100" placeholder="e.g. 570-2025">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="po_date">PO date</label>
-                                                <input type="date" class="form-control" id="po_date" name="po_date" required>
-                                                <div class="invalid-feedback">PO date is required.</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="pr_date">PR date</label>
-                                                <input type="date" class="form-control" id="pr_date" name="pr_date">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="mode_of_procurement">Mode of procurement</label>
-                                                <input type="text" class="form-control" id="mode_of_procurement" name="mode_of_procurement" maxlength="100" placeholder="Pick a mode" autocomplete="off">
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="charge_to">Charged to</label>
-                                                <textarea class="form-control" id="charge_to" name="charge_to" rows="2" maxlength="250"></textarea>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="end_user">End-user</label>
-                                                <input type="text" class="form-control" id="end_user" name="end_user" maxlength="100">
-                                            </div>
-                                        </div>
-                                    </div></div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Purchase request</h6>
                                 </div>
-
-                                <div class="col-lg-6">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Supplier</div>
-                                        <div class="row g-3">
-                                            <div class="col-12" id="poRfqPick">
-                                                <label class="form-label" for="po_rfq">From an RFQ of the PR</label>
-                                                <select class="form-select" id="po_rfq" aria-label="RFQ"></select>
-                                                <div class="form-text">Picking one fills the supplier, delivery term and payment term.</div>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="supplier_name">Supplier</label>
-                                                <input type="text" class="form-control" id="supplier_name" name="supplier_name" maxlength="250" placeholder="Type or pick a supplier" autocomplete="off" required>
-                                                <div class="invalid-feedback">Supplier is required.</div>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="supplier_address">Address</label>
-                                                <input type="text" class="form-control" id="supplier_address" name="supplier_address" maxlength="250">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="supplier_tel">Telephone</label>
-                                                <input type="text" class="form-control" id="supplier_tel" name="supplier_tel" maxlength="100">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="supplier_tin">TIN</label>
-                                                <input type="text" class="form-control" id="supplier_tin" name="supplier_tin" maxlength="100">
-                                            </div>
-                                        </div>
-                                    </div></div>
+                                <div class="po-source">
+                                    <label class="form-label" for="prno">PR no.</label>
+                                    <input type="text" class="form-control" id="prno" name="prno" maxlength="100" placeholder="Type or pick the PR no. this PO is for" autocomplete="off">
+                                    <div class="form-text" id="poSourceHint">Picking one copies its charge-to, end-user, fund cluster and items into this PO.</div>
                                 </div>
-                            </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Order</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="pono">PO no.</label>
+                                        <input type="text" class="form-control" id="pono" name="pono" maxlength="100" placeholder="e.g. 570-2025">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label req" for="po_date">PO date</label>
+                                        <input type="date" class="form-control" id="po_date" name="po_date" required>
+                                        <div class="invalid-feedback">PO date is required.</div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="pr_date">PR date</label>
+                                        <input type="date" class="form-control" id="pr_date" name="pr_date">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="mode_of_procurement">Mode of procurement</label>
+                                        <input type="text" class="form-control" id="mode_of_procurement" name="mode_of_procurement" maxlength="100" placeholder="Pick a mode" autocomplete="off">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label" for="end_user">End-user</label>
+                                        <input type="text" class="form-control" id="end_user" name="end_user" maxlength="100">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="charge_to">Charged to</label>
+                                        <textarea class="form-control" id="charge_to" name="charge_to" rows="2" maxlength="250"></textarea>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Supplier</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-12" id="poRfqPick">
+                                        <label class="form-label" for="po_rfq">Quotation (RFQ) of the PR</label>
+                                        <select class="form-select" id="po_rfq" aria-label="RFQ"></select>
+                                        <div class="form-text">Picking one fills the supplier, delivery term and payment term.</div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label req" for="supplier_name">Supplier name</label>
+                                        <input type="text" class="form-control" id="supplier_name" name="supplier_name" maxlength="250" placeholder="Type or pick a supplier" autocomplete="off" required>
+                                        <div class="invalid-feedback">Supplier is required.</div>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="supplier_tin">Supplier TIN</label>
+                                        <input type="text" class="form-control" id="supplier_tin" name="supplier_tin" maxlength="100">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label" for="supplier_address">Supplier address</label>
+                                        <input type="text" class="form-control" id="supplier_address" name="supplier_address" maxlength="250">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="supplier_tel">Supplier telephone no.</label>
+                                        <input type="text" class="form-control" id="supplier_tel" name="supplier_tel" maxlength="100">
+                                    </div>
+                                </div>
+                            </section>
                         </div>
 
                         <!-- Items -->
                         <div class="tab-pane fade" id="poPaneItems">
-                            <div class="po-grid-card" id="poGrid"></div>
+                            <div class="fods-pane-pad">
+                                <div class="po-grid-card" id="poGrid"></div>
+                            </div>
                         </div>
 
                         <!-- Delivery & funds -->
                         <div class="tab-pane fade" id="poPaneTerms">
-                            <div class="row g-3">
-                                <div class="col-lg-6">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Delivery</div>
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <label class="form-label" for="place_of_delivery">Place of delivery</label>
-                                                <input type="text" class="form-control" id="place_of_delivery" name="place_of_delivery" maxlength="250">
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="date_of_delivery">Date of delivery</label>
-                                                <input type="text" class="form-control" id="date_of_delivery" name="date_of_delivery" maxlength="250">
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="delivery_term">Delivery term</label>
-                                                <input type="text" class="form-control" id="delivery_term" name="delivery_term" maxlength="250">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="payment_term">Payment term</label>
-                                                <input type="text" class="form-control" id="payment_term" name="payment_term" maxlength="100">
-                                            </div>
-                                        </div>
-
-                                    </div></div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Delivery</h6>
                                 </div>
-
-                                <div class="col-lg-6">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Funds</div>
-                                        <div class="row g-3">
-                                            <div class="col-md-5">
-                                                <label class="form-label" for="fund_cluster">Fund cluster</label>
-                                                <input type="text" class="form-control" id="fund_cluster" name="fund_cluster" maxlength="50" placeholder="Pick a cluster" autocomplete="off">
-                                            </div>
-                                            <div class="col-md-7">
-                                                <label class="form-label" for="funds_available">Funds available</label>
-                                                <input type="number" step="any" class="form-control text-end" id="funds_available" name="funds_available" placeholder="0.00">
-                                            </div>
-                                        </div>
-
-                                        <div class="fods-section">Obligation</div>
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <label class="form-label" for="ors_burs_no">ORS / BURS no.</label>
-                                                <input type="text" class="form-control" id="ors_burs_no" name="ors_burs_no" maxlength="100" placeholder="Type or pick the ORS / BURS" autocomplete="off">
-                                                <div class="form-text">Filled in once the PO is obligated; picking one fills its date and amount.</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="ors_burs_date">Date of the ORS / BURS</label>
-                                                <input type="date" class="form-control" id="ors_burs_date" name="ors_burs_date">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="ors_burs_amount">Amount</label>
-                                                <input type="number" step="any" class="form-control text-end" id="ors_burs_amount" name="ors_burs_amount" placeholder="0.00">
-                                            </div>
-                                        </div>
-                                    </div></div>
+                                <div class="row g-3">
+                                    <div class="col-md-7">
+                                        <label class="form-label" for="place_of_delivery">Place of delivery</label>
+                                        <input type="text" class="form-control" id="place_of_delivery" name="place_of_delivery" maxlength="250">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="date_of_delivery">Date of delivery</label>
+                                        <input type="text" class="form-control" id="date_of_delivery" name="date_of_delivery" maxlength="250" placeholder="e.g. Within 15 days of receipt of the PO">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label" for="delivery_term">Delivery term</label>
+                                        <input type="text" class="form-control" id="delivery_term" name="delivery_term" maxlength="250">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="payment_term">Payment term</label>
+                                        <input type="text" class="form-control" id="payment_term" name="payment_term" maxlength="100">
+                                    </div>
                                 </div>
-                            </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Funds</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="fund_cluster">Fund cluster</label>
+                                        <input type="text" class="form-control" id="fund_cluster" name="fund_cluster" maxlength="50" placeholder="Pick a cluster" autocomplete="off">
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <label class="form-label" for="funds_available">Funds available (₱)</label>
+                                        <input type="number" step="any" class="form-control text-end" id="funds_available" name="funds_available" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Obligation</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="ors_burs_no">ORS / BURS serial no.</label>
+                                        <input type="text" class="form-control" id="ors_burs_no" name="ors_burs_no" maxlength="100" placeholder="Type or pick the ORS / BURS" autocomplete="off">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="ors_burs_date">ORS / BURS date</label>
+                                        <input type="date" class="form-control" id="ors_burs_date" name="ors_burs_date">
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <label class="form-label" for="ors_burs_amount">Obligated amount (₱)</label>
+                                        <input type="number" step="any" class="form-control text-end" id="ors_burs_amount" name="ors_burs_amount" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </section>
                         </div>
 
                         <!-- Certification -->
                         <div class="tab-pane fade" id="poPaneSign">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <div class="po-sign">
-                                        <div class="po-sign-head"><span class="po-sign-box">Box A · Accounting</span><span id="poSignStatusA"></span></div>
-                                        <label class="form-label" for="accountant">Funds available certified by</label>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Box A · Accounting <span id="poSignStatusA"></span></h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label req" for="accountant">Funds available certified by</label>
                                         <select class="form-select" id="accountant" name="accountant" required></select>
                                         <div class="invalid-feedback">Pick the accountant who certifies the funds.</div>
-                                        <label class="form-label mt-2" for="accountant_position">Position</label>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="accountant_position">Position</label>
                                         <input type="text" class="form-control" id="accountant_position" name="accountant_position" readonly>
-                                        <div class="po-sign-note" id="poSignNoteA"></div>
                                     </div>
+                                    <div class="col-12 po-sign-note mt-1" id="poSignNoteA"></div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="po-sign">
-                                        <div class="po-sign-head"><span class="po-sign-box">Box B · Approval</span><span id="poSignStatusB"></span></div>
-                                        <label class="form-label" for="approved_by">Approved by (very truly yours)</label>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Box B · Approval <span id="poSignStatusB"></span></h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="approved_by">Approved by</label>
                                         <input type="text" class="form-control" id="approved_by" name="approved_by" readonly>
-                                        <label class="form-label mt-2" for="approved_position">Position</label>
-                                        <input type="text" class="form-control" id="approved_position" name="approved_position" readonly>
-                                        <div class="form-text" id="poApprovalRule"></div>
-                                        <div class="po-sign-note" id="poSignNoteB"></div>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="approved_position">Position</label>
+                                        <input type="text" class="form-control" id="approved_position" name="approved_position" readonly>
+                                    </div>
+                                    <div class="col-12 form-text mt-1" id="poApprovalRule"></div>
+                                    <div class="col-12 po-sign-note mt-0" id="poSignNoteB"></div>
                                 </div>
-                            </div>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -371,6 +390,7 @@ echo view('templates/myheader.php');
         </div>
     </div>
 </div>
+
 
 <!-- PO print preview -->
 <div class="modal fade fods-modal" id="poPrintModal" tabindex="-1" aria-hidden="true">
@@ -393,5 +413,5 @@ echo view('templates/myheader.php');
     var __po_perms = <?= json_encode($perms) ?>;
     var __po_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/po/mypo.js?v=4');?>"></script>
+<script src="<?=base_url('assets/js/procurement/po/mypo.js?v=8');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

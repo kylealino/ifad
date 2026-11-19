@@ -65,6 +65,8 @@ class MySaobReport extends BaseController
     }
     
     public function exportCsv(){
+        if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
+
         $from = $this->request->getGet('date_from');
         $to   = $this->request->getGet('date_to');
 
@@ -145,6 +147,8 @@ class MySaobReport extends BaseController
     }
 
     public function monthlyExportCsv(){
+        if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
+
         $from = $this->request->getGet('date_from'); // selected start month
         $to   = $this->request->getGet('date_to');   // selected end month
         $year_start = date('Y-01-01', strtotime($to)); // Jan 1 of selected year
@@ -448,6 +452,8 @@ class MySaobReport extends BaseController
     }
 
     public function saobExportCsv(){
+        if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
+
         $month = $this->request->getGet('month'); // January - December
         $year  = $this->request->getGet('year');  // e.g. 2026
 

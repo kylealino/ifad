@@ -8,7 +8,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
-                    <li class="breadcrumb-item"><a href="#">Maintenance</a></li>
+                    <li class="breadcrumb-item"><a href="#">Library</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Projects</li>
                 </ol>
             </nav>
@@ -77,7 +77,7 @@
 </div>
 
 <!-- Add / edit -->
-<div class="modal fade fods-modal" id="projectModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade fods-modal fods-flat" id="projectModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <form id="projectForm" novalidate>
@@ -89,57 +89,73 @@
                             <div class="fods-modal-sub" id="projectModalSub">A reference project for budget and obligations.</div>
                         </div>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="project" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal"></button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="recid">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label" for="project_title">Project title</label>
-                            <textarea class="form-control" id="project_title" name="project_title" rows="3" required></textarea>
-                            <div class="invalid-feedback">Project title is required.</div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Project</h6>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="responsibility_code">Responsibility code</label>
-                            <input type="text" class="form-control" id="responsibility_code" name="responsibility_code" required>
-                            <div class="invalid-feedback">Responsibility code is required.</div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label req" for="project_title">Project title</label>
+                                <textarea class="form-control" id="project_title" name="project_title" rows="3" required></textarea>
+                                <div class="invalid-feedback">Project title is required.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label req" for="responsibility_code">Responsibility code</label>
+                                <input type="text" class="form-control" id="responsibility_code" name="responsibility_code" required>
+                                <div class="invalid-feedback">Responsibility code is required.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label req" for="project_leader">Project leader</label>
+                                <input type="text" class="form-control" id="project_leader" name="project_leader" required>
+                                <div class="invalid-feedback">Project leader is required.</div>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="project_leader">Project leader</label>
-                            <input type="text" class="form-control" id="project_leader" name="project_leader" required>
-                            <div class="invalid-feedback">Project leader is required.</div>
+                    </section>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Classification</h6>
                         </div>
-                        <div class="col-md-4 col-6">
-                            <label class="form-label" for="fundcluster_id">Fund cluster</label>
-                            <select class="form-select" id="fundcluster_id" name="fundcluster_id" required>
-                                <option value="">Choose…</option>
-                                <?php foreach ($fundclusterdata as $fc): ?>
-                                    <option value="<?= esc($fc['fundcluster_id'], 'attr') ?>"><?= esc($fc['fund_cluster_code']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="invalid-feedback">Choose a fund cluster.</div>
+                        <div class="row g-3">
+                            <div class="col-md-4 col-6">
+                                <label class="form-label req" for="fundcluster_id">Fund cluster</label>
+                                <select class="form-select" id="fundcluster_id" name="fundcluster_id" required>
+                                    <option value="">Choose…</option>
+                                    <?php foreach ($fundclusterdata as $fc): ?>
+                                        <option value="<?= esc($fc['fundcluster_id'], 'attr') ?>"><?= esc($fc['fund_cluster_code']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="invalid-feedback">Choose a fund cluster.</div>
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label req" for="division_id">Division</label>
+                                <select class="form-select" id="division_id" name="division_id" required>
+                                    <option value="">Choose…</option>
+                                    <?php foreach ($divisiondata as $d): ?>
+                                        <option value="<?= esc($d['division_id'], 'attr') ?>"><?= esc($d['division_name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="invalid-feedback">Choose a division.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="mfopaps_code">MFO / PAP code</label>
+                                <select class="form-select" id="mfopaps_code" name="mfopaps_code">
+                                    <option value="">—</option>
+                                    <?php foreach ($mfopapsdata as $m): ?>
+                                        <option value="<?= esc($m['mfopaps_code'], 'attr') ?>"><?= esc($m['mfopaps_code']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                         </div>
-                        <div class="col-md-4 col-6">
-                            <label class="form-label" for="division_id">Division</label>
-                            <select class="form-select" id="division_id" name="division_id" required>
-                                <option value="">Choose…</option>
-                                <?php foreach ($divisiondata as $d): ?>
-                                    <option value="<?= esc($d['division_id'], 'attr') ?>"><?= esc($d['division_name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="invalid-feedback">Choose a division.</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label" for="mfopaps_code">MFO / PAP</label>
-                            <select class="form-select" id="mfopaps_code" name="mfopaps_code">
-                                <option value="">—</option>
-                                <?php foreach ($mfopapsdata as $m): ?>
-                                    <option value="<?= esc($m['mfopaps_code'], 'attr') ?>"><?= esc($m['mfopaps_code']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
+                    </section>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Create</button>
@@ -153,5 +169,5 @@
     var __project_data = <?= json_encode($projectdata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __project_perms = <?= json_encode($perms) ?>;
 </script>
-<script src="<?=base_url('assets/js/maintenance/myproject.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/maintenance/myproject.js?v=5');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

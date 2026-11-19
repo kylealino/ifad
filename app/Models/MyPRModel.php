@@ -17,12 +17,9 @@ class MyPRModel extends Model
 
     }
 
-	// Box B (approval of the PR) follows the estimated cost, same limit as the PO
+	// Box B (approval of the PR) follows the estimated cost (the tiers are in Approver Mapping)
 	public static function approver_for($total) {
-		if ((float) $total >= MyPOModel::APPROVAL_LIMIT) {
-			return ['name' => 'ATTY. LUCIEDEN G. RAZ', 'position' => 'Director III'];
-		}
-		return ['name' => 'ALEXIS M. ORTIZ', 'position' => 'Chief Administrative Officer, FAD'];
+		return MyApproverMapModel::for_amount('pr', 'b', $total);
 	}
 
 	//PR - APPROVAL STEPS: Box A (requesting office), then Box B (approval)
@@ -172,9 +169,12 @@ class MyPRModel extends Model
 			die();
 		}
 
-		// Box A: the position comes from that signatory's user record
-		$signer = $this->db->query("SELECT `position` FROM myua_user WHERE `full_name` = ? AND `is_active` = 1 LIMIT 1", [$requested_by])->getRowArray();
-		if (!empty($signer)) {
+		// Box A: the position is the one mapped for that signatory, else their user record's
+		$mapped = MyApproverMapModel::position_of('pr', 'a', $requested_by);
+		$signer = $mapped !== '' ? null : $this->db->query("SELECT `position` FROM myua_user WHERE `full_name` = ? AND `is_active` = 1 LIMIT 1", [$requested_by])->getRowArray();
+		if ($mapped !== '') {
+			$requested_position = $mapped;
+		} elseif (!empty($signer)) {
 			$requested_position = (string) $signer['position'];
 		}
 
@@ -185,6 +185,18 @@ class MyPRModel extends Model
 			$lines_total += round((float) $medata[2] * (float) $medata[3], 2);
 		}
 		$approver = self::approver_for($lines_total);
+		if ($approver['name'] === '' && !(!empty($saved) && self::is_locked($saved))) {
+			echo "
+			<script>
+			toastr.error('No Box B approver is set for this estimated cost. Ask an administrator to set one in Approver Mapping.', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:3500,
+				});
+			</script>
+			";
+			die();
+		}
 		// the estimated cost saved is the same sum, so it always matches its Box B
 		$estimated_cost = $lines_total;
 
@@ -254,6 +266,8 @@ class MyPRModel extends Model
 				die();
 			}
 
+			$before = MyHistoryModel::row('tbl_pr_hd', $recid);
+
 			// Once the requesting office has approved Box A the PR is locked; only
 			// its PR no. can still be assigned
 			if (self::is_locked($current)) {
@@ -277,17 +291,18 @@ class MyPRModel extends Model
 				$this->db->transComplete();
 
 				if ($this->db->transStatus()) {
+					MyHistoryModel::log('pr', $recid, 'PRNO_SET', '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_pr_hd', $recid)), $prno);
 					echo "
 					<script>
 						document.getElementById('submitBtn').disabled = true;
 						toastr.info('PR no. saved!', 'Well Done!', {
 								progressBar: true,
 								closeButton: true,
-								timeOut:2500,
+								timeOut:2000,
 							});
 						setTimeout(function() {
 								window.location.href = 'mypr?meaction=PR-MAIN';
-							}, 2500);
+							}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 					</script>
 					";
 				} else {
@@ -428,6 +443,16 @@ class MyPRModel extends Model
 
 		$this->db->transComplete();
 
+		//HISTORY
+		if ($this->db->transStatus()) {
+			if (empty($recid)) {
+				MyHistoryModel::log('pr', $project_id, 'CREATED', '', null, $prno);
+			} else {
+				MyHistoryModel::log('pr', $recid, !empty($is_disapproved) ? 'RESUBMITTED' : 'UPDATED', '',
+					MyHistoryModel::diff($before, MyHistoryModel::row('tbl_pr_hd', $recid)), $prno);
+			}
+		}
+
 		if ($this->db->transStatus()) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
@@ -436,11 +461,11 @@ class MyPRModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mypr?meaction=PR-MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -550,6 +575,7 @@ class MyPRModel extends Model
 		);
 
 		if ($query) {
+			MyHistoryModel::log('pr', (int) $recid, 'RFQ_ADDED', 'Quotation ' . $quotation_no . ' from ' . $company_name, null, $prno);
 			// Echo JavaScript to show the toast, then reopen the PR on its RFQ tab
 			$back = 'mypr?meaction=PR-MAIN&recid=' . (int) $recid . '&tab=rfq';
 			echo "
@@ -557,11 +583,11 @@ class MyPRModel extends Model
 				toastr.success('RFQ added!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = '{$back}';
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -599,7 +625,7 @@ class MyPRModel extends Model
 		if ($box === '') {
 			echo "
 			<script>
-			toastr.error('This PR is not waiting for approval', 'Oops!', {
+			toastr.error('This PR is not pending approval', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2500,
@@ -646,6 +672,9 @@ class MyPRModel extends Model
 		", [$approve ? 1 : 0, $approve ? 0 : 1, $approver, mb_substr($remarks, 0, 100), $recid]);
 
 		if ($query) {
+			MyHistoryModel::log('pr', $recid, ($approve ? 'APPROVED_BOX_' : 'DISAPPROVED_BOX_') . strtoupper($box), $remarks, null, $hd['prno']);
+		}
+		if ($query) {
 			if (!$approve) {
 				$status = "PR disapproved";
 			} else {
@@ -657,11 +686,11 @@ class MyPRModel extends Model
 				toastr.{$color}('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
-						window.location.href = 'myprapproval';
-					}, 2500);
+						window.location.href = 'mypr?meaction=PR-MAIN';
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit;

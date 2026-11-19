@@ -8,7 +8,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
-                    <li class="breadcrumb-item"><a href="#">Maintenance</a></li>
+                    <li class="breadcrumb-item"><a href="#">Library</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Payee</li>
                 </ol>
             </nav>
@@ -80,7 +80,7 @@
 </div>
 
 <!-- Add / edit -->
-<div class="modal fade fods-modal" id="payeeModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade fods-modal fods-flat" id="payeeModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <form id="payeeForm" novalidate>
@@ -92,60 +92,71 @@
                             <div class="fods-modal-sub" id="payeeModalSub">Who gets paid and how.</div>
                         </div>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="payee" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal"></button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="recid">
-                    <div class="fods-section mt-0">Payee</div>
-                    <div class="row g-3">
-                        <div class="col-md-8">
-                            <label class="form-label" for="payee_name">Payee name</label>
-                            <input type="text" class="form-control" id="payee_name" name="payee_name" required>
-                            <div class="invalid-feedback">Payee name is required.</div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Payee</h6>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label" for="payee_tin">TIN</label>
-                            <input type="text" class="form-control" id="payee_tin" name="payee_tin" placeholder="000-000-000-000">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label req" for="payee_name">Payee name</label>
+                                <input type="text" class="form-control" id="payee_name" name="payee_name" required>
+                                <div class="invalid-feedback">Payee name is required.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="payee_tin">TIN</label>
+                                <input type="text" class="form-control" id="payee_tin" name="payee_tin" placeholder="000-000-000-000">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="payee_office">Office / company</label>
+                                <input type="text" class="form-control" id="payee_office" name="payee_office">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="contact_no">Contact no.</label>
+                                <input type="text" class="form-control" id="contact_no" name="contact_no">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="payee_address">Address</label>
+                                <textarea class="form-control" id="payee_address" name="payee_address" rows="2"></textarea>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="payee_office">Office</label>
-                            <input type="text" class="form-control" id="payee_office" name="payee_office">
+                    </section>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Payment</h6>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="contact_no">Contact no.</label>
-                            <input type="text" class="form-control" id="contact_no" name="contact_no">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="payee_account_num">Bank account no.</label>
+                                <input type="text" class="form-control" id="payee_account_num" name="payee_account_num">
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <label class="form-label" for="disb_method">Payment method</label>
+                                <select class="form-select" id="disb_method" name="disb_method">
+                                    <option value="">—</option>
+                                    <?php foreach ($methods as $m): ?>
+                                        <option value="<?= esc($m, 'attr') ?>"><?= esc($m) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <label class="form-label" for="currency">Currency</label>
+                                <select class="form-select" id="currency" name="currency" data-default="PHP">
+                                    <option value="">—</option>
+                                    <option value="PHP">PHP</option>
+                                    <option value="USD">USD</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="col-12">
-                            <label class="form-label" for="payee_address">Address</label>
-                            <textarea class="form-control" id="payee_address" name="payee_address" rows="2"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="fods-section">Payment</div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label" for="payee_account_num">Account no.</label>
-                            <input type="text" class="form-control" id="payee_account_num" name="payee_account_num">
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <label class="form-label" for="disb_method">Method</label>
-                            <select class="form-select" id="disb_method" name="disb_method">
-                                <option value="">—</option>
-                                <?php foreach ($methods as $m): ?>
-                                    <option value="<?= esc($m, 'attr') ?>"><?= esc($m) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <label class="form-label" for="currency">Currency</label>
-                            <select class="form-select" id="currency" name="currency" data-default="PHP">
-                                <option value="">—</option>
-                                <option value="PHP">PHP</option>
-                                <option value="USD">USD</option>
-                            </select>
-                        </div>
-                    </div>
+                    </section>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Create</button>
@@ -177,5 +188,5 @@
     var __payee_data = <?= json_encode($results, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __payee_perms = <?= json_encode($perms) ?>;
 </script>
-<script src="<?=base_url('assets/js/maintenance/mypayee.js?v=4');?>"></script>
+<script src="<?=base_url('assets/js/maintenance/mypayee.js?v=6');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

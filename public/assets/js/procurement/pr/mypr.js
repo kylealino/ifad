@@ -18,10 +18,10 @@ function __mysys_proc_pr_ent() {
 	};
 
 	const APPROVAL = {
-		pending_a: ['tone-amber', 'Box A · requesting office'],
-		pending_b: ['tone-indigo', 'Box B · approval'],
+		pending_a: ['tone-amber', 'For approval · Box A (Requesting office)'],
+		pending_b: ['tone-indigo', 'For approval · Box B (Approving officer)'],
 		approved: ['tone-green', 'Approved'],
-		disapproved: ['tone-red', 'Disapproved']
+		disapproved: ['tone-red', 'Returned']
 	};
 
 	function esc(s) {
@@ -60,10 +60,21 @@ function __mysys_proc_pr_ent() {
 		return 'pending_a';
 	}
 
-	// Box B follows the estimated cost (same rule as MyPRModel::approver_for)
+	// Box B follows the estimated cost (same tiers as MyPRModel::approver_for, from Approver Mapping)
 	function approverFor(total) {
-		var rule = lookups.approval || {};
-		return (num(total) >= num(rule.limit) ? rule.above : rule.below) || {};
+		var out = {};
+		(lookups.approval || []).forEach(function (t) { if (num(total) >= num(t.min)) { out = t; } });
+		return out;
+	}
+
+	function approvalRule() {
+		var tiers = lookups.approval || [];
+		if (!tiers.length) { return 'No approver is set yet. Ask an administrator to set one in Approver Mapping.'; }
+		return 'Follows the estimated cost: ' + tiers.map(function (t, i) {
+			var next = tiers[i + 1];
+			var range = next ? (num(t.min) ? money(t.min) + ' to below ' : 'below ') + money(next.min) : money(t.min) + ' and above';
+			return range + ' ' + (t.name || '');
+		}).join(', ') + '.';
 	}
 
 	// Filter pills and cards: approval steps, or where the PR is in procurement
@@ -91,7 +102,7 @@ function __mysys_proc_pr_ent() {
 
 	function inYear(r) { return year === 'all' || yearOf(r) === year; }
 
-	//PR - STAT CARDS: Waiting for a PR no., PR no. assigned, RFQ issued, Estimated cost
+	//PR - STAT CARDS: No PR no. yet, PR no. assigned, RFQ issued, Estimated cost
 	function renderCards() {
 		var $ = window.jQuery;
 		var list = rows.filter(inYear);
@@ -101,7 +112,7 @@ function __mysys_proc_pr_ent() {
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
-		card('unnumbered', 'Waiting for a PR no.');
+		card('unnumbered', 'No PR no. yet');
 		card('numbered', 'PR no. assigned');
 		card('rfq', 'RFQ issued');
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -539,12 +550,12 @@ function __mysys_proc_pr_ent() {
 
 		selectedPPMP = hd ? (hd.ppmps || []).slice() : [];
 
-		signatoryOptions(hd ? hd.requested_by : '', hd ? hd.requested_position : '');
+		// a new PR starts with Box A's default signatory (Approver Mapping)
+		var def = (lookups.signatories || []).filter(function (o) { return String(o.is_default) === '1'; })[0] || {};
+		signatoryOptions(hd ? hd.requested_by : (def.full_name || ''), hd ? hd.requested_position : (def.position || ''));
 		setVal('approved_by', hd ? hd.approved_by : '');
 		setVal('approved_position', hd ? hd.approved_position : '');
-		var rule = lookups.approval || {};
-		document.getElementById('prApprovalRule').textContent = 'Follows the estimated cost: below ' + money(rule.limit) + ' ' + ((rule.below || {}).name || '')
-			+ ', ' + money(rule.limit) + ' and above ' + ((rule.above || {}).name || '') + '.';
+		document.getElementById('prApprovalRule').textContent = approvalRule();
 	}
 
 	// Box A: heads of the requesting offices, keeping a saved one who is no longer in the list
@@ -574,7 +585,7 @@ function __mysys_proc_pr_ent() {
 		else if (disapproved) { html = '<span class="fods-chip tone-red"><i class="ti ti-x"></i>Disapproved</span>'; }
 		else if (!hd) { html = ''; }
 		else if (box === 'b' && String(hd.is_approved_certa) !== '1') { html = '<span class="fods-chip tone-slate">After Box A</span>'; }
-		else { html = '<span class="fods-chip tone-amber"><span class="fods-dot"></span>Waiting</span>'; }
+		else { html = '<span class="fods-chip tone-amber"><span class="fods-dot"></span>For approval</span>'; }
 		if (approved || disapproved) { note = 'By ' + esc(hd['cert' + box + '_approver'] || '—') + (hd['cert' + box + '_remarks'] ? ' — ' + esc(hd['cert' + box + '_remarks']) : ''); }
 		$('#prSignStatus' + box.toUpperCase()).html(html);
 		$('#prSignNote' + box.toUpperCase()).html(note);
@@ -597,7 +608,7 @@ function __mysys_proc_pr_ent() {
 		var banner = $('#prBanner').removeClass('alert-success alert-danger alert-info d-none');
 		if (approval === 'pending_b') {
 			banner.addClass('alert-info').html('<b>Approved by the requesting office</b>' + (hd.certa_approver ? ' (' + esc(hd.certa_approver) + ')' : '')
-				+ ' and waiting for ' + esc(hd.approved_by || 'Box B') + '. It can no longer be edited' + (prnoOnly ? ' — you can still assign its PR no.' : '.'));
+				+ '; pending approval by ' + esc(hd.approved_by || 'Box B') + '. It can no longer be edited' + (prnoOnly ? ' — you can still assign its PR no.' : '.'));
 		} else if (approval === 'approved') {
 			banner.addClass('alert-success').html('<b>Approved</b> — Box A by ' + esc(hd.certa_approver || '—') + ', Box B by ' + esc(hd.certb_approver || '—') + '.'
 				+ (prnoOnly ? '<div class="small mt-1">Only the PR no. can still be changed.</div>' : ''));
@@ -606,7 +617,7 @@ function __mysys_proc_pr_ent() {
 			banner.addClass('alert-danger').html('<b>Disapproved at Box ' + box.toUpperCase() + '</b>' + (hd['cert' + box + '_approver'] ? ' by ' + esc(hd['cert' + box + '_approver']) : '')
 				+ (hd['cert' + box + '_remarks'] ? ' — ' + esc(hd['cert' + box + '_remarks']) : '')
 				+ (canSave() ? '<div class="small mt-1">Saving your corrections sends it back to Box A.</div>' : ''));
-		} else if (!canSave()) {
+		} else if (!canSave() && !(hd && hd.can_decide)) {
 			banner.addClass('alert-info').html('<b>View only</b> — you don\'t have permission to ' + (record ? 'edit' : 'add') + ' purchase requests.');
 		} else {
 			banner.addClass('d-none');
@@ -615,8 +626,49 @@ function __mysys_proc_pr_ent() {
 		signStatus('a', hd);
 		signStatus('b', hd);
 
+		// Approve / disapprove the box it is at: only its named signatory, or an Administrator
+		// (can_decide comes from MyPRModel::can_decide with the record)
+		var decide = !!hd && !!hd.can_decide;
+		$('#prApproveBtn, #prDisapproveBtn').toggleClass('d-none', !decide);
+		$('#prApproveBtn').html('<i class="ti ti-check me-1"></i>Approve Box ' + (decide ? String(approval).slice(-1).toUpperCase() : ''));
+
 		$('#submitBtn').toggleClass('d-none', !canSave() && !prnoOnly).text(prnoOnly ? 'Save PR no.' : (hd ? 'Save changes' : 'Create PR'));
 	}
+
+	//PR - APPROVE / DISAPPROVE THE CURRENT BOX (remarks required to disapprove)
+	this.__pr_decision = function () {
+		var $ = window.jQuery;
+
+		function openDecision(mode) {
+			if (!record || !record.can_decide) { return; }
+			var B = String(approvalOf(record)).slice(-1).toUpperCase();
+			var STEPS = { A: ['Box A · Requesting office', 'Box B · ' + (record.approved_by || 'Approval')], B: ['Box B · Approval', 'Approved'] };
+			var approve = mode === 'approve';
+			FodsDecision.open({
+				host: document.getElementById('prModal'),
+				mode: mode,
+				title: (approve ? 'Approve' : 'Disapprove') + ' PR · Box ' + B,
+				subtitle: (record.prno ? 'PR ' + record.prno : 'Purchase request #' + record.recid) + ' · ' + (record.end_user || record.office || ''),
+				facts: [['Estimated cost', $('#prFootCost').text(), true], ['Step', (STEPS[B] || ['Box ' + B])[0]], ['After this', approve ? (STEPS[B] || ['', ''])[1] : 'Returned to the preparer']],
+				maxlength: 100,
+				submit: function (remarks, done) {
+					$.ajax({
+						type: 'POST',
+						url: mesiteurl + 'myprapproval',
+						data: { recid: record.recid, remarks: remarks, meaction: approve ? 'MAIN-APPROVE' : 'MAIN-DISAPPROVE' },
+						global: false,
+						cache: false,
+						success: function (data) { $('.me-outp-msg').html(data); FodsDecision.close(); },
+						error: function (xhr, status, error) { toastr.error('[PR]', 'Error loading page...' + error, { closeButton: true }); },
+						complete: done
+					});
+				}
+			});
+		}
+
+		document.getElementById('prApproveBtn').addEventListener('click', function () { openDecision('approve'); });
+		document.getElementById('prDisapproveBtn').addEventListener('click', function () { openDecision('disapprove'); });
+	};
 
 	this.__open_pr = function (recid, tab) {
 		var $ = window.jQuery;
@@ -751,6 +803,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_proc_pr_ent.__pr_rfq();
 	__mysys_proc_pr_ent.__pr_saving();
 	__mysys_proc_pr_ent.__pr_print();
+	__mysys_proc_pr_ent.__pr_decision();
 
 	// Deep link: ?recid= opens that PR right away (&tab=rfq on its RFQ tab)
 	if (window.__pr_open) { __mysys_proc_pr_ent.__open_pr(window.__pr_open, window.__pr_tab); }

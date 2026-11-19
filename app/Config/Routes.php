@@ -10,7 +10,7 @@ $routes->get('/', 'Home::index');
 $routes->add('mylogin-auth', 'MyLogIn::auth');
 $routes->add('mylogout', 'MyLogIn::logout');
 $routes->get('mydashboard', 'MyDashboard::index',['filter' => 'myauthuser']);
-$routes->get('dashboard/saob-session-data', 'MyDashboard::getSaobSessionData');
+$routes->get('dashboard/saob-session-data', 'MyDashboard::getSaobSessionData',['filter' => 'myauthuser']);
 $routes->get('myaccount', 'MyAccount::index',['filter' => 'myauthuser']);
 $routes->get('mydashboarddev', 'MyDashboardDev::index',['filter' => 'myauthuser']);
 
@@ -38,6 +38,13 @@ $routes->post('myproject', 'MyProject::index',['filter' => 'myauthuser']);
 $routes->get('myuacs', 'MyUACS::index',['filter' => 'myauthuser']);
 $routes->post('myuacs', 'MyUACS::index',['filter' => 'myauthuser']);
 
+//Record history (the History window on each module)
+$routes->get('myhistory', 'MyHistory::index',['filter' => 'myauthuser']);
+
+//Administration - Approver Mapping module
+$routes->get('myapprovermap', 'MyApproverMap::index',['filter' => 'myauthuser']);
+$routes->post('myapprovermap', 'MyApproverMap::index',['filter' => 'myauthuser']);
+
 //Budget - Budget Allotment module
 $routes->get('mybudgetallotment', 'MyBudgetAllotment::index',['filter' => 'myauthuser']);
 $routes->post('mybudgetallotment', 'MyBudgetAllotment::index',['filter' => 'myauthuser']);
@@ -48,7 +55,11 @@ $routes->post('mybudgetapproval', 'MyBudgetApproval::index',['filter' => 'myauth
 //File uploading
 $routes->post('uploadFile', 'Upload::index',['filter' => 'myauthuser']);
 
-//ORS - ORS module
+//OBLIGATIONS - one ORS / BURS page (loads, saves, certifies and prints through myors / myburs)
+$routes->get('myobligation', 'MyObligation::index',['filter' => 'myauthuser']);
+$routes->post('myobligation', 'MyObligation::index',['filter' => 'myauthuser']);
+
+//ORS - ORS module (MAIN redirects to myobligation)
 $routes->get('myors', 'MyOrs::index',['filter' => 'myauthuser']);
 $routes->post('myors', 'MyOrs::index',['filter' => 'myauthuser']);
 
@@ -97,9 +108,9 @@ $routes->get('myppmp', 'MyPPMP::index',['filter' => 'myauthuser']);
 $routes->post('myppmp', 'MyPPMP::index',['filter' => 'myauthuser']);
 
 //REPORTS
-$routes->get('export-csv', 'MySaobReport::exportCsv');
-$routes->get('monthly-export-csv', 'MySaobReport::monthlyExportCsv');
-$routes->get('saob-export-csv', 'MySaobReport::saobExportCsv');
+$routes->get('export-csv', 'MySaobReport::exportCsv',['filter' => 'myauthuser']);
+$routes->get('monthly-export-csv', 'MySaobReport::monthlyExportCsv',['filter' => 'myauthuser']);
+$routes->get('saob-export-csv', 'MySaobReport::saobExportCsv',['filter' => 'myauthuser']);
 
 //ACCOUNTING
 //DISBURSEMENT - DISBURSEMENT module

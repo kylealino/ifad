@@ -58,7 +58,7 @@ echo view('templates/myheader.php');
                 </ol>
             </nav>
             <h1 class="fods-page-title">Disbursement Approval</h1>
-            <p class="fods-page-sub">Review disbursement vouchers and approve your box: Box A, then Box C, then Box D.</p>
+            <p class="fods-page-sub">Review disbursement vouchers and approve each box in order: Box A supervisor, Box C accounting, then Box D approval for payment.</p>
         </div>
         <div class="fods-page-actions d-flex">
             <select class="form-select form-select-sm fods-year" id="approvalYear" aria-label="Year"></select>
@@ -70,7 +70,7 @@ echo view('templates/myheader.php');
         <div class="col-6 col-xl-3">
             <button type="button" class="fods-stat" data-table="approvalTable" data-filter="mine">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -96,7 +96,7 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="approvalTableFilter">
-                <button type="button" class="active" data-filter="mine">Waiting for you</button>
+                <button type="button" class="active" data-filter="mine">For my action</button>
                 <button type="button" data-filter="pending_a">Box A</button>
                 <button type="button" data-filter="pending_c">Box C</button>
                 <button type="button" data-filter="pending_d">Box D</button>
@@ -208,5 +208,5 @@ echo view('templates/myheader.php');
     var __approval_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __approval_perms = <?= json_encode($perms) ?>;
 </script>
-<script src="<?=base_url('assets/js/disbursement/mydisbursementapproval.js?v=6');?>"></script>
+<script src="<?=base_url('assets/js/disbursement/mydisbursementapproval.js?v=7');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

@@ -76,7 +76,7 @@ echo view('templates/myheader.php');
         <div class="col-6 col-xl-3">
             <button type="button" class="fods-stat" data-table="budgetTable" data-filter="pending">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -102,9 +102,9 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="budgetTableFilter">
-                <button type="button" class="active" data-filter="all">All</button>
+                <button type="button" class="active" data-filter="all">All records</button>
                 <button type="button" data-filter="draft">Drafts</button>
-                <button type="button" data-filter="pending">Pending</button>
+                <button type="button" data-filter="pending">For approval</button>
                 <button type="button" data-filter="disapproved">Returned</button>
                 <button type="button" data-filter="approved">Approved</button>
             </div>
@@ -132,11 +132,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="budgetModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="budgetModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down bud-dialog">
         <div class="modal-content">
             <form id="budgetForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-wallet"></i></div>
                         <div style="min-width:0">
@@ -148,38 +148,45 @@ echo view('templates/myheader.php');
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="budgetPrintBtn"><i class="ti ti-printer me-1"></i>Print LIB</button>
                         <button type="button" class="btn btn-sm btn-danger d-none" id="budgetDisapproveBtn"><i class="ti ti-x me-1"></i>Disapprove</button>
                         <button type="button" class="btn btn-sm btn-success d-none" id="budgetApproveBtn"><i class="ti ti-check me-1"></i>Approve</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="budget" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <ul class="nav fods-tabs" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#budPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPanePs"><i class="ti ti-users"></i>Personnel Services<span class="bud-tab-amt" data-tab-total="ps"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="bud-tab-amt" data-tab-total="mooe"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="bud-tab-amt" data-tab-total="co"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPaneAc"><i class="ti ti-coin"></i>Admin Cost<span class="bud-tab-amt" data-tab-total="ac"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPaneFiles"><i class="ti ti-paperclip"></i>Attachments<span class="bud-tab-amt" id="budFilesCount"></span></button></li>
+                </ul>
+
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
 
-                    <div id="budgetDecision" class="alert d-none mb-3"></div>
-
-                    <ul class="nav fods-segment mb-3 flex-nowrap fods-scroll-x" role="tablist" style="max-width:100%;">
-                        <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#budPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPanePs"><i class="ti ti-users"></i>Personnel Services<span class="bud-tab-amt" data-tab-total="ps"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="bud-tab-amt" data-tab-total="mooe"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="bud-tab-amt" data-tab-total="co"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPaneAc"><i class="ti ti-coin"></i>Admin Cost<span class="bud-tab-amt" data-tab-total="ac"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#budPaneFiles"><i class="ti ti-paperclip"></i>Attachments<span class="bud-tab-amt" id="budFilesCount"></span></button></li>
-                    </ul>
+                    <div id="budgetDecision" class="alert d-none mt-3 mb-0"></div>
 
                     <div class="tab-content">
                         <!-- Details -->
                         <div class="tab-pane fade show active" id="budPaneDetails">
-                            <div class="fods-card mb-3"><div class="fods-card-body pt-3">
-                                <div class="fods-section mt-0">Project</div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Project</h6>
+                                </div>
                                 <div class="row g-3">
                                     <div class="col-lg-6">
                                         <label class="form-label" for="program_title">Program title</label>
                                         <input type="text" class="form-control" id="program_title" name="program_title" placeholder="Start typing to pick a program">
                                     </div>
                                     <div class="col-lg-6">
-                                        <label class="form-label" for="project_title">Project title</label>
+                                        <label class="form-label req" for="project_title">Project title</label>
                                         <input type="text" class="form-control" id="project_title" name="project_title" placeholder="Start typing to pick a project" required>
                                         <div class="invalid-feedback">Project title is required.</div>
+                                    </div>
+                                    <div class="col-md-4 col-6">
+                                        <label class="form-label" for="trxno">LIB no.</label>
+                                        <input type="text" class="form-control" id="trxno" name="trxno" placeholder="System-generated" readonly>
                                     </div>
                                     <div class="col-md-4 col-6">
                                         <label class="form-label" for="responsibility_code">Responsibility code</label>
@@ -193,35 +200,35 @@ echo view('templates/myheader.php');
                                         <label class="form-label" for="division_name">Division</label>
                                         <input type="text" class="form-control" id="division_name" name="division_name" readonly>
                                     </div>
-                                    <div class="col-md-4 col-6">
-                                        <label class="form-label" for="trxno">LIB no.</label>
-                                        <input type="text" class="form-control" id="trxno" name="trxno" placeholder="System-generated" readonly>
+                                    <div class="col-md-6">
+                                        <label class="form-label req" for="program_leader">Program leader</label>
+                                        <input type="text" class="form-control" id="program_leader" name="program_leader" required>
+                                        <div class="invalid-feedback">Program leader is required.</div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label" for="project_leader">Project leader</label>
                                         <input type="text" class="form-control" id="project_leader" name="project_leader">
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="program_leader">Program leader</label>
-                                        <input type="text" class="form-control" id="program_leader" name="program_leader" required>
-                                        <div class="invalid-feedback">Program leader is required.</div>
-                                    </div>
                                 </div>
+                            </section>
 
-                                <div class="fods-section">Duration</div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Duration</h6>
+                                </div>
                                 <div class="row g-3 align-items-end">
                                     <div class="col-md-3 col-6">
-                                        <label class="form-label" for="duration_from">From</label>
+                                        <label class="form-label req" for="duration_from">Start date</label>
                                         <input type="date" class="form-control" id="duration_from" name="duration_from" required>
-                                        <div class="invalid-feedback">Required.</div>
+                                        <div class="invalid-feedback">Start date is required.</div>
                                     </div>
                                     <div class="col-md-3 col-6">
-                                        <label class="form-label" for="duration_to">To</label>
+                                        <label class="form-label req" for="duration_to">End date</label>
                                         <input type="date" class="form-control" id="duration_to" name="duration_to" required>
-                                        <div class="invalid-feedback">Required.</div>
+                                        <div class="invalid-feedback">End date is required.</div>
                                     </div>
                                     <div class="col-md-3 col-6">
-                                        <label class="form-label" for="project_duration">Project duration</label>
+                                        <label class="form-label" for="project_duration">Total duration</label>
                                         <input type="text" class="form-control" id="project_duration" name="project_duration" readonly>
                                     </div>
                                     <div class="col-md-3 col-6">
@@ -231,43 +238,51 @@ echo view('templates/myheader.php');
                                         </div>
                                     </div>
                                     <div class="col-md-3 col-6 bud-ext d-none">
-                                        <label class="form-label" for="extended_from">Extended from</label>
+                                        <label class="form-label" for="extended_from">Extension start date</label>
                                         <input type="date" class="form-control" id="extended_from" name="extended_from">
                                     </div>
                                     <div class="col-md-3 col-6 bud-ext d-none">
-                                        <label class="form-label" for="extended_to">Extended to</label>
+                                        <label class="form-label" for="extended_to">Extension end date</label>
                                         <input type="date" class="form-control" id="extended_to" name="extended_to">
                                     </div>
                                 </div>
+                            </section>
 
-                                <div class="fods-section">Agencies</div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Agencies</h6>
+                                </div>
                                 <div class="row g-3">
                                     <div class="col-md-4">
-                                        <label class="form-label" for="implementing_agency">Implementing agency</label>
+                                        <label class="form-label req" for="implementing_agency">Implementing agency</label>
                                         <input type="text" class="form-control" id="implementing_agency" name="implementing_agency" required>
                                         <div class="invalid-feedback">Implementing agency is required.</div>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label" for="monitoring_agency">Monitoring agency</label>
+                                        <label class="form-label req" for="monitoring_agency">Monitoring agency</label>
                                         <input type="text" class="form-control" id="monitoring_agency" name="monitoring_agency" required>
                                         <div class="invalid-feedback">Monitoring agency is required.</div>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label" for="funding_agency">Funding agency</label>
+                                        <label class="form-label req" for="funding_agency">Funding agency</label>
                                         <input type="text" class="form-control" id="funding_agency" name="funding_agency" required>
                                         <div class="invalid-feedback">Funding agency is required.</div>
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label" for="collaborating_agencies">Collaborating agencies</label>
+                                        <label class="form-label req" for="collaborating_agencies">Collaborating agencies</label>
                                         <textarea class="form-control" id="collaborating_agencies" name="collaborating_agencies" rows="2" required></textarea>
                                         <div class="invalid-feedback">Collaborating agencies is required.</div>
                                     </div>
                                 </div>
+                            </section>
 
-                                <div class="fods-section">Status</div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Submission</h6>
+                                </div>
                                 <div class="row g-3 align-items-end">
                                     <div class="col-md-4">
-                                        <label class="form-label" for="lddap_refno">LDDAP-ADA reference no.</label>
+                                        <label class="form-label req" for="lddap_refno">LDDAP-ADA reference no.</label>
                                         <input type="text" class="form-control" id="lddap_refno" name="lddap_refno" required>
                                         <div class="invalid-feedback">LDDAP-ADA reference no. is required.</div>
                                     </div>
@@ -279,7 +294,7 @@ echo view('templates/myheader.php');
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label d-block">Realignment</label>
+                                        <label class="form-label d-block">Realignments recorded</label>
                                         <div class="d-flex gap-3 pt-1">
                                             <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="is_realign1" disabled><label class="form-check-label" for="is_realign1">1st</label></div>
                                             <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="is_realign2" disabled><label class="form-check-label" for="is_realign2">2nd</label></div>
@@ -288,39 +303,52 @@ echo view('templates/myheader.php');
                                         <div class="form-text" id="realignHint">Available once the allotment is approved.</div>
                                     </div>
                                 </div>
-                            </div></div>
+                            </section>
                         </div>
 
                         <!-- Line items -->
                         <div class="tab-pane fade" id="budPanePs">
-                            <div class="bud-grid-card" data-grid="ps_direct"></div>
-                            <div class="bud-grid-card" data-grid="ps_indirect"></div>
+                            <div class="fods-pane-pad">
+                                <div class="bud-grid-card" data-grid="ps_direct"></div>
+                                <div class="bud-grid-card" data-grid="ps_indirect"></div>
+                            </div>
                         </div>
                         <div class="tab-pane fade" id="budPaneMooe">
-                            <div class="bud-grid-card" data-grid="mooe_direct"></div>
-                            <div class="bud-grid-card" data-grid="mooe_indirect"></div>
+                            <div class="fods-pane-pad">
+                                <div class="bud-grid-card" data-grid="mooe_direct"></div>
+                                <div class="bud-grid-card" data-grid="mooe_indirect"></div>
+                            </div>
                         </div>
                         <div class="tab-pane fade" id="budPaneCo">
-                            <div class="bud-grid-card" data-grid="co_direct"></div>
-                            <div class="bud-grid-card" data-grid="co_indirect"></div>
+                            <div class="fods-pane-pad">
+                                <div class="bud-grid-card" data-grid="co_direct"></div>
+                                <div class="bud-grid-card" data-grid="co_indirect"></div>
+                            </div>
                         </div>
                         <div class="tab-pane fade" id="budPaneAc">
-                            <div class="bud-grid-card" data-grid="ac"></div>
+                            <div class="fods-pane-pad">
+                                <div class="bud-grid-card" data-grid="ac"></div>
+                            </div>
                         </div>
 
                         <!-- Attachments -->
                         <div class="tab-pane fade" id="budPaneFiles">
-                            <div class="fods-card"><div class="fods-card-body pt-3">
-                                <div class="d-flex flex-wrap gap-2 align-items-end mb-3" id="budUploadRow">
-                                    <div class="flex-grow-1" style="min-width:220px;">
-                                        <label class="form-label" for="budUploadFile">Upload a file</label>
-                                        <input type="file" class="form-control" id="budUploadFile">
-                                    </div>
-                                    <button type="button" class="btn btn-fods px-3" id="budUploadBtn"><i class="ti ti-upload me-1"></i>Upload</button>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Attachments</h6>
                                 </div>
-                                <div class="form-text mb-3 d-none" id="budUploadNote">Save the allotment first — files are attached to its LIB number.</div>
-                                <div id="budFilesList"></div>
-                            </div></div>
+                                <div>
+                                    <div class="d-flex flex-wrap gap-2 align-items-end mb-3" id="budUploadRow">
+                                        <div class="flex-grow-1" style="min-width:220px;">
+                                            <label class="form-label" for="budUploadFile">File to upload</label>
+                                            <input type="file" class="form-control" id="budUploadFile">
+                                        </div>
+                                        <button type="button" class="btn btn-fods px-3" id="budUploadBtn"><i class="ti ti-upload me-1"></i>Upload</button>
+                                    </div>
+                                    <div class="form-text mb-3 d-none" id="budUploadNote">Save the allotment first. Files are attached to its LIB no.</div>
+                                    <div id="budFilesList"></div>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -343,37 +371,6 @@ echo view('templates/myheader.php');
     </div>
 </div>
 
-<!-- Approve / disapprove -->
-<div class="modal fade fods-modal" id="budgetDecisionModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="d-flex align-items-center">
-                    <div class="fods-modal-icon" id="budDecisionIcon"><i class="ti ti-check"></i></div>
-                    <div>
-                        <h5 class="modal-title" id="budDecisionTitle">Approve allotment</h5>
-                        <div class="fods-modal-sub" id="budDecisionSub"></div>
-                    </div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label" for="budDecisionBy">Decided by</label>
-                    <input type="text" class="form-control" id="budDecisionBy" value="<?= esc(session('__xsys_myuserzicas__'), 'attr') ?>" readonly>
-                </div>
-                <div>
-                    <label class="form-label" for="budDecisionRemarks">Remarks</label>
-                    <textarea class="form-control" id="budDecisionRemarks" rows="3"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-sm px-4" id="budDecisionConfirm">Approve</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- LIB print preview -->
 <div class="modal fade fods-modal" id="budgetPrintModal" tabindex="-1" aria-hidden="true">
@@ -401,5 +398,5 @@ echo view('templates/myheader.php');
     var __budget_perms = <?= json_encode($perms) ?>;
     var __budget_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/budget/mybudgetallotment.js?v=11');?>"></script>
+<script src="<?=base_url('assets/js/budget/mybudgetallotment.js?v=14');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

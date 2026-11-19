@@ -115,10 +115,12 @@ class MyProjectModel extends Model
 				$this->cuser
 			]);
 
+			if ($query) { MyHistoryModel::log('project', $this->db->insertID(), 'CREATED', '', null, $responsibility_code); }
 			$status = "Project Saved successfully";
 			$color = "success";
 		} else {
 			fods_require_access(\Config\AccessCodes::PROJECT_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('tbl_reference_project', $recid);
 			$query = $this->db->query("
 				UPDATE tbl_reference_project
 				SET
@@ -139,6 +141,7 @@ class MyProjectModel extends Model
 				$recid
 			]);
 
+			if ($query) { MyHistoryModel::log('project', $recid, 'UPDATED', '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_reference_project', $recid)), $responsibility_code); }
 			$status = "Project Updated successfully";
 			$color = "info";
 		}
@@ -152,11 +155,11 @@ class MyProjectModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'myproject?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast

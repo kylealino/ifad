@@ -251,13 +251,13 @@ class MyHelpdeskModel extends Model
 				toastr.success('Ticket {$ticketNo} sent!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				// close the form and refresh the list (the ticket is not opened)
 				bootstrap.Modal.getOrCreateInstance(document.getElementById('ticketModal')).hide();
 				setTimeout(function() {
 						window.location.href = 'myhelpdesk?meaction=MAIN&tab=tickets';
-					}, 2500);
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit;

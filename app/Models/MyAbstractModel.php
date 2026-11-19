@@ -131,6 +131,7 @@ class MyAbstractModel extends Model
 			$color = "success";
 		}else{
 			fods_require_access(\Config\AccessCodes::ABSTRACT_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('tbl_abstract_hd', $recid);
 			$query = $this->db->query("
 				UPDATE
 					`tbl_abstract_hd`
@@ -212,6 +213,13 @@ class MyAbstractModel extends Model
 			$color = "info";
 		}
 
+		//HISTORY
+		if (empty($recid)) {
+			MyHistoryModel::log('abstract', $project_id, 'CREATED', '', null, $transaction_no ?: $prno);
+		} else {
+			MyHistoryModel::log('abstract', $recid, 'UPDATED', '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_abstract_hd', $recid)), $transaction_no ?: $prno);
+		}
+
 
 		echo "
 		<script>
@@ -221,12 +229,12 @@ class MyAbstractModel extends Model
 			toastr.{$color}('{$status}!', 'Well Done!', {
 				progressBar: true,
 				closeButton: true,
-				timeOut: 2500,
+				timeOut:2000,
 			});
 
 			setTimeout(function() {
 				window.location.href = 'myabstract?meaction=MAIN&recid=$project_id';
-			}, 2500);
+			}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 		</script>
 		";
 		exit;

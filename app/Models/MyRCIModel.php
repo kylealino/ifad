@@ -72,6 +72,28 @@ class MyRCIModel extends Model
 		// =========================================================
 		// SAVE
 		// =========================================================
+		// report no. is used once. Checked when it is set or changed, so records that
+		// already share a number can still be edited.
+		$__no = trim((string) $reportno);
+		if ($__no !== '') {
+			$__cur = empty($recid) ? null : $this->db->query("SELECT `reportno` AS n FROM tbl_rci_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			if (!$__cur || trim((string) $__cur['n']) !== $__no) {
+				$__dup = $this->db->query("SELECT `recid` FROM tbl_rci_hd WHERE TRIM(`reportno`) = ? AND `recid` <> ? LIMIT 1", [$__no, (int) $recid])->getRowArray();
+				if (!empty($__dup)) {
+					echo "
+					<script>
+					toastr.error('That report no. is already used on another RCI!', 'Oops!', {
+							progressBar: true,
+							closeButton: true,
+							timeOut:2500,
+						});
+					</script>
+					";
+					die();
+				}
+			}
+		}
+
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::RCI_ADD, 'Saving');
 
@@ -158,6 +180,7 @@ class MyRCIModel extends Model
 
 		}else{
 			fods_require_access(\Config\AccessCodes::RCI_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('tbl_rci_hd', $recid);
 
 			// UPDATE HD
 			$query = $this->db->query("
@@ -242,6 +265,15 @@ class MyRCIModel extends Model
 			$color = "info";
 		}
 
+		//HISTORY
+		if ($query) {
+			if (empty($recid)) {
+				MyHistoryModel::log('rci', $project_id, 'CREATED', '', null, $reportno);
+			} else {
+				MyHistoryModel::log('rci', $recid, 'UPDATED', '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_rci_hd', $recid)), $reportno);
+			}
+		}
+
 		// =========================================================
 		// RESULT
 		// =========================================================
@@ -254,12 +286,12 @@ class MyRCIModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 
 				setTimeout(function() {
 						window.location.href = 'myrci?meaction=MAIN';
-					}, 2500);
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 
 			</script>
 			";

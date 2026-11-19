@@ -148,11 +148,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="ppmpModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="ppmpModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down ppmp-dialog">
         <div class="modal-content">
             <form id="ppmpForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-calendar-stats"></i></div>
                         <div style="min-width:0">
@@ -162,95 +162,101 @@ echo view('templates/myheader.php');
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="ppmpPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="ppmp" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <ul class="nav fods-tabs" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#ppmpPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#ppmpPaneItems"><i class="ti ti-list-details"></i>Items<span class="ppmp-tab-amt" data-tab-total></span></button></li>
+                </ul>
+
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
 
-                    <div id="ppmpBanner" class="alert d-none mb-3"></div>
-
-                    <ul class="nav fods-segment mb-3 flex-nowrap fods-scroll-x" role="tablist" style="max-width:100%;">
-                        <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#ppmpPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#ppmpPaneItems"><i class="ti ti-list-details"></i>Items<span class="ppmp-tab-amt" data-tab-total></span></button></li>
-                    </ul>
+                    <div id="ppmpBanner" class="alert d-none mt-3 mb-0"></div>
 
                     <div class="tab-content">
                         <!-- Details -->
                         <div class="tab-pane fade show active" id="ppmpPaneDetails">
-                            <div class="row g-3">
-                                <div class="col-lg-6">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Plan</div>
-                                        <div class="row g-3">
-                                            <div class="col-md-7">
-                                                <label class="form-label" for="ppmpno">PPMP no.</label>
-                                                <input type="text" class="form-control" id="ppmpno" name="ppmpno" maxlength="100" required>
-                                                <div class="invalid-feedback">PPMP no. is required.</div>
-                                            </div>
-                                            <div class="col-md-5">
-                                                <label class="form-label" for="fiscal_year">Fiscal year</label>
-                                                <select class="form-select" id="fiscal_year" name="fiscal_year" required></select>
-                                                <div class="invalid-feedback">Required.</div>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="end_user">End-user</label>
-                                                <input type="text" class="form-control" id="end_user" name="end_user" maxlength="100" placeholder="Implementing unit or person" required>
-                                                <div class="invalid-feedback">End-user is required.</div>
-                                            </div>
-                                            <div class="col-12">
-                                                <div class="d-flex gap-4">
-                                                    <div class="form-check form-switch mb-0">
-                                                        <input class="form-check-input" type="checkbox" id="is_indicative" value="1">
-                                                        <label class="form-check-label" for="is_indicative">Indicative</label>
-                                                    </div>
-                                                    <div class="form-check form-switch mb-0">
-                                                        <input class="form-check-input" type="checkbox" id="is_final" value="1">
-                                                        <label class="form-check-label" for="is_final">Final</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div></div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Plan</h6>
                                 </div>
-
-                                <div class="col-lg-6">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Project</div>
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <label class="form-label" for="responsibility_code">Responsibility code</label>
-                                                <input type="text" class="form-control" id="responsibility_code" name="responsibility_code" maxlength="100" placeholder="Type or pick a code" autocomplete="off" required>
-                                                <div class="invalid-feedback">Responsibility code is required.</div>
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label req" for="ppmpno">PPMP no.</label>
+                                        <input type="text" class="form-control" id="ppmpno" name="ppmpno" maxlength="100" required>
+                                        <div class="invalid-feedback">PPMP no. is required.</div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label req" for="fiscal_year">Fiscal year</label>
+                                        <select class="form-select" id="fiscal_year" name="fiscal_year" required></select>
+                                        <div class="invalid-feedback">Pick the fiscal year.</div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label class="form-label req" for="end_user">End-user</label>
+                                        <input type="text" class="form-control" id="end_user" name="end_user" maxlength="100" placeholder="Implementing unit or person" required>
+                                        <div class="invalid-feedback">End-user is required.</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label d-block">PPMP type</label>
+                                        <div class="d-flex gap-4">
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox" id="is_indicative" value="1">
+                                                <label class="form-check-label" for="is_indicative">Indicative</label>
                                             </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="project_title">Project, programs and activities</label>
-                                                <input type="text" class="form-control" id="project_title" name="project_title" placeholder="Set by the responsibility code" readonly>
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox" id="is_final" value="1">
+                                                <label class="form-check-label" for="is_final">Final</label>
                                             </div>
                                         </div>
-
-                                        <div class="fods-section">Signatories</div>
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="prepared_by">Prepared by</label>
-                                                <input type="text" class="form-control" id="prepared_by" name="prepared_by" maxlength="100" required>
-                                                <div class="invalid-feedback">Prepared by is required.</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="submitted_by">Submitted by</label>
-                                                <input type="text" class="form-control" id="submitted_by" name="submitted_by" maxlength="100" placeholder="Pick an authorized signatory" autocomplete="off" required>
-                                                <div class="invalid-feedback">Submitted by is required.</div>
-                                            </div>
-                                        </div>
-                                    </div></div>
+                                    </div>
                                 </div>
-                            </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Project</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label req" for="responsibility_code">Responsibility code</label>
+                                        <input type="text" class="form-control" id="responsibility_code" name="responsibility_code" maxlength="100" placeholder="Type or pick a code" autocomplete="off" required>
+                                        <div class="invalid-feedback">Responsibility code is required.</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="project_title">Project, programs and activities</label>
+                                        <input type="text" class="form-control" id="project_title" name="project_title" placeholder="Set by the responsibility code" readonly>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Signatories</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label req" for="prepared_by">Prepared by</label>
+                                        <input type="text" class="form-control" id="prepared_by" name="prepared_by" maxlength="100" required>
+                                        <div class="invalid-feedback">Prepared by is required.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label req" for="submitted_by">Submitted by</label>
+                                        <input type="text" class="form-control" id="submitted_by" name="submitted_by" maxlength="100" placeholder="Pick an authorized signatory" autocomplete="off" required>
+                                        <div class="invalid-feedback">Submitted by is required.</div>
+                                    </div>
+                                </div>
+                            </section>
                         </div>
 
                         <!-- Items -->
                         <div class="tab-pane fade" id="ppmpPaneItems">
-                            <div class="ppmp-grid-card" id="ppmpGrid"></div>
+                            <div class="fods-pane-pad">
+                                <div class="ppmp-grid-card" id="ppmpGrid"></div>
+                            </div>
                         </div>
                     </div>
                 </div>

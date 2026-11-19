@@ -101,7 +101,7 @@ echo view('templates/myheader.php');
         <div class="col-6 col-xl-3">
             <button type="button" class="fods-stat" data-table="orsTable" data-filter="pending">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -127,8 +127,8 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="orsTableFilter">
-                <button type="button" class="active" data-filter="all">All</button>
-                <button type="button" data-filter="pending">Pending</button>
+                <button type="button" class="active" data-filter="all">All records</button>
+                <button type="button" data-filter="pending">For approval</button>
                 <button type="button" data-filter="disapproved">Returned</button>
                 <button type="button" data-filter="approved">Approved</button>
             </div>
@@ -156,11 +156,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="orsModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="orsModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down ors-dialog">
         <div class="modal-content">
             <form id="orsForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-file-invoice"></i></div>
                         <div style="min-width:0">
@@ -171,129 +171,139 @@ echo view('templates/myheader.php');
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="orsPrintBtn"><i class="ti ti-printer me-1"></i>ORS</button>
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="orsPrintDvBtn"><i class="ti ti-printer me-1"></i>DV</button>
+                        <button type="button" class="btn btn-sm btn-danger d-none" id="orsDisapproveBtn"><i class="ti ti-x me-1"></i>Disapprove</button>
+                        <button type="button" class="btn btn-sm btn-success d-none" id="orsApproveBtn"><i class="ti ti-check me-1"></i>Certify</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="ors" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <ul class="nav fods-tabs" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPanePs"><i class="ti ti-users"></i>Personnel Services<span class="ors-tab-amt" data-tab-total="ps"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="ors-tab-amt" data-tab-total="mooe"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="ors-tab-amt" data-tab-total="co"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
+                </ul>
+
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
 
-                    <div id="orsBanner" class="alert d-none mb-3"></div>
-
-                    <ul class="nav fods-segment mb-3 flex-nowrap fods-scroll-x" role="tablist" style="max-width:100%;">
-                        <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPanePs"><i class="ti ti-users"></i>Personnel Services<span class="ors-tab-amt" data-tab-total="ps"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="ors-tab-amt" data-tab-total="mooe"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="ors-tab-amt" data-tab-total="co"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#orsPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
-                    </ul>
+                    <div id="orsBanner" class="alert d-none mt-3 mb-0"></div>
 
                     <div class="tab-content">
                         <!-- Details -->
                         <div class="tab-pane fade show active" id="orsPaneDetails">
-                            <div class="row g-3">
-                                <div class="col-lg-7">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Obligation</div>
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="serialno">Serial no.</label>
-                                                <input type="text" class="form-control" id="serialno" name="serialno">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="ors_date">Date</label>
-                                                <input type="date" class="form-control" id="ors_date" name="ors_date">
-                                            </div>
-                                            <div class="col-md-4 col-6">
-                                                <label class="form-label" for="funding_source">Funding source</label>
-                                                <select class="form-select" id="funding_source" name="funding_source" required></select>
-                                                <div class="invalid-feedback">Required.</div>
-                                            </div>
-                                            <div class="col-md-4 col-6">
-                                                <label class="form-label" for="fund_cluster_code">Fund cluster</label>
-                                                <select class="form-select" id="fund_cluster_code" name="fund_cluster_code"></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label" for="dvno">DV no.</label>
-                                                <input type="text" class="form-control" id="dvno" placeholder="Set by Accounting" readonly>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="particulars">Particulars</label>
-                                                <textarea class="form-control" id="particulars" name="particulars" rows="3" maxlength="250"></textarea>
-                                            </div>
-                                        </div>
-
-                                        <div class="fods-section">Payee</div>
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <label class="form-label" for="payee_name">Payee</label>
-                                                <input type="text" class="form-control" id="payee_name" name="payee_name" placeholder="Start typing to pick a payee" autocomplete="off" required>
-                                                <div class="invalid-feedback">Payee is required.</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="payee_office">Office</label>
-                                                <input type="text" class="form-control" id="payee_office" name="payee_office" readonly>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="payee_address">Address</label>
-                                                <input type="text" class="form-control" id="payee_address" name="payee_address" readonly>
-                                            </div>
-                                        </div>
-                                    </div></div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Obligation</h6>
                                 </div>
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="serialno">ORS serial no.</label>
+                                        <input type="text" class="form-control" id="serialno" name="serialno">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="ors_date">ORS date</label>
+                                        <input type="date" class="form-control" id="ors_date" name="ors_date">
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <label class="form-label" for="dvno">DV no.</label>
+                                        <input type="text" class="form-control" id="dvno" placeholder="Set by Accounting" readonly>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label req" for="funding_source">Funding source</label>
+                                        <select class="form-select" id="funding_source" name="funding_source" required></select>
+                                        <div class="invalid-feedback">Pick the funding source.</div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="fund_cluster_code">Fund cluster</label>
+                                        <select class="form-select" id="fund_cluster_code" name="fund_cluster_code"></select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="particulars">Particulars</label>
+                                        <textarea class="form-control" id="particulars" name="particulars" rows="3" maxlength="250"></textarea>
+                                    </div>
+                                </div>
+                            </section>
 
-                                <div class="col-lg-5">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Deductions</div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Payee</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label req" for="payee_name">Payee name</label>
+                                        <input type="text" class="form-control" id="payee_name" name="payee_name" placeholder="Start typing to pick a payee" autocomplete="off" required>
+                                        <div class="invalid-feedback">Payee is required.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="payee_office">Payee office</label>
+                                        <input type="text" class="form-control" id="payee_office" name="payee_office" readonly>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="payee_address">Payee address</label>
+                                        <input type="text" class="form-control" id="payee_address" name="payee_address" readonly>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Deductions</h6>
+                                </div>
+                                <div class="row g-4">
+                                    <div class="col-lg-7">
                                         <div class="row g-3">
                                             <div class="col-7">
-                                                <label class="form-label" for="category">Category</label>
+                                                <label class="form-label" for="category">Deduction category</label>
                                                 <select class="form-select" id="category" name="category"></select>
                                             </div>
                                             <div class="col-5 d-flex align-items-end ors-tax d-none">
                                                 <div class="form-check form-switch mb-2">
                                                     <input class="form-check-input" type="checkbox" id="is_vatable" value="1">
-                                                    <label class="form-check-label" for="is_vatable">VATable</label>
+                                                    <label class="form-check-label" for="is_vatable">Subject to VAT</label>
                                                 </div>
                                             </div>
 
                                             <div class="col-4 ors-tax ors-vat d-none">
-                                                <label class="form-label" for="vat_percent">VAT %</label>
+                                                <label class="form-label" for="vat_percent">VAT rate (%)</label>
                                                 <input type="number" step="0.01" class="form-control" id="vat_percent" placeholder="e.g. 12">
                                             </div>
                                             <div class="col-4 ors-tax ors-ewt d-none">
-                                                <label class="form-label" for="ewt_percent">EWT %</label>
+                                                <label class="form-label" for="ewt_percent">EWT rate (%)</label>
                                                 <input type="number" step="0.01" class="form-control" id="ewt_percent" placeholder="1, 2, 5">
                                             </div>
                                             <div class="col-4 ors-tax ors-pt d-none">
-                                                <label class="form-label" for="pt_percent">PT %</label>
+                                                <label class="form-label" for="pt_percent">Percentage tax (%)</label>
                                                 <input type="number" step="0.01" class="form-control" id="pt_percent" placeholder="e.g. 5">
                                             </div>
                                             <div class="col-7 ors-tax d-none">
-                                                <label class="form-label" for="deduction_name">Other deduction</label>
-                                                <input type="text" class="form-control" id="deduction_name" placeholder="Type of deduction">
+                                                <label class="form-label" for="deduction_name">Other deduction type</label>
+                                                <input type="text" class="form-control" id="deduction_name" placeholder="e.g. Delay penalty">
                                             </div>
                                             <div class="col-5 ors-tax d-none">
-                                                <label class="form-label" for="other_deductions">Amount</label>
+                                                <label class="form-label" for="other_deductions">Other deduction amount</label>
                                                 <input type="number" step="0.01" class="form-control" id="other_deductions">
                                             </div>
 
-                                            <div class="col-12 ors-income d-none">
-                                                <label class="form-label" for="income_tax">Income tax</label>
+                                            <div class="col-md-6 ors-income d-none">
+                                                <label class="form-label" for="income_tax">Income tax amount</label>
                                                 <input type="number" step="0.01" class="form-control" id="income_tax">
                                             </div>
 
-                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="sss">SSS</label><input type="number" step="0.01" class="form-control" id="sss"></div>
-                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="hdmf">HDMF</label><input type="number" step="0.01" class="form-control" id="hdmf"></div>
-                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="pagibig_mp2">Pag-IBIG MP2</label><input type="number" step="0.01" class="form-control" id="pagibig_mp2"></div>
-                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="pagibig_loan">Pag-IBIG loan</label><input type="number" step="0.01" class="form-control" id="pagibig_loan"></div>
-                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="hmo">HMO</label><input type="number" step="0.01" class="form-control" id="hmo"></div>
-                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="wtax">WTAX</label><input type="number" step="0.01" class="form-control" id="wtax"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="sss">SSS contribution</label><input type="number" step="0.01" class="form-control" id="sss"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="hdmf">HDMF (Pag-IBIG) contribution</label><input type="number" step="0.01" class="form-control" id="hdmf"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="pagibig_mp2">Pag-IBIG MP2 savings</label><input type="number" step="0.01" class="form-control" id="pagibig_mp2"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="pagibig_loan">Pag-IBIG loan payment</label><input type="number" step="0.01" class="form-control" id="pagibig_loan"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="hmo">HMO premium</label><input type="number" step="0.01" class="form-control" id="hmo"></div>
+                                            <div class="col-6 ors-payroll d-none"><label class="form-label" for="wtax">Withholding tax (WTAX)</label><input type="number" step="0.01" class="form-control" id="wtax"></div>
 
                                             <div class="col-12 ors-none"><div class="form-text mt-0">Pick a category to compute taxes and deductions.</div></div>
                                         </div>
-
-                                        <div class="ors-sum mt-3">
+                                    </div>
+                                    <div class="col-lg-5">
+                                        <div class="ors-sum">
                                             <div class="ors-sum-row"><span>Gross amount</span><b id="orsGross">₱0.00</b></div>
                                             <div class="ors-sum-row"><span>Total deductions</span><b class="text-danger" id="orsDeduction">₱0.00</b></div>
                                             <div class="ors-sum-row net"><span>Net amount payable</span><b id="orsNet">₱0.00</b></div>
@@ -301,49 +311,66 @@ echo view('templates/myheader.php');
                                         <input type="hidden" id="gross_amount">
                                         <input type="hidden" id="total_deduction">
                                         <input type="hidden" id="net_amount">
-                                    </div></div>
+                                    </div>
                                 </div>
-                            </div>
+                            </section>
                         </div>
 
                         <!-- Line items -->
                         <div class="tab-pane fade" id="orsPanePs">
-                            <div class="ors-grid-card" data-grid="ps_direct"></div>
-                            <div class="ors-grid-card" data-grid="ps_indirect"></div>
+                            <div class="fods-pane-pad">
+                                <div class="ors-grid-card" data-grid="ps_direct"></div>
+                                <div class="ors-grid-card" data-grid="ps_indirect"></div>
+                            </div>
                         </div>
                         <div class="tab-pane fade" id="orsPaneMooe">
-                            <div class="ors-grid-card" data-grid="mooe_direct"></div>
-                            <div class="ors-grid-card" data-grid="mooe_indirect"></div>
+                            <div class="fods-pane-pad">
+                                <div class="ors-grid-card" data-grid="mooe_direct"></div>
+                                <div class="ors-grid-card" data-grid="mooe_indirect"></div>
+                            </div>
                         </div>
                         <div class="tab-pane fade" id="orsPaneCo">
-                            <div class="ors-grid-card" data-grid="co_direct"></div>
-                            <div class="ors-grid-card" data-grid="co_indirect"></div>
+                            <div class="fods-pane-pad">
+                                <div class="ors-grid-card" data-grid="co_direct"></div>
+                                <div class="ors-grid-card" data-grid="co_indirect"></div>
+                            </div>
                         </div>
 
                         <!-- Certification -->
                         <div class="tab-pane fade" id="orsPaneSign">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <div class="ors-sign">
-                                        <div class="ors-sign-head"><span class="ors-sign-box">Box A · Requesting office</span><span id="orsSignStatusA"></span></div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Box A · Requesting office <span id="orsSignStatusA"></span></h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
                                         <label class="form-label" for="certified_a">Certified by</label>
                                         <select class="form-select" id="certified_a" name="certified_a"></select>
-                                        <label class="form-label mt-2" for="position_a">Position</label>
-                                        <input type="text" class="form-control" id="position_a" name="position_a" readonly>
-                                        <div class="ors-sign-note" id="orsSignNoteA"></div>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="position_a">Position</label>
+                                        <input type="text" class="form-control" id="position_a" name="position_a" readonly>
+                                    </div>
+                                    <div class="col-12 ors-sign-note mt-1" id="orsSignNoteA"></div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="ors-sign">
-                                        <div class="ors-sign-head"><span class="ors-sign-box">Box B · Budget</span><span id="orsSignStatusB"></span></div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Box B · Budget <span id="orsSignStatusB"></span></h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
                                         <label class="form-label" for="certified_b">Certified by</label>
                                         <select class="form-select" id="certified_b" name="certified_b"></select>
-                                        <label class="form-label mt-2" for="position_b">Position</label>
-                                        <input type="text" class="form-control" id="position_b" name="position_b" readonly>
-                                        <div class="ors-sign-note" id="orsSignNoteB"></div>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="position_b">Position</label>
+                                        <input type="text" class="form-control" id="position_b" name="position_b" readonly>
+                                    </div>
+                                    <div class="col-12 ors-sign-note mt-1" id="orsSignNoteB"></div>
                                 </div>
-                            </div>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -363,6 +390,7 @@ echo view('templates/myheader.php');
         </div>
     </div>
 </div>
+
 
 <!-- ORS / DV print preview -->
 <div class="modal fade fods-modal" id="orsPrintModal" tabindex="-1" aria-hidden="true">
@@ -385,5 +413,5 @@ echo view('templates/myheader.php');
     var __ors_perms = <?= json_encode($perms) ?>;
     var __ors_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/ors/myors.js?v=7');?>"></script>
+<script src="<?=base_url('assets/js/ors/myors.js?v=11');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

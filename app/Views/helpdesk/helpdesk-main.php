@@ -175,7 +175,7 @@
 </div>
 
 <!-- New ticket -->
-<div class="modal fade fods-modal" id="ticketModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade fods-modal fods-flat" id="ticketModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <form id="ticketForm" novalidate>
@@ -190,54 +190,65 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="fods-section mt-0">Ticket</div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label d-block">Type</label>
-                            <div class="fods-segment w-100">
-                                <?php foreach ($lookups['categories'] as $i => $c): ?>
-                                    <input type="radio" class="btn-check" name="category" id="tkCat<?= $i ?>" value="<?= esc($c, 'attr') ?>" <?= $i === 0 ? 'checked' : '' ?>>
-                                    <label class="nav-link flex-fill justify-content-center mb-0" for="tkCat<?= $i ?>" style="cursor:pointer"><i class="ti <?= $c === 'Bug report' ? 'ti-bug' : 'ti-hand-finger' ?>"></i> <?= esc($c) ?></label>
-                                <?php endforeach; ?>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Ticket</h6>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label d-block">Request type</label>
+                                <div class="fods-segment w-100">
+                                    <?php foreach ($lookups['categories'] as $i => $c): ?>
+                                        <input type="radio" class="btn-check" name="category" id="tkCat<?= $i ?>" value="<?= esc($c, 'attr') ?>" <?= $i === 0 ? 'checked' : '' ?>>
+                                        <label class="nav-link flex-fill justify-content-center mb-0" for="tkCat<?= $i ?>" style="cursor:pointer"><i class="ti <?= $c === 'Bug report' ? 'ti-bug' : 'ti-hand-finger' ?>"></i> <?= esc($c) ?></label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-6">
+                                <label class="form-label" for="tkPriority">Priority</label>
+                                <select class="form-select" id="tkPriority" name="priority">
+                                    <?php foreach ($lookups['priorities'] as $p): ?>
+                                        <option value="<?= esc($p, 'attr') ?>" <?= $p === 'Normal' ? 'selected' : '' ?>><?= esc($p) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6 col-6">
+                                <label class="form-label" for="tkModule">Module concerned</label>
+                                <select class="form-select" id="tkModule" name="module">
+                                    <option value="">—</option>
+                                    <?php foreach ($modules as $m): ?>
+                                        <option value="<?= esc($m, 'attr') ?>"><?= esc($m) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label req" for="tkSubject">Subject</label>
+                                <input type="text" class="form-control" id="tkSubject" name="subject" maxlength="150" required placeholder="e.g. Can't print ORS for 2026">
+                                <div class="invalid-feedback">Subject is required.</div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label req" for="tkDescription">Description</label>
+                                <textarea class="form-control" id="tkDescription" name="description" rows="5" maxlength="2000" required placeholder="What do you need? For a bug: what you did, what you expected, and what happened instead."></textarea>
+                                <div class="invalid-feedback">Please describe what you need.</div>
                             </div>
                         </div>
-                        <div class="col-md-3 col-6">
-                            <label class="form-label" for="tkPriority">Priority</label>
-                            <select class="form-select" id="tkPriority" name="priority">
-                                <?php foreach ($lookups['priorities'] as $p): ?>
-                                    <option value="<?= esc($p, 'attr') ?>" <?= $p === 'Normal' ? 'selected' : '' ?>><?= esc($p) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <label class="form-label" for="tkModule">Where in FODS?</label>
-                            <select class="form-select" id="tkModule" name="module">
-                                <option value="">—</option>
-                                <?php foreach ($modules as $m): ?>
-                                    <option value="<?= esc($m, 'attr') ?>"><?= esc($m) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label" for="tkSubject">Subject</label>
-                            <input type="text" class="form-control" id="tkSubject" name="subject" maxlength="150" required placeholder="e.g. Can't print ORS for 2026">
-                            <div class="invalid-feedback">Subject is required.</div>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label" for="tkDescription">Details</label>
-                            <textarea class="form-control" id="tkDescription" name="description" rows="5" maxlength="2000" required placeholder="What do you need? For a bug: what you did, what you expected, and what happened instead."></textarea>
-                            <div class="invalid-feedback">Please describe what you need.</div>
-                        </div>
-                    </div>
+                    </section>
 
-                    <div class="fods-section">Screenshots</div>
-                    <label class="tk-drop" id="tkDrop" for="tkFiles">
-                        <i class="ti ti-photo-plus"></i>
-                        <span>Add images — click, drop them here, or paste a screenshot (Ctrl+V). Up to 5 images, 5 MB each.</span>
-                    </label>
-                    <input type="file" id="tkFiles" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
-                    <div class="tk-thumbs" id="tkThumbs"></div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Screenshots</h6>
+                        </div>
+                        <div>
+                            <label class="tk-drop" id="tkDrop" for="tkFiles">
+                                <i class="ti ti-photo-plus"></i>
+                                <span>Click, drop images here, or paste a screenshot (Ctrl+V).</span>
+                            </label>
+                            <input type="file" id="tkFiles" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+                            <div class="tk-thumbs" id="tkThumbs"></div>
+                        </div>
+                    </section>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Send ticket</button>

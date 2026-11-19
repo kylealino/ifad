@@ -187,6 +187,7 @@ class MyPPMPModel extends Model
 			$color = "success";
 		}else{
 			fods_require_access(\Config\AccessCodes::PPMP_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('tbl_ppmp_hd', $recid);
 
 			$current = $this->db->query("SELECT `recid` FROM tbl_ppmp_hd WHERE `recid` = ?", [$recid])->getRowArray();
 			if (empty($current)) {
@@ -308,6 +309,15 @@ class MyPPMPModel extends Model
 
 		$this->db->transComplete();
 
+		//HISTORY
+		if ($this->db->transStatus()) {
+			if (empty($recid)) {
+				MyHistoryModel::log('ppmp', $project_id, 'CREATED', '', null, $ppmpno);
+			} else {
+				MyHistoryModel::log('ppmp', $recid, 'UPDATED', '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_ppmp_hd', $recid)), $ppmpno);
+			}
+		}
+
 		if ($this->db->transStatus()) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
@@ -316,11 +326,11 @@ class MyPPMPModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'myppmp?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast

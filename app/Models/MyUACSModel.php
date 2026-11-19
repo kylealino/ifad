@@ -85,10 +85,12 @@ class MyUACSModel extends Model
 				)
 				VALUES(?, ?, ?, ?, NOW(), ?)
 			", [$allotment_class, $object_code, $sub_object_code, $uacs_code, $this->cuser]);
+			if ($query) { MyHistoryModel::log('uacs', $this->db->insertID(), 'CREATED', '', null, $uacs_code); }
 			$status = "UACS Saved successfully";
 			$color = "success";
 		}else{
 			fods_require_access(\Config\AccessCodes::UACS_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('mst_uacs', $recid);
 			$query = $this->db->query("
 				UPDATE
 					`mst_uacs`
@@ -99,6 +101,7 @@ class MyUACSModel extends Model
 					`uacs_code` = ?
 				WHERE `recid` = ?
 			", [$allotment_class, $object_code, $sub_object_code, $uacs_code, $recid]);
+			if ($query) { MyHistoryModel::log('uacs', $recid, 'UPDATED', '', MyHistoryModel::diff($before, MyHistoryModel::row('mst_uacs', $recid)), $uacs_code); }
 			$status = "UACS Updated successfully";
 			$color = "info";
 		}
@@ -110,11 +113,11 @@ class MyUACSModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'myuacs?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast

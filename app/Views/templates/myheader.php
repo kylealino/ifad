@@ -36,7 +36,7 @@ try {
   <link rel="shortcut icon" type="image/png" href="<?=base_url('assets/images/logos/fnrilogo.png')?>" />
   <title><?= esc($page_title . ' · FODS') ?></title>
   <link rel="stylesheet" href="<?=base_url('assets/css/styles.css')?>" />
-  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=9')?>" />
+  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=21')?>" />
   <script>
     // Apply the remembered collapsed sidebar before first paint (no flicker)
     try { if (localStorage.getItem('fods.sidebar.collapsed') === '1') document.documentElement.classList.add('fods-collapsed'); } catch (e) {}
@@ -56,10 +56,13 @@ try {
     </div>
 
     <nav class="fods-nav" aria-label="Main">
-      <?php foreach ($nav as $group): ?>
+      <?php foreach ($nav as $group):
+        // hidden items (the approval pages, opened from Approvals) stay out of the sidebar
+        $shown = array_filter($group['items'], fn ($i) => empty($i['hidden']));
+        if (!$shown) { continue; } ?>
         <div class="fods-nav-label"><?= esc($group['label']) ?></div>
         <ul class="fods-nav-list">
-          <?php foreach ($group['items'] as $item): ?>
+          <?php foreach ($shown as $item): ?>
             <li>
               <a class="fods-nav-link <?= $item['active'] ? 'active' : '' ?>" href="<?= $item['url'] ?>" title="<?= esc($item['label'], 'attr') ?>" <?= $item['active'] ? 'aria-current="page"' : '' ?>>
                 <i class="ti <?= $item['icon'] ?>"></i>

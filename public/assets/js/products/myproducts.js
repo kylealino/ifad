@@ -79,9 +79,9 @@ function __mysys_products_ent() {
 				{
 					data: null, orderable: false, searchable: false, className: 'cell-actions text-end',
 					render: function (v, type, r) {
-						return perms.edit
-							? '<div class="d-flex justify-content-end"><button type="button" class="fods-icon-btn is-teal products-edit" data-recid="' + r.recid + '" title="Edit"><i class="ti ti-pencil"></i></button></div>'
-							: '';
+						return '<div class="d-flex justify-content-end gap-1">'
+							+ (perms.edit ? '<button type="button" class="fods-icon-btn is-teal products-edit" data-recid="' + r.recid + '" title="Edit"><i class="ti ti-pencil"></i></button>' : '')
+							+ '</div>';
 					}
 				}
 			]

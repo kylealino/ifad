@@ -36,11 +36,11 @@ class MyUserManagementModel extends Model
 			toastr.{$color}('{$message}!', 'Well Done!', {
 					progressBar: true,
 					closeButton: true,
-					timeOut:2500,
+					timeOut:2000,
 				});
 			setTimeout(function() {
 					window.location.href = '{$redirectUrl}';
-				}, 2500);
+				}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 		</script>
 		";
 		exit;
@@ -62,6 +62,15 @@ class MyUserManagementModel extends Model
 		if (empty($position)) { $this->errorOut('Position is required!'); }
 		if (empty($username)) { $this->errorOut('Username is required!'); }
 		if (empty($recid) && empty($password)) { $this->errorOut('Password is required for a new user!'); }
+
+		// A username belongs to one user only (it is how they log in); checked when a user is
+		// added or renamed, so users that already share one can still be edited
+		$username = trim((string) $username);
+		$cur = empty($recid) ? null : $this->db->query("SELECT `username` FROM `myua_user` WHERE `recid` = ?", [$recid])->getRowArray();
+		if (!$cur || strcasecmp(trim((string) $cur['username']), $username) !== 0) {
+			$dup = $this->db->query("SELECT `recid` FROM `myua_user` WHERE UPPER(TRIM(`username`)) = UPPER(?) AND `recid` <> ? LIMIT 1", [$username, (int) $recid])->getRowArray();
+			if ($dup) { $this->errorOut('That username is already taken!'); }
+		}
 
 		$role_id = !empty($role_id) ? $role_id : null;
 		// Signatory designations (cert_tag, ada_tag, is_ppmp_signatory) are not on
@@ -86,13 +95,16 @@ class MyUserManagementModel extends Model
 				$this->cuser
 			]);
 
+			$new_id = $this->db->insertID();
 			$this->syncUserAccess($username, $role_id);
 			$this->db->transComplete();
 
+			if ($query && $this->db->transStatus()) { MyHistoryModel::log('user', $new_id, 'CREATED', '', null, $username); }
 			$status = "User Saved successfully";
 			$color = "success";
 		} else {
 			fods_require_access(\Config\AccessCodes::USERMGMT_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('myua_user', $recid);
 			$this->db->transStart();
 			if (!empty($password)) {
 				$hash_password = hash('sha512', $password);
@@ -122,6 +134,10 @@ class MyUserManagementModel extends Model
 			$this->syncUserAccess($username, $role_id);
 			$this->db->transComplete();
 
+			if ($query && $this->db->transStatus()) {
+				MyHistoryModel::log('user', $recid, 'UPDATED', !empty($password) ? 'Password changed' : '',
+					MyHistoryModel::diff($before, MyHistoryModel::row('myua_user', $recid)), $username);
+			}
 			$status = "User Updated successfully";
 			$color = "info";
 		}
@@ -140,6 +156,10 @@ class MyUserManagementModel extends Model
 
 		$query = $this->db->query("UPDATE `myua_user` SET `is_active` = NOT `is_active` WHERE `recid` = ?", [$recid]);
 
+		if ($query) {
+			$u = MyHistoryModel::row('myua_user', $recid);
+			MyHistoryModel::log('user', $recid, ($u['is_active'] ?? '0') == '1' ? 'ACTIVATED' : 'DEACTIVATED', '', null, $u['username'] ?? '');
+		}
 		if ($query) {
 			$this->successOut('User status updated', 'success');
 		} else {
@@ -202,19 +222,26 @@ class MyUserManagementModel extends Model
 
 		if (empty($role_name)) { $this->errorOut('Role name is required!'); }
 
+		// role names are unique (uq_tbl_roles_role_name): say so instead of failing on the insert
+		$dup = $this->db->query("SELECT `recid` FROM `tbl_roles` WHERE UPPER(TRIM(`role_name`)) = UPPER(?) AND `recid` <> ? LIMIT 1", [$role_name, (int) $recid])->getRowArray();
+		if ($dup) { $this->errorOut('A role with that name already exists!'); }
+
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::USERMGMT_ADD, 'Saving');
 			$query = $this->db->query("
 				INSERT INTO `tbl_roles` (`role_name`, `description`, `added_by`)
 				VALUES (?, ?, ?)
 			", [$role_name, $description, $this->cuser]);
+			if ($query) { MyHistoryModel::log('role', $this->db->insertID(), 'CREATED', '', null, $role_name); }
 			$status = "Role Saved successfully";
 			$color = "success";
 		} else {
 			fods_require_access(\Config\AccessCodes::USERMGMT_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('tbl_roles', $recid);
 			$query = $this->db->query("
 				UPDATE `tbl_roles` SET `role_name` = ?, `description` = ? WHERE `recid` = ?
 			", [$role_name, $description, $recid]);
+			if ($query) { MyHistoryModel::log('role', $recid, 'UPDATED', '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_roles', $recid)), $role_name); }
 			$status = "Role Updated successfully";
 			$color = "info";
 		}
@@ -237,6 +264,8 @@ class MyUserManagementModel extends Model
 		$this->db->transComplete();
 
 		if ($this->db->transStatus()) {
+			$r = MyHistoryModel::row('tbl_roles', $role_id);
+			MyHistoryModel::log('role', $role_id, ($r['is_active'] ?? '0') == '1' ? 'ACTIVATED' : 'DEACTIVATED', '', null, $r['role_name'] ?? '');
 			$this->successOut('Role status updated', 'success', "&tab=roles");
 		} else {
 			$this->errorOut('An error occurred while executing the query.');
@@ -254,8 +283,12 @@ class MyUserManagementModel extends Model
 			$this->errorOut("This role is still assigned to {$inUse} user(s). Reassign them first.");
 		}
 
+		$before = MyHistoryModel::row('tbl_roles', $role_id);
 		$query = $this->db->query("DELETE FROM `tbl_roles` WHERE `recid` = ?", [$role_id]);
 
+		if ($query) {
+			MyHistoryModel::log('role', $role_id, 'DELETED', '', null, $before['role_name'] ?? '');
+		}
 		if ($query) {
 			$this->successOut('Role deleted', 'success', "&tab=roles");
 		} else {
@@ -269,6 +302,8 @@ class MyUserManagementModel extends Model
 
 		if (empty($role_id)) { $this->errorOut('Missing role.'); }
 		fods_require_access(\Config\AccessCodes::USERMGMT_UPDATE, 'Updating');
+
+		$old_codes = array_column($this->db->query("SELECT `access_code` FROM `tbl_role_access` WHERE `role_id` = ?", [$role_id])->getResultArray(), 'access_code');
 
 		// One transaction (one commit) for the role's codes and its users' access
 		$this->db->transStart();
@@ -294,6 +329,14 @@ class MyUserManagementModel extends Model
 		$this->db->transComplete();
 
 		if ($this->db->transStatus()) {
+			// the permissions added and removed, by name
+			$names = array_column($this->db->query("SELECT `access_code`, `access_name` FROM `tbl_access_modules`")->getResultArray(), 'access_name', 'access_code');
+			$label = fn ($c) => $names[$c] ?? $c;
+			$added = array_map($label, array_diff($codes, $old_codes));
+			$removed = array_map($label, array_diff($old_codes, $codes));
+			$note = trim(($added ? 'Added: ' . implode(', ', $added) . '. ' : '') . ($removed ? 'Removed: ' . implode(', ', $removed) . '.' : ''));
+			$r = MyHistoryModel::row('tbl_roles', $role_id);
+			MyHistoryModel::log('role', $role_id, 'PERMISSIONS_UPDATED', $note !== '' ? $note : 'No change', null, $r['role_name'] ?? '');
 			$this->successOut('Role permissions updated', 'success', "&tab=roles");
 		} else {
 			$this->errorOut('An error occurred while executing the query.');

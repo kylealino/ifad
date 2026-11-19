@@ -22,15 +22,12 @@ function __mysys_disbursement_ent() {
 	};
 
 	const STATUS = {
-		pending_a: ['tone-amber', 'Box A · supervisor'],
-		pending_c: ['tone-indigo', 'Box C · accounting'],
-		pending_d: ['tone-teal', 'Box D · for payment'],
+		pending_a: ['tone-amber', 'For approval · Box A (Supervisor)'],
+		pending_c: ['tone-indigo', 'For approval · Box C (Accounting)'],
+		pending_d: ['tone-teal', 'For approval · Box D (Approval for payment)'],
 		approved: ['tone-green', 'Approved'],
-		disapproved: ['tone-red', 'Disapproved']
+		disapproved: ['tone-red', 'Returned']
 	};
-
-	// Box C (accounting) defaults for a new DV, as on the previous form
-	const DEFAULT_CERTIFIED_C = 'BONJOBIE F. CAJANO, CPA, CTT';
 
 	function esc(s) {
 		return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -48,11 +45,6 @@ function __mysys_disbursement_ent() {
 		if (!d || String(d).indexOf('0000') === 0) { return '—'; }
 		var dt = new Date(String(d).replace(' ', 'T'));
 		return isNaN(dt) ? d : dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-	}
-
-	function fmtDateTime(d) {
-		var dt = new Date(String(d || '').replace(' ', 'T'));
-		return isNaN(dt) ? (d || '') : dt.toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 	}
 
 	function chip(status) {
@@ -101,7 +93,7 @@ function __mysys_disbursement_ent() {
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
-		card('pending', 'pending', 'Pending');
+		card('pending', 'pending', 'For approval');
 		card('returned', 'disapproved', 'Returned');
 		card('approved', 'approved', 'Approved');
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -358,6 +350,36 @@ function __mysys_disbursement_ent() {
 		$('#dvGross, #dvFootGross').text(money(gross));
 		$('#dvDeduction, #dvFootDeduction').text(money(deduction));
 		$('#dvNet, #dvFootNet').text(money(net));
+		boxDOptions(net);
+	}
+
+	// Box D lists every mapped person. The one whose amount range (Approver Mapping)
+	// covers the net amount is selected automatically (several: the highest "from");
+	// the preparer can still pick someone else, and that pick is then kept.
+	var boxDAuto = '';   // the name last selected automatically ('' = none)
+
+	function boxDMatch(net) {
+		var amount = roundMoney(net);
+		var best = null;
+		(lookups.certifyd || []).forEach(function (o) {
+			if (amount >= num(o.min) && (o.max == null || amount <= num(o.max)) && (!best || num(o.min) > num(best.min))) { best = o; }
+		});
+		return best;
+	}
+
+	function low(s) { return String(s || '').trim().toLowerCase(); }
+
+	function boxDOptions(net) {
+		var sel = document.getElementById('certified_d');
+		if (!sel || (record && !canSave())) { return; }
+		var cur = sel.value;
+		var manual = cur !== '' && low(cur) !== low(boxDAuto);
+		var match = boxDMatch(net);
+		var name = match ? match.full_name : '';
+		boxDAuto = name;
+		if (manual || name === cur) { return; }   // a hand pick is kept
+		sel.value = name;
+		setVal('position_d', match ? (match.position || '') : '');
 	}
 
 	function clear(ids) {
@@ -657,10 +679,18 @@ function __mysys_disbursement_ent() {
 
 		$('#certified_a').on('change', function () { $('#position_a').val($(this).find(':selected').data('position') || ''); });
 		$('#certified_c').on('change', function () { $('#position_c').val($(this).find(':selected').data('position') || ''); });
+		$('#certified_d').on('change', function () { $('#position_d').val($(this).find(':selected').data('position') || ''); });
 	};
 
 	//DISBURSEMENT - OPEN EDITOR (new, or load one DV with its line items)
 	function setVal(id, v) { document.getElementById(id).value = v == null ? '' : v; }
+
+	// A box's signatories with the saved one; a new DV starts with the box's default
+	function signatory(id, posId, list, hd) {
+		var def = (list || []).filter(function (o) { return String(o.is_default) === '1'; })[0];
+		options(id, list || [], hd ? hd[id] : (def ? def.full_name : ''), hd ? hd[posId] : '');
+		if (!hd) { setVal(posId, def ? def.position : ''); }
+	}
 
 	function fill(hd) {
 		var form = document.getElementById('dvForm');
@@ -668,7 +698,7 @@ function __mysys_disbursement_ent() {
 		form.classList.remove('was-validated');
 		document.getElementById('payee_name').classList.remove('is-invalid');
 
-		['recid', 'serialno', 'dvno', 'particulars', 'payee_name', 'payee_office', 'payee_address', 'position_a', 'position_c',
+		['recid', 'serialno', 'dvno', 'particulars', 'payee_name', 'payee_office', 'payee_address', 'position_a', 'position_c', 'position_d',
 			'deduction_name'].forEach(function (f) { setVal(f, hd ? hd[f] : ''); });
 
 		// saved zeros show as blanks, like the previous form
@@ -681,13 +711,16 @@ function __mysys_disbursement_ent() {
 		options('funding_source', lookups.funding_sources || [], hd ? hd.funding_source : '');
 		options('fund_cluster_code', lookups.fund_clusters || [], hd ? hd.fund_cluster_code : '');
 		options('category', lookups.categories || [], hd ? hd.category : '');
-		options('certified_a', lookups.certifya || [], hd ? hd.certified_a : '', hd ? hd.position_a : '');
-
-		// Box C: a new DV starts with the usual accountant
-		var certC = hd ? hd.certified_c : '';
-		if (!hd && (lookups.certifyc || []).some(function (c) { return c.full_name === DEFAULT_CERTIFIED_C; })) { certC = DEFAULT_CERTIFIED_C; }
-		options('certified_c', lookups.certifyc || [], certC, hd ? hd.position_c : '');
-		if (!hd) { setVal('position_c', window.jQuery('#certified_c').find(':selected').data('position') || ''); }
+		// a new DV starts with each box's default signatory (Approver Mapping)
+		signatory('certified_a', 'position_a', lookups.certifya, hd);
+		signatory('certified_c', 'position_c', lookups.certifyc, hd);
+		signatory('certified_d', 'position_d', lookups.certifyd, hd);
+		// a saved DV keeps its Box D; it follows the amount again only if it is the
+		// one the amount gives (or blank). A new DV starts with the one for its amount.
+		var savedMatch = boxDMatch(hd ? num(hd.net_amount) : 0);
+		boxDAuto = !hd || !hd.certified_d || (savedMatch && low(savedMatch.full_name) === low(hd.certified_d))
+			? document.getElementById('certified_d').value : '\u0000';
+		boxDOptions(hd ? num(hd.net_amount) : 0);
 
 		document.getElementById('is_vatable').checked = !!hd && String(hd.is_vatable) === '1';
 		renderDeductions(hd ? hd.deductions : []);
@@ -709,7 +742,7 @@ function __mysys_disbursement_ent() {
 
 			if (approved) { html = '<span class="fods-chip tone-green"><i class="ti ti-check"></i>Approved</span>'; }
 			else if (disapproved) { html = '<span class="fods-chip tone-red"><i class="ti ti-x"></i>Disapproved</span>'; }
-			else if (box === current) { html = '<span class="fods-chip tone-amber"><span class="fods-dot"></span>Waiting</span>'; }
+			else if (box === current) { html = '<span class="fods-chip tone-amber"><span class="fods-dot"></span>For approval</span>'; }
 			else if (current && i > BOXES.indexOf(current)) { html = '<span class="fods-chip tone-slate">After Box ' + BOXES[i - 1].toUpperCase() + '</span>'; }
 
 			if (approved || disapproved) {
@@ -718,57 +751,6 @@ function __mysys_disbursement_ent() {
 			$('#dvSignStatus' + box.toUpperCase()).html(html);
 			$('#dvSignNote' + box.toUpperCase()).html(note);
 		});
-
-		// Box D is not picked: it follows the net amount (MyDisbursementModel::box_d)
-		$('#certified_d').val(hd ? hd.certified_d : '');
-		$('#position_d').val(hd ? hd.position_d : '');
-	}
-
-	// History (tbl_disbursement_history) as a timeline, newest first.
-	// APPROVED / DISAPPROVED and the *_CERTA/B entries are from the earlier flows.
-	var HISTORY = {
-		ADDED: ['Created', '#0f6f6f'],
-		UPDATED: ['Updated', '#b45309'],
-		APPROVED_BOX_A: ['Box A approved', '#15803d'],
-		APPROVED_BOX_C: ['Box C approved', '#15803d'],
-		APPROVED_BOX_D: ['Box D approved for payment', '#15803d'],
-		DISAPPROVED_BOX_A: ['Disapproved at Box A', '#b91c1c'],
-		DISAPPROVED_BOX_C: ['Disapproved at Box C', '#b91c1c'],
-		DISAPPROVED_BOX_D: ['Disapproved at Box D', '#b91c1c'],
-		APPROVED: ['Approved', '#15803d'],
-		DISAPPROVED: ['Disapproved', '#b91c1c'],
-		APPROVED_CERTA: ['Approved', '#15803d'],
-		DISAPPROVED_CERTA: ['Disapproved', '#b91c1c'],
-		APPROVED_CERTB: ['Approved', '#15803d'],
-		DISAPPROVED_CERTB: ['Disapproved', '#b91c1c']
-	};
-
-	function renderHistory(hd) {
-		var $ = window.jQuery;
-		var list = hd ? (hd.history || []) : [];
-		$('#dvHistoryTab').toggleClass('d-none', !hd);
-		$('#dvHistoryCount').text(list.length ? list.length : '');
-		if (!list.length) {
-			$('#dvHistory').html('<div class="text-muted small">No history recorded yet.</div>');
-			return;
-		}
-		$('#dvHistory').html('<ul class="dv-timeline">' + list.map(function (h) {
-			var k = HISTORY[String(h.action_type).toUpperCase()] || [h.action_type, '#64748b'];
-			var changes = '';
-			try {
-				var fc = h.field_changes ? JSON.parse(h.field_changes) : null;
-				if (Array.isArray(fc) && fc.length) {
-					changes = '<div class="changes">' + fc.map(function (c) {
-						return esc(String(c.field).replace(/_/g, ' ')) + ': <s>' + esc(c.old || '—') + '</s> → ' + esc(c['new'] || '—');
-					}).join('<br>') + '</div>';
-				}
-			} catch (e) { /* not JSON */ }
-			return '<li><span class="dot" style="background:' + k[1] + '"></span>'
-				+ '<div class="what">' + esc(k[0]) + '</div>'
-				+ '<div class="meta">' + esc(h.user_full_name || h.action_by || '—') + (h.action_by_role ? ' · ' + esc(h.action_by_role) : '') + ' · ' + esc(fmtDateTime(h.date_created)) + '</div>'
-				+ (h.remarks ? '<div class="note">' + esc(h.remarks) + '</div>' : '')
-				+ changes + '</li>';
-		}).join('') + '</ul>');
 	}
 
 	function setHeader(hd) {
@@ -786,7 +768,7 @@ function __mysys_disbursement_ent() {
 		if (status === 'pending_c' || status === 'pending_d') {
 			var done = status === 'pending_c' ? 'a' : 'c';
 			banner.addClass('alert-info').html('<b>Box ' + done.toUpperCase() + ' approved</b>' + (hd['cert' + done + '_approver'] ? ' (' + esc(hd['cert' + done + '_approver']) + ')' : '')
-				+ ' and waiting for Box ' + boxOf(status).toUpperCase() + '. It can no longer be edited.');
+				+ '; pending approval at Box ' + boxOf(status).toUpperCase() + '. It can no longer be edited.');
 		} else if (status === 'approved') {
 			banner.addClass('alert-success').html('<b>Approved for payment</b> — '
 				+ BOXES.map(function (b) { return 'Box ' + b.toUpperCase() + ' by ' + esc(hd['cert' + b + '_approver'] || '—'); }).join(', ')
@@ -802,9 +784,60 @@ function __mysys_disbursement_ent() {
 
 		signStatus(hd);
 
+		// Approve / disapprove the box it is at: only its named signatory, or an Administrator
+		// (can_decide comes from MyDisbursementModel::can_decide with the record)
+		var decide = !!hd && !!hd.can_decide;
+		$('#dvApproveBtn, #dvDisapproveBtn').toggleClass('d-none', !decide);
+		$('#dvApproveBtn').html('<i class="ti ti-check me-1"></i>Approve Box ' + (decide ? boxOf(status).toUpperCase() : ''));
+
 		$('#submitBtn').toggleClass('d-none', !canSave())
 			.text(!hd ? 'Create DV' : (status === 'disapproved' ? 'Save & resubmit' : 'Save changes'));
 	}
+
+	//DISBURSEMENT - APPROVE / DISAPPROVE THE CURRENT BOX (remarks required to disapprove)
+	this.__dv_decision = function () {
+		var $ = window.jQuery;
+		// Box => [step, the one after it]
+		var STEPS = {
+			A: ['Box A · Supervisor', 'Box C · Accounting'],
+			C: ['Box C · Accounting', 'Box D · Approved for payment'],
+			D: ['Box D · Approved for payment', 'Approved for payment']
+		};
+
+		function openDecision(mode) {
+			if (!record || !record.can_decide) { return; }
+			var approve = mode === 'approve';
+			var box = boxOf(statusOf(record)).toUpperCase();
+			var step = STEPS[box] || ['Box ' + box, ''];
+			FodsDecision.open({
+				host: document.getElementById('dvModal'),
+				mode: mode,
+				title: (approve ? 'Approve' : 'Disapprove') + ' DV · Box ' + box,
+				subtitle: (record.dvno ? 'DV ' + record.dvno : 'DV #' + record.recid) + ' · ' + (record.payee_name || ''),
+				facts: [
+					['Net amount', $('#dvNet').text(), true],
+					['Step', step[0]],
+					approve ? ['After this', step[1]] : ['After this', 'Returned to the preparer']
+				],
+				maxlength: 100,
+				submit: function (remarks, done) {
+					$.ajax({
+						type: 'POST',
+						url: mesiteurl + 'mydisbursement',
+						data: { recid: record.recid, remarks: remarks, meaction: approve ? 'MAIN-APPROVE' : 'MAIN-DISAPPROVE' },
+						global: false,
+						cache: false,
+						success: function (data) { $('.me-outp-msg').html(data); FodsDecision.close(); },
+						error: function (xhr, status, error) { toastr.error('[DISBURSEMENT]', 'Error loading page...' + error, { closeButton: true }); },
+						complete: done
+					});
+				}
+			});
+		}
+
+		document.getElementById('dvApproveBtn').addEventListener('click', function () { openDecision('approve'); });
+		document.getElementById('dvDisapproveBtn').addEventListener('click', function () { openDecision('disapprove'); });
+	};
 
 	this.__open_dv = function (recid) {
 		var $ = window.jQuery;
@@ -816,7 +849,6 @@ function __mysys_disbursement_ent() {
 			fill(hd);
 			setHeader(hd);
 			renderGrids(hd ? hd.grids : null);
-			renderHistory(hd);
 			var scope = $('#dvPaneDetails, #dvPaneSign');
 			if (canSave()) { scope.find('input, select, textarea').not('[readonly]').prop('disabled', false); }
 			else { applyLocks(scope); }
@@ -887,6 +919,8 @@ function __mysys_disbursement_ent() {
 				position_a: val('position_a'),
 				certified_c: val('certified_c'),
 				position_c: val('position_c'),
+				certified_d: val('certified_d'),
+				position_d: val('position_d'),
 				dvno: val('dvno'),
 				fund_cluster_code: val('fund_cluster_code'),
 				disbursement_date: val('disbursement_date'),
@@ -948,7 +982,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_disbursement_ent.__dv_details();
 	__mysys_disbursement_ent.__dv_saving();
 	__mysys_disbursement_ent.__dv_print();
+	__mysys_disbursement_ent.__dv_decision();
 
-	// Deep link (e.g. from Disbursement Approval): open that DV right away
+	// Deep link (e.g. an old Disbursement Approval link): open that DV right away
 	if (window.__dv_open) { __mysys_disbursement_ent.__open_dv(window.__dv_open); }
 });

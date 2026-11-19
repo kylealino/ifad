@@ -7,24 +7,18 @@ class MyPOModel extends Model
 
     protected $db;
 
-	// What a new PO starts with (the usual terms and accountant on the printed PO)
+	// What a new PO starts with (the usual terms on the printed PO; the
+	// accountant is Box A's default in Approver Mapping)
 	const DEFAULTS = [
 		'place_of_delivery' => 'DOST-FNRI c/o Property Section',
 		'date_of_delivery' => '30 Calendar Days upon receipt of approved PO',
 		'delivery_term' => '30 Calendar Days upon receipt of approved PO',
 		'payment_term' => '30 Days',
-		'accountant' => 'BONJOBIE F. CAJANO, CPA, CTT',
-		'accountant_position' => 'Accountant III',
 	];
 
-	// Box B (approval of the PO) follows the PO total
-	const APPROVAL_LIMIT = 5000000;
-
+	// Box B (approval of the PO) follows the PO total (the tiers are in Approver Mapping)
 	public static function approver_for($total) {
-		if ((float) $total >= self::APPROVAL_LIMIT) {
-			return ['name' => 'ATTY. LUCIEDEN G. RAZ', 'position' => 'Director III'];
-		}
-		return ['name' => 'ALEXIS M. ORTIZ', 'position' => 'Chief AO, FAD'];
+		return MyApproverMapModel::for_amount('po', 'b', $total);
 	}
 
 	//PO - APPROVAL STEPS: Box A (accounting), then Box B (approval)
@@ -231,14 +225,29 @@ class MyPOModel extends Model
 			$lines[] = [trim($medata[0]), trim($medata[1]), trim($medata[2]), $quantity, $unit_cost, $amount];
 		}
 
-		// Box A's position comes from that accountant's user record when there is one
-		$user = $this->db->query("SELECT `position` FROM myua_user WHERE `full_name` = ? LIMIT 1", [$accountant])->getRowArray();
-		if (!empty($user) && trim((string) $user['position']) !== '') {
+		// Box A's position is the one mapped for that accountant, else their user record's
+		$mapped = MyApproverMapModel::position_of('po', 'a', $accountant);
+		$user = $mapped !== '' ? null : $this->db->query("SELECT `position` FROM myua_user WHERE `full_name` = ? LIMIT 1", [$accountant])->getRowArray();
+		if ($mapped !== '') {
+			$accountant_position = $mapped;
+		} elseif (!empty($user) && trim((string) $user['position']) !== '') {
 			$accountant_position = trim($user['position']);
 		}
 
 		// Box B is not picked: it follows the PO total
 		$approver = self::approver_for($total_amount);
+		if ($approver['name'] === '') {
+			echo "
+			<script>
+			toastr.error('No Box B approver is set for this PO total. Ask an administrator to set one in Approver Mapping.', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:3500,
+				});
+			</script>
+			";
+			die();
+		}
 		$approved_by = $approver['name'];
 		$approved_position = $approver['position'];
 
@@ -311,6 +320,8 @@ class MyPOModel extends Model
 				";
 				die();
 			}
+
+			$before = MyHistoryModel::row('tbl_po_hd', $recid);
 
 			// Once accounting has approved Box A the PO is locked; a disapproved PO
 			// can be corrected and goes back to Box A
@@ -404,6 +415,16 @@ class MyPOModel extends Model
 
 		$this->db->transComplete();
 
+		//HISTORY
+		if ($this->db->transStatus()) {
+			if (empty($recid)) {
+				MyHistoryModel::log('po', $po_id, 'CREATED', '', null, $pono);
+			} else {
+				MyHistoryModel::log('po', $recid, !empty($is_disapproved) ? 'RESUBMITTED' : 'UPDATED', '',
+					MyHistoryModel::diff($before, MyHistoryModel::row('tbl_po_hd', $recid)), $pono);
+			}
+		}
+
 		if ($this->db->transStatus()) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
@@ -412,11 +433,11 @@ class MyPOModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mypo?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -455,7 +476,7 @@ class MyPOModel extends Model
 		if ($box === '') {
 			echo "
 			<script>
-			toastr.error('This PO is not waiting for approval', 'Oops!', {
+			toastr.error('This PO is not pending approval', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2500,
@@ -502,6 +523,9 @@ class MyPOModel extends Model
 		", [$approve ? 1 : 0, $approve ? 0 : 1, $approver, mb_substr($remarks, 0, 100), $recid]);
 
 		if ($query) {
+			MyHistoryModel::log('po', $recid, ($approve ? 'APPROVED_BOX_' : 'DISAPPROVED_BOX_') . strtoupper($box), $remarks, null, $hd['pono']);
+		}
+		if ($query) {
 			if (!$approve) {
 				$status = "PO disapproved";
 			} else {
@@ -513,11 +537,11 @@ class MyPOModel extends Model
 				toastr.{$color}('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
-						window.location.href = 'mypoapproval';
-					}, 2500);
+						window.location.href = 'mypo?meaction=MAIN';
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit;

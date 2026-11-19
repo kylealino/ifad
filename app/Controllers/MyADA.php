@@ -21,7 +21,7 @@ class MyADA extends BaseController
 
         switch ($meaction) {
             case 'MAIN':
-                if (fods_has_access(\Config\AccessCodes::ADA_VIEW)) {
+                if (fods_has_any_access([\Config\AccessCodes::ADA_VIEW, \Config\AccessCodes::ADAAPPROVAL_VIEW])) {
                     return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -29,7 +29,7 @@ class MyADA extends BaseController
 
             // One ADA, for the editor modal
             case 'MAIN-LOAD':
-                if (!fods_has_access(\Config\AccessCodes::ADA_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::ADA_VIEW, \Config\AccessCodes::ADAAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $record = $this->myada->ada_load($this->request->getGet('recid'));
@@ -55,7 +55,7 @@ class MyADA extends BaseController
                 break;
 
             case 'PRINT-ADA':
-                if (!fods_has_access(\Config\AccessCodes::ADA_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::ADA_VIEW, \Config\AccessCodes::ADAAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('cashier/ada-pdf');
                 break;
 
@@ -101,18 +101,20 @@ class MyADA extends BaseController
         ORDER BY a.`recid` DESC
         ")->getResultArray();
 
-        $certifiers = fn ($tag) => $this->db->query("SELECT `full_name`, `position` FROM myua_user WHERE ada_tag = ? AND is_active = 1 ORDER BY `full_name` ASC", [$tag])->getResultArray();
+        // Signatories offered on each box, from Approver Mapping
+        $certifiers = fn ($box) => \App\Models\MyApproverMapModel::options('ada', $box);
 
         return view('cashier/ada-main', [
             'adadata' => $adadata,
             'lookups' => [
                 'dvs' => $dvdata,
-                'certifya' => $certifiers('1'),
-                'certifyb' => $certifiers('2'),
+                'certifya' => $certifiers('a'),
+                'certifyb' => $certifiers('b'),
             ],
             'perms' => [
                 'add' => fods_has_access(\Config\AccessCodes::ADA_ADD),
                 'edit' => fods_has_access(\Config\AccessCodes::ADA_UPDATE),
+                'approve' => fods_has_access(\Config\AccessCodes::ADAAPPROVAL_APPROVE),
             ],
             'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that ADA directly
         ]);

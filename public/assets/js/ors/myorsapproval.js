@@ -75,7 +75,7 @@ function __mysys_ors_approval_ent() {
 	function inYear(r) { return year === 'all' || yearOf(r) === year; }
 
 	// Statuses behind each pill / card (any other key is a single status)
-	// One Approve covers both boxes, so everything pending is "waiting for you"
+	// One Approve covers both boxes, so everything pending is "for approval"
 	// (view-only users see the same list labelled Pending)
 	const GROUPS = { mine: ['pending_a', 'pending_b'] };
 	function inGroup(r, key) { return key === 'all' || (GROUPS[key] || [key]).indexOf(r.status) !== -1; }
@@ -91,8 +91,8 @@ function __mysys_ors_approval_ent() {
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label() + ' · ' + money(amount(l)));
 		};
-		card('pending', 'mine', function () { return (perms.a ? 'Waiting for you' : 'Pending') + ' · Box A ' + count('pending_a').toLocaleString() + ' · Box B ' + count('pending_b').toLocaleString(); });
-		if (!perms.a) { $('#approvalTableFilter [data-filter="mine"]').text('Pending'); }
+		card('pending', 'mine', function () { return 'For approval' + ' · Box A ' + count('pending_a').toLocaleString() + ' · Box B ' + count('pending_b').toLocaleString(); });
+		if (!perms.a) { $('#approvalTableFilter [data-filter="mine"]').text('For approval'); }
 		card('returned', 'disapproved', function () { return 'Returned'; });
 		card('approved', 'approved', function () { return 'Approved'; });
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -135,9 +135,9 @@ function __mysys_ors_approval_ent() {
 			dom: 't<"d-flex flex-wrap justify-content-between align-items-center"ip>',
 			language: {
 				info: 'Showing _START_–_END_ of _TOTAL_',
-				infoEmpty: 'Nothing to show',
+				infoEmpty: 'No records',
 				infoFiltered: '',
-				zeroRecords: '<div class="text-center text-muted py-4"><i class="ti ti-inbox fs-6 d-block mb-1"></i>Nothing here</div>',
+				zeroRecords: '<div class="text-center text-muted py-4"><i class="ti ti-inbox fs-6 d-block mb-1"></i>No records found</div>',
 				paginate: { previous: '<i class="ti ti-chevron-left"></i>', next: '<i class="ti ti-chevron-right"></i>' }
 			},
 			columns: [

@@ -8,13 +8,13 @@ echo view('templates/myheader.php');
 .ld-grid-wrap { overflow-x:auto; scrollbar-width:thin; }
 .ld-grid { width:max-content; min-width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:.85rem; }
 .ld-grid col.c-no { width:44px; }
-.ld-grid col.c-dv { width:150px; }
-.ld-grid col.c-payee { width:260px; }
-.ld-grid col.c-acct { width:150px; }
-.ld-grid col.c-serial { width:200px; }
-.ld-grid col.c-uacs { width:140px; }
-.ld-grid col.c-amt { width:140px; }
-.ld-grid col.c-remarks { width:200px; }
+.ld-grid col.c-dv { width:120px; }
+.ld-grid col.c-payee { width:220px; }
+.ld-grid col.c-acct { width:130px; }
+.ld-grid col.c-serial { width:190px; }
+.ld-grid col.c-uacs { width:120px; }
+.ld-grid col.c-amt { width:125px; }
+.ld-grid col.c-remarks { width:170px; }
 .ld-grid col.c-act { width:52px; }
 .ld-grid th { background:#f8fafc; color:var(--fods-muted); font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:.6rem .5rem; border-bottom:1px solid var(--fods-border); white-space:nowrap; text-align:left; }
 .ld-grid th.num, .ld-grid td.num { text-align:right; }
@@ -70,7 +70,7 @@ echo view('templates/myheader.php');
         <div class="col-6 col-xl-3">
             <button type="button" class="fods-stat" data-table="ldTable" data-filter="pending">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -96,8 +96,8 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="ldTableFilter">
-                <button type="button" class="active" data-filter="all">All</button>
-                <button type="button" data-filter="pending">Pending</button>
+                <button type="button" class="active" data-filter="all">All records</button>
+                <button type="button" data-filter="pending">For approval</button>
                 <button type="button" data-filter="disapproved">Returned</button>
                 <button type="button" data-filter="approved">Approved</button>
             </div>
@@ -125,11 +125,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="ldModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="ldModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down ld-dialog">
         <div class="modal-content">
             <form id="ldForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-building-bank"></i></div>
                         <div style="min-width:0">
@@ -139,20 +139,25 @@ echo view('templates/myheader.php');
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="ldPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
+                        <button type="button" class="btn btn-sm btn-danger d-none" id="ldDisapproveBtn"><i class="ti ti-x me-1"></i>Disapprove</button>
+                        <button type="button" class="btn btn-sm btn-success d-none" id="ldApproveBtn"><i class="ti ti-check me-1"></i>Approve</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="lddapada" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
                     <input type="hidden" id="funding_source" name="funding_source">
 
-                    <div id="ldBanner" class="alert d-none mb-3"></div>
+                    <div id="ldBanner" class="alert d-none mt-3 mb-0"></div>
 
-                    <div class="fods-card mb-3"><div class="fods-card-body pt-3">
-                        <div class="fods-section mt-0">LDDAP-ADA</div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>LDDAP-ADA</h6>
+                        </div>
                         <div class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-5">
                                 <label class="form-label" for="lddapadano">LDDAP-ADA no.</label>
                                 <input type="text" class="form-control" id="lddapadano" name="lddapadano">
                             </div>
@@ -160,73 +165,78 @@ echo view('templates/myheader.php');
                                 <label class="form-label" for="ckno">Check no.</label>
                                 <input type="text" class="form-control" id="ckno" name="ckno">
                             </div>
-                            <div class="col-md-4 col-6">
-                                <label class="form-label" for="lddapada_date">Date</label>
+                            <div class="col-md-3 col-6">
+                                <label class="form-label req" for="lddapada_date">LDDAP-ADA date</label>
                                 <input type="date" class="form-control" id="lddapada_date" name="lddapada_date" required>
-                                <div class="invalid-feedback">Date is required.</div>
+                                <div class="invalid-feedback">LDDAP-ADA date is required.</div>
                             </div>
-                            <div class="col-md-2 col-6">
-                                <label class="form-label" for="fund_cluster_code">Fund cluster</label>
+                            <div class="col-md-3 col-6">
+                                <label class="form-label req" for="fund_cluster_code">Fund cluster</label>
                                 <select class="form-select" id="fund_cluster_code" name="fund_cluster_code" required></select>
-                                <div class="invalid-feedback">Required.</div>
+                                <div class="invalid-feedback">Pick the fund cluster.</div>
                             </div>
-                            <div class="col-md-4 col-6">
+                            <div class="col-md-5 col-6">
                                 <label class="form-label" for="mds_branch">MDS-GSB branch</label>
                                 <input type="text" class="form-control" id="mds_branch" name="mds_branch" readonly>
                             </div>
-                            <div class="col-md-3 col-6">
+                            <div class="col-md-4 col-6">
                                 <label class="form-label" for="mds_accountno">MDS sub-account no.</label>
                                 <input type="text" class="form-control" id="mds_accountno" name="mds_accountno" readonly>
                             </div>
-                            <div class="col-md-3 col-6 d-flex align-items-end">
-                                <div class="form-check form-switch mb-2">
+                            <div class="col-12">
+                                <div class="form-check form-switch mb-0">
                                     <input class="form-check-input" type="checkbox" id="is_ci" value="1">
-                                    <label class="form-check-label" for="is_ci">Internal creditor</label>
+                                    <label class="form-check-label" for="is_ci">Payment to internal creditors</label>
                                 </div>
                             </div>
                         </div>
-                    </div></div>
+                    </section>
 
-                    <div class="fods-card mb-3"><div class="fods-card-body pt-3">
-                        <div class="fods-section mt-0">Disbursement vouchers</div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Disbursement vouchers</h6>
+                        </div>
                         <div class="row g-3 align-items-start">
-                            <div class="col-lg-5">
+                            <div class="col-lg-6">
                                 <label class="form-label" for="dv_lookup">Add a DV</label>
                                 <input type="text" class="form-control" id="dv_lookup" placeholder="Type or pick a DV no. / payee" autocomplete="off">
                             </div>
-                            <div class="col-lg-7">
-                                <label class="form-label">Selected DVs</label>
+                            <div class="col-lg-6">
+                                <label class="form-label">DVs included</label>
                                 <div class="ld-chips" id="ldChips"></div>
                             </div>
+                            <div class="col-12">
+                        <div class="ld-grid-card mb-0">
+                            <div class="ld-grid-wrap">
+                                <table class="ld-grid" id="ldGrid">
+                                    <colgroup><col class="c-no"><col class="c-dv"><col class="c-payee"><col class="c-acct"><col class="c-serial"><col class="c-uacs"><col class="c-amt"><col class="c-amt"><col class="c-amt"><col class="c-remarks"><col class="c-act"></colgroup>
+                                    <thead><tr><th class="sticky-l">#</th><th>DV no.</th><th>Payee</th><th>Account no.</th><th>ORS / BURS no.</th><th>Allotment class</th><th class="num">Gross</th><th class="num">Withholding tax</th><th class="num">Net amount</th><th>Remarks</th><th class="sticky-r"></th></tr></thead>
+                                    <tbody></tbody>
+                                    <tfoot><tr><td class="sticky-l"></td><td colspan="5">Total</td><td class="num" data-sum="gross"></td><td class="num" data-sum="tax"></td><td class="num" data-sum="net"></td><td></td><td class="sticky-r"></td></tr></tfoot>
+                                </table>
+                            </div>
+                            <div class="ld-empty d-none" id="ldEmpty">No DVs yet. Pick one above.</div>
                         </div>
-                    </div></div>
-
-                    <div class="ld-grid-card">
-                        <div class="ld-grid-wrap">
-                            <table class="ld-grid" id="ldGrid">
-                                <colgroup><col class="c-no"><col class="c-dv"><col class="c-payee"><col class="c-acct"><col class="c-serial"><col class="c-uacs"><col class="c-amt"><col class="c-amt"><col class="c-amt"><col class="c-remarks"><col class="c-act"></colgroup>
-                                <thead><tr><th class="sticky-l">#</th><th>DV no.</th><th>Payee</th><th>Account no.</th><th>ORS / BURS no.</th><th>Allotment class</th><th class="num">Gross</th><th class="num">Withholding tax</th><th class="num">Net amount</th><th>Remarks</th><th class="sticky-r"></th></tr></thead>
-                                <tbody></tbody>
-                                <tfoot><tr><td class="sticky-l"></td><td colspan="5">Total</td><td class="num" data-sum="gross"></td><td class="num" data-sum="tax"></td><td class="num" data-sum="net"></td><td></td><td class="sticky-r"></td></tr></tfoot>
-                            </table>
+                            </div>
                         </div>
-                        <div class="ld-empty d-none" id="ldEmpty">No DVs yet — pick one above.</div>
-                    </div>
+                    </section>
 
                     <!-- The four signatures on the printout. Picking a name fills in its position, which can be edited. -->
-                    <div class="fods-card mt-3"><div class="fods-card-body pt-3">
-                        <div class="fods-section mt-0">Signatories <small class="text-muted fw-normal text-lowercase">as printed on the LDDAP-ADA</small></div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Signatories</h6>
+                        </div>
                         <div class="row g-3">
                             <?php foreach (\App\Models\MyLDDAPADAModel::SIGNATURES as $field => [$label]): $posField = \App\Models\MyLDDAPADAModel::position_col($field); ?>
-                            <div class="col-md-6 col-xl-3">
-                                <label class="form-label" for="<?= $field ?>"><?= esc($label) ?></label>
+                            <div class="col-md-6">
+                                <label class="form-label req" for="<?= $field ?>"><?= esc($label) ?></label>
                                 <select class="form-select ld-signatory" id="<?= $field ?>" name="<?= $field ?>" data-position="<?= $posField ?>" required></select>
                                 <input type="text" class="form-control form-control-sm mt-1" id="<?= $posField ?>" name="<?= $posField ?>" maxlength="150" placeholder="Position" aria-label="<?= esc($label, 'attr') ?> position">
                                 <div class="invalid-feedback">Choose a signatory.</div>
                             </div>
                             <?php endforeach; ?>
                         </div>
-                    </div></div>
+                    </section>
                 </div>
 
                 <div class="modal-footer justify-content-between">
@@ -244,6 +254,7 @@ echo view('templates/myheader.php');
         </div>
     </div>
 </div>
+
 
 <!-- Print preview -->
 <div class="modal fade fods-modal" id="ldPrintModal" tabindex="-1" aria-hidden="true">
@@ -266,5 +277,5 @@ echo view('templates/myheader.php');
     var __ld_perms = <?= json_encode($perms) ?>;
     var __ld_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/cashier/mylddapada.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/cashier/mylddapada.js?v=8');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

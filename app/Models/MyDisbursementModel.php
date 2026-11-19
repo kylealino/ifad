@@ -113,24 +113,11 @@ class MyDisbursementModel extends Model
         }
         $hd['history'] = $this->getTransactionHistory($recid);
         $hd['deductions'] = $this->deduction_rows($hd);
-
-        // Box D is not picked on the DV; the modals show it next to Box A and C
-        $boxd = self::box_d($hd['net_amount']);
-        $hd['certified_d'] = $boxd['name'];
-        $hd['position_d'] = $boxd['position'];
         $hd['can_decide'] = self::can_decide($hd);
         return $hd;
     }
 
     //DISBURSEMENT - APPROVAL STEPS: Box A (supervisor), Box C (accounting), Box D (approved for payment)
-
-    // Box D follows the net amount, as printed on the DV
-    public static function box_d($net) {
-        if ((float) $net >= 100000) {
-            return ['name' => 'Atty. LUCIEDEN G. RAZ', 'position' => 'Director III'];
-        }
-        return ['name' => 'ALEXIS M. ORTIZ', 'position' => 'Chief Administrative Officer'];
-    }
 
     // Box the DV is waiting at ('a', 'c' or 'd'); '' once approved or disapproved
     public static function step_of(array $hd) {
@@ -140,7 +127,7 @@ class MyDisbursementModel extends Model
 
     // Signatory named on a box of the DV
     public static function signatory(array $hd, $box) {
-        return trim((string) ($box === 'd' ? self::box_d($hd['net_amount'])['name'] : $hd['certified_' . $box]));
+        return trim((string) ($hd['certified_' . $box] ?? ''));
     }
 
     // Only the signatory named on the current box decides it (matched on the
@@ -253,6 +240,8 @@ class MyDisbursementModel extends Model
 		$position_a = $this->request->getPostGet('position_a');
 		$certified_c = $this->request->getPostGet('certified_c');
 		$position_c = $this->request->getPostGet('position_c');
+		$certified_d = trim((string) $this->request->getPostGet('certified_d'));
+		$position_d = trim((string) $this->request->getPostGet('position_d'));
 		$dvno = $this->request->getPostGet('dvno');
 		$fund_cluster_code = $this->request->getPostGet('fund_cluster_code');
 		$budgetdtdata = $this->request->getPostGet('budgetdtdata');
@@ -360,6 +349,58 @@ class MyDisbursementModel extends Model
 			die();
 		}
 
+		// DV no. is used once. Checked when it is set or changed, so records that
+		// already share a number can still be edited.
+		$__no = trim((string) $dvno);
+		if ($__no !== '') {
+			$__cur = empty($recid) ? null : $this->db->query("SELECT `dvno` AS n FROM tbl_disbursement_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			if (!$__cur || trim((string) $__cur['n']) !== $__no) {
+				$__dup = $this->db->query("SELECT `recid` FROM tbl_disbursement_hd WHERE TRIM(`dvno`) = ? AND `recid` <> ? LIMIT 1", [$__no, (int) $recid])->getRowArray();
+				if (!empty($__dup)) {
+					echo "
+					<script>
+					toastr.error('That DV no. is already used on another DV!', 'Oops!', {
+							progressBar: true,
+							closeButton: true,
+							timeOut:2500,
+						});
+					</script>
+					";
+					die();
+				}
+			}
+		}
+
+		// Box D (approved for payment) is picked from the people mapped to it in Approver
+		// Mapping; a DV that already has a name keeps it even if it is no longer mapped
+		$__had = empty($recid) ? '' : trim((string) ($this->db->query("SELECT `certified_d` FROM tbl_disbursement_hd WHERE `recid` = ?", [$recid])->getRowArray()['certified_d'] ?? ''));
+		$__boxd = $certified_d === '' ? 'Box D signatory is required!'
+			: ((mb_strtolower($certified_d) !== mb_strtolower($__had) && !MyApproverMapModel::is_mapped('dv', 'd', $certified_d))
+				? 'Pick the Box D signatory from the list!' : '');
+		if ($__boxd !== '') {
+			$__boxd_js = json_encode($__boxd, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+			echo "
+			<script>
+			toastr.error({$__boxd_js}, 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2500,
+				});
+			</script>
+			";
+			die();
+		}
+		// stored as spelled in Approver Mapping
+		foreach (MyApproverMapModel::rows('dv', 'd') as $__r) {
+			if (mb_strtolower(trim($__r['full_name'])) === mb_strtolower($certified_d)) {
+				$certified_d = trim($__r['full_name']);
+				break;
+			}
+		}
+		if ($position_d === '') {
+			$position_d = MyApproverMapModel::position_of('dv', 'd', $certified_d);
+		}
+
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::DISBURSEMENT_ADD, 'Saving');
 			//INSERTING HD DATA
@@ -375,6 +416,8 @@ class MyDisbursementModel extends Model
 					`position_a`,
 					`certified_c`,
 					`position_c`,
+					`certified_d`,
+					`position_d`,
 					`dvno`,
 					`fund_cluster_code`,
 					`is_vatable`,
@@ -397,7 +440,7 @@ class MyDisbursementModel extends Model
 					`total_deduction`,
 					`net_amount`
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
 				[
 					$serialno,
 					$particulars,
@@ -409,6 +452,8 @@ class MyDisbursementModel extends Model
 					$position_a,
 					$certified_c,
 					$position_c,
+					$certified_d,
+					$position_d,
 					$dvno,
 					$fund_cluster_code,
 					$is_vatable,
@@ -608,17 +653,12 @@ class MyDisbursementModel extends Model
 				}
 			}
 
-			//UPDATING OF DVNO in the ORS / BURS it was prepared from
-			$query = $this->db->query("
-				UPDATE tbl_ors_hd
-				SET
-					`dvno` = ?
-				WHERE serialno = ?
-			", [
-				$dvno,
-				$serialno
-			]);
-			$this->db->query("UPDATE tbl_burs_hd SET `dvno` = ? WHERE serialno = ?", [$dvno, $serialno]);
+			//UPDATING OF DVNO in the ORS / BURS it was prepared from (only when the DV names one:
+			// a blank serial would match every ORS / BURS saved without a serial no.)
+			if (trim((string) $serialno) !== '') {
+				$this->db->query("UPDATE tbl_ors_hd SET `dvno` = ? WHERE serialno = ?", [$dvno, $serialno]);
+				$this->db->query("UPDATE tbl_burs_hd SET `dvno` = ? WHERE serialno = ?", [$dvno, $serialno]);
+			}
 
 			// LOG: Added new transaction
 			$this->logHistory(
@@ -695,6 +735,8 @@ class MyDisbursementModel extends Model
 					`position_a` = ?,
 					`certified_c` = ?,
 					`position_c` = ?,
+					`certified_d` = ?,
+					`position_d` = ?,
 					`dvno` = ?,
 					`fund_cluster_code` = ?,
 					`is_vatable` = ?,
@@ -727,6 +769,8 @@ class MyDisbursementModel extends Model
 				$position_a,
 				$certified_c,
 				$position_c,
+				$certified_d,
+				$position_d,
 				$dvno,
 				$fund_cluster_code,
 				$is_vatable,
@@ -948,7 +992,7 @@ class MyDisbursementModel extends Model
 			$fieldsToTrack = [
 				'particulars', 'funding_source', 'payee_name', 'payee_office', 
 				'payee_address', 'certified_a', 'position_a', 'certified_c', 
-				'position_c', 'dvno', 'fund_cluster_code', 'category',
+				'position_c', 'certified_d', 'position_d', 'dvno', 'fund_cluster_code', 'category',
 				'gross_amount', 'net_amount', 'disbursement_date'
 			];
 			
@@ -964,17 +1008,12 @@ class MyDisbursementModel extends Model
 				}
 			}
 
-			//UPDATING OF DVNO in the ORS / BURS it was prepared from
-			$query = $this->db->query("
-				UPDATE tbl_ors_hd
-				SET
-					`dvno` = ?
-				WHERE serialno = ?
-			", [
-				$dvno,
-				$serialno
-			]);
-			$this->db->query("UPDATE tbl_burs_hd SET `dvno` = ? WHERE serialno = ?", [$dvno, $serialno]);
+			//UPDATING OF DVNO in the ORS / BURS it was prepared from (only when the DV names one:
+			// a blank serial would match every ORS / BURS saved without a serial no.)
+			if (trim((string) $serialno) !== '') {
+				$this->db->query("UPDATE tbl_ors_hd SET `dvno` = ? WHERE serialno = ?", [$dvno, $serialno]);
+				$this->db->query("UPDATE tbl_burs_hd SET `dvno` = ? WHERE serialno = ?", [$dvno, $serialno]);
+			}
 			
 			$this->logHistory(
 				$project_id,
@@ -996,11 +1035,11 @@ class MyDisbursementModel extends Model
 				toastr.{$color}('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mydisbursement?meaction=MAIN';
-					}, 2500);
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit;
@@ -1032,7 +1071,7 @@ class MyDisbursementModel extends Model
 		if ($box === '') {
 			echo "
 			<script>
-			toastr.error('This disbursement is not waiting for approval', 'Oops!', {
+			toastr.error('This disbursement is not pending approval', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2500,
@@ -1100,11 +1139,11 @@ class MyDisbursementModel extends Model
 				toastr.{$color}('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
-						window.location.href = 'mydisbursementapproval';
-					}, 2500);
+						window.location.href = 'mydisbursement?meaction=MAIN';
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit;

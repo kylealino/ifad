@@ -41,7 +41,7 @@ echo view('templates/myheader.php');
         <div class="col-6 col-xl-3">
             <button type="button" class="fods-stat" data-table="adaTable" data-filter="pending">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -67,8 +67,8 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="adaTableFilter">
-                <button type="button" class="active" data-filter="all">All</button>
-                <button type="button" data-filter="pending">Pending</button>
+                <button type="button" class="active" data-filter="all">All records</button>
+                <button type="button" data-filter="pending">For approval</button>
                 <button type="button" data-filter="disapproved">Returned</button>
                 <button type="button" data-filter="approved">Approved</button>
             </div>
@@ -96,11 +96,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="adaModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="adaModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down">
         <div class="modal-content">
             <form id="adaForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-credit-card"></i></div>
                         <div style="min-width:0">
@@ -110,19 +110,24 @@ echo view('templates/myheader.php');
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="adaPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
+                        <button type="button" class="btn btn-sm btn-danger d-none" id="adaDisapproveBtn"><i class="ti ti-x me-1"></i>Disapprove</button>
+                        <button type="button" class="btn btn-sm btn-success d-none" id="adaApproveBtn"><i class="ti ti-check me-1"></i>Approve</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="ada" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
-                    <div id="adaBanner" class="alert d-none mb-3"></div>
+                    <div id="adaBanner" class="alert d-none mt-3 mb-0"></div>
 
-                    <div class="fods-card mb-3"><div class="fods-card-body pt-3">
-                        <div class="fods-section mt-0">Advice</div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Advice</h6>
+                        </div>
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label" for="dvno">DV no.</label>
+                                <label class="form-label req" for="dvno">DV no.</label>
                                 <input type="text" class="form-control" id="dvno" name="dvno" placeholder="Type or pick a DV no. / payee" autocomplete="off" required>
                                 <div class="invalid-feedback">Pick the DV this ADA pays.</div>
                             </div>
@@ -138,12 +143,20 @@ echo view('templates/myheader.php');
                                 <label class="form-label" for="particulars">Particulars</label>
                                 <textarea class="form-control" id="particulars" name="particulars" rows="3" readonly></textarea>
                             </div>
+                        </div>
+                    </section>
+
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Payee</h6>
+                        </div>
+                        <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label" for="payee_name">Payee</label>
+                                <label class="form-label" for="payee_name">Payee name</label>
                                 <input type="text" class="form-control" id="payee_name" name="payee_name" readonly>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="payee_accountno">Account no.</label>
+                                <label class="form-label" for="payee_accountno">Payee account no.</label>
                                 <input type="text" class="form-control" id="payee_accountno" name="payee_accountno" readonly>
                             </div>
                             <div class="col-12">
@@ -153,28 +166,31 @@ echo view('templates/myheader.php');
                                 <input type="hidden" id="net_amount" name="net_amount">
                             </div>
                         </div>
-                    </div></div>
+                    </section>
 
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="ada-sign">
-                                <div class="ada-sign-box">Signatory 1</div>
-                                <label class="form-label" for="certified_a">Name</label>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Signatories</h6>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="certified_a">Signatory 1</label>
                                 <select class="form-select" id="certified_a" name="certified_a"></select>
-                                <label class="form-label mt-2" for="position_a">Position</label>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="position_a">Signatory 1 position</label>
                                 <input type="text" class="form-control" id="position_a" name="position_a" readonly>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="ada-sign">
-                                <div class="ada-sign-box">Signatory 2</div>
-                                <label class="form-label" for="certified_b">Name</label>
+                            <div class="col-md-6">
+                                <label class="form-label" for="certified_b">Signatory 2</label>
                                 <select class="form-select" id="certified_b" name="certified_b"></select>
-                                <label class="form-label mt-2" for="position_b">Position</label>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="position_b">Signatory 2 position</label>
                                 <input type="text" class="form-control" id="position_b" name="position_b" readonly>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="modal-footer">
@@ -185,6 +201,7 @@ echo view('templates/myheader.php');
         </div>
     </div>
 </div>
+
 
 <!-- Print preview -->
 <div class="modal fade fods-modal" id="adaPrintModal" tabindex="-1" aria-hidden="true">
@@ -207,5 +224,5 @@ echo view('templates/myheader.php');
     var __ada_perms = <?= json_encode($perms) ?>;
     var __ada_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/cashier/myada.js?v=2');?>"></script>
+<script src="<?=base_url('assets/js/cashier/myada.js?v=6');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

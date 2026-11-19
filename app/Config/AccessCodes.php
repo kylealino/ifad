@@ -158,4 +158,10 @@ class AccessCodes
     //      step is decided by the signatory named on it, or an Administrator)
     public const PRAPPROVAL_VIEW    = '45001';
     public const PRAPPROVAL_APPROVE = '45005';
+
+    // 46 - Approver Mapping (who signs each box of each module)
+    public const APPROVERMAP_VIEW   = '46001';
+    public const APPROVERMAP_ADD    = '46002';
+    public const APPROVERMAP_UPDATE = '46003';
+    public const APPROVERMAP_DELETE = '46004';
 }

@@ -298,6 +298,16 @@ class MySaobReportModel extends Model
 
 		$this->db->transComplete();
 
+		//HISTORY
+		if ($this->db->transStatus()) {
+			$ref = trim($project_title . ' ' . $current_year);
+			if (empty($recid)) {
+				MyHistoryModel::log('saob', $project_id, 'CREATED', '', null, $ref);
+			} else {
+				MyHistoryModel::log('saob', $recid, 'UPDATED', '', MyHistoryModel::diff($old, MyHistoryModel::row('tbl_saob_hd', $recid)), $ref);
+			}
+		}
+
 		if ($this->db->transStatus()) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
@@ -306,11 +316,11 @@ class MySaobReportModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mysaobrpt?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -349,11 +359,11 @@ class MySaobReportModel extends Model
 				toastr.success('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mybudgetallotment?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -385,11 +395,11 @@ class MySaobReportModel extends Model
 				toastr.success('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mybudgetallotment?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -451,11 +461,11 @@ class MySaobReportModel extends Model
 				toastr.success('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mybudgetallotment?meaction=MAIN&recid=$recid'; 
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -724,11 +734,11 @@ class MySaobReportModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mysaobrpt?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast

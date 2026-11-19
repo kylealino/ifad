@@ -249,11 +249,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="saobModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="saobModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down saob-dialog">
         <div class="modal-content">
             <form id="saobForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-report-analytics"></i></div>
                         <div style="min-width:0">
@@ -262,84 +262,88 @@ echo view('templates/myheader.php');
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="saob" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <ul class="nav fods-tabs" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#saobPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#saobPanePs"><i class="ti ti-users"></i>Personnel Services<span class="saob-tab-amt" data-tab-total="ps"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#saobPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="saob-tab-amt" data-tab-total="mooe"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#saobPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="saob-tab-amt" data-tab-total="co"></span></button></li>
+                </ul>
+
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
                     <input type="hidden" id="trxno" name="trxno">
 
-                    <div id="saobBanner" class="alert d-none mb-3"></div>
-
-                    <ul class="nav fods-segment mb-3 flex-nowrap fods-scroll-x" role="tablist" style="max-width:100%;">
-                        <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#saobPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#saobPanePs"><i class="ti ti-users"></i>Personnel Services<span class="saob-tab-amt" data-tab-total="ps"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#saobPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="saob-tab-amt" data-tab-total="mooe"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#saobPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="saob-tab-amt" data-tab-total="co"></span></button></li>
-                    </ul>
+                    <div id="saobBanner" class="alert d-none mt-3 mb-0"></div>
 
                     <div class="tab-content">
                         <!-- Details -->
                         <div class="tab-pane fade show active" id="saobPaneDetails">
-                            <div class="row g-3">
-                                <div class="col-lg-7">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Program</div>
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <label class="form-label" for="program_title">Program title</label>
-                                                <input type="text" class="form-control" id="program_title" name="program_title" maxlength="250" placeholder="Type or pick a program" autocomplete="off" required>
-                                                <div class="invalid-feedback">Program title is required.</div>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="project_title">Project title</label>
-                                                <input type="text" class="form-control" id="project_title" name="project_title" maxlength="250">
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="department">Department</label>
-                                                <input type="text" class="form-control" id="department" name="department" maxlength="100" required>
-                                                <div class="invalid-feedback">Department is required.</div>
-                                            </div>
-                                            <div class="col-md-8">
-                                                <label class="form-label" for="agency">Agency</label>
-                                                <input type="text" class="form-control" id="agency" name="agency" maxlength="100" required>
-                                                <div class="invalid-feedback">Agency is required.</div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label" for="current_year">Year</label>
-                                                <select class="form-select" id="current_year" name="current_year" required></select>
-                                                <div class="invalid-feedback">Required.</div>
-                                            </div>
-                                        </div>
-                                    </div></div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Program</h6>
                                 </div>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label req" for="program_title">Program title</label>
+                                        <input type="text" class="form-control" id="program_title" name="program_title" maxlength="250" placeholder="Type or pick a program" autocomplete="off" required>
+                                        <div class="invalid-feedback">Program title is required.</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="project_title">Project title</label>
+                                        <input type="text" class="form-control" id="project_title" name="project_title" maxlength="250">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label req" for="department">Department</label>
+                                        <input type="text" class="form-control" id="department" name="department" maxlength="100" required>
+                                        <div class="invalid-feedback">Department is required.</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label req" for="agency">Agency</label>
+                                        <input type="text" class="form-control" id="agency" name="agency" maxlength="100" required>
+                                        <div class="invalid-feedback">Agency is required.</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label req" for="current_year">Budget year</label>
+                                        <select class="form-select" id="current_year" name="current_year" required></select>
+                                        <div class="invalid-feedback">Pick the budget year.</div>
+                                    </div>
+                                </div>
+                            </section>
 
-                                <div class="col-lg-5">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Revision months</div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Revision months</h6>
+                                </div>
+                                <div class="row g-4">
+                                    <div class="col-lg-7">
                                         <div class="saob-months" id="saobMonths"></div>
                                         <div class="saob-months-note" id="saobMonthsNote"></div>
-
-                                        <div class="saob-sum mt-3">
+                                    </div>
+                                    <div class="col-lg-5">
+                                        <div class="saob-sum">
                                             <div class="saob-sum-row"><span>Total approved budget</span><input type="text" id="total_approved_combined" name="total_approved_combined" readonly tabindex="-1" aria-label="Total approved budget"></div>
                                             <div class="saob-sum-row"><span>Total revised allotment</span><input type="text" id="total_proposed_combined" name="total_proposed_combined" readonly tabindex="-1" aria-label="Total revised allotment"></div>
                                             <div class="saob-sum-row net"><span>Realignments</span><span id="saobBalance"></span></div>
                                         </div>
-                                    </div></div>
+                                    </div>
                                 </div>
-                            </div>
+                            </section>
                         </div>
 
                         <!-- Line items -->
                         <div class="tab-pane fade" id="saobPanePs">
-                            <div class="saob-grid-card" data-grid="ps"></div>
+                            <div class="fods-pane-pad"><div class="saob-grid-card" data-grid="ps"></div></div>
                         </div>
                         <div class="tab-pane fade" id="saobPaneMooe">
-                            <div class="saob-grid-card" data-grid="mooe"></div>
+                            <div class="fods-pane-pad"><div class="saob-grid-card" data-grid="mooe"></div></div>
                         </div>
                         <div class="tab-pane fade" id="saobPaneCo">
-                            <div class="saob-grid-card" data-grid="co"></div>
+                            <div class="fods-pane-pad"><div class="saob-grid-card" data-grid="co"></div></div>
                         </div>
                     </div>
                 </div>

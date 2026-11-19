@@ -5,6 +5,7 @@ namespace App\Controllers;
 use CodeIgniter\Controller;
 use App\Models\MyPRModel;
 use App\Models\MyPOModel;
+use App\Models\MyApproverMapModel;
 
 class MyPR extends BaseController
 {
@@ -23,7 +24,7 @@ class MyPR extends BaseController
 
         switch ($meaction) {
             case 'PR-MAIN':
-                if (fods_has_access(\Config\AccessCodes::PR_VIEW)) {
+                if (fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) {
                     return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -31,7 +32,7 @@ class MyPR extends BaseController
 
             // One PR with its items, PPMPs and RFQs, for the editor modal
             case 'MAIN-LOAD':
-                if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $record = $this->mypr->pr_load($this->request->getGet('recid'));
@@ -42,7 +43,7 @@ class MyPR extends BaseController
 
             // Items of the picked PPMPs, summed per description and unit
             case 'LOAD-PPMP':
-                if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 return $this->response->setJSON($this->mypr->ppmp_items((array) $this->request->getPost('ppmpno')));
@@ -58,12 +59,12 @@ class MyPR extends BaseController
                 break;
 
             case 'PR-PRINT':
-                if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('procurement/pr/pr-pdf');
                 break;
 
             case 'RFQ-PRINT':
-                if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('procurement/pr/rfq-pdf');
                 break;
         }
@@ -137,18 +138,15 @@ class MyPR extends BaseController
             'lookups' => [
                 'products' => $productsdata,
                 'ppmps' => $ppmpdata,
-                // Box A: heads of the requesting offices (supervisors and PPMP signatories)
-                'signatories' => $this->db->query("SELECT DISTINCT `full_name`, `position` FROM myua_user WHERE (`cert_tag` = '1' OR `is_ppmp_signatory` = 1) AND `is_active` = 1 AND TRIM(`full_name`) <> '' ORDER BY `full_name` ASC")->getResultArray(),
+                // Box A: heads of the requesting offices (Approver Mapping)
+                'signatories' => MyApproverMapModel::options('pr', 'a'),
                 // Box B follows the estimated cost (MyPRModel::approver_for, mirrored in mypr.js)
-                'approval' => [
-                    'limit' => MyPOModel::APPROVAL_LIMIT,
-                    'below' => MyPRModel::approver_for(0),
-                    'above' => MyPRModel::approver_for(MyPOModel::APPROVAL_LIMIT),
-                ],
+                'approval' => MyApproverMapModel::tiers('pr', 'b'),
             ],
             'perms' => [
                 'add' => fods_has_access(\Config\AccessCodes::PR_ADD),
                 'edit' => fods_has_access(\Config\AccessCodes::PR_UPDATE),
+                'approve' => fods_has_access(\Config\AccessCodes::PRAPPROVAL_APPROVE),
             ],
             'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that PR directly
             'tab' => (string) $this->request->getGet('tab'),     // ...on this tab (rfq)
