@@ -45,6 +45,40 @@ echo view('templates/myheader.php');
 .pr-ppmp-list .fods-chip { font-size:.8rem; padding:.25rem .35rem .25rem .7rem; }
 .pr-ppmp-list .fods-chip button { border:0; background:transparent; color:inherit; line-height:1; padding:0 .2rem; font-size:1rem; opacity:.7; }
 .pr-ppmp-list .fods-chip button:hover { opacity:1; }
+
+/* PPMP picker: picked chips, search + year + fully used, then a list to click */
+.pr-ppmp-picker { display:flex; flex-direction:column; gap:.6rem; max-width:760px; }
+.pr-ppmp-picked { display:flex; align-items:flex-start; gap:.6rem; padding:.55rem .7rem; border:1px dashed var(--fods-border); border-radius:10px; background:#fafbfc; }
+.pr-ppmp-picked-label { font-size:.74rem; color:var(--fods-muted); white-space:nowrap; padding-top:.3rem; }
+.pr-ppmp-picked-label b { color:var(--fods-text); }
+.pr-ppmp-tools { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .75rem; }
+.pr-ppmp-search { flex:1 1 240px; min-width:0; }
+.pr-ppmp-year { width:auto; min-width:120px; }
+.pr-ppmp-options { border:1px solid var(--fods-border); border-radius:12px; max-height:340px; overflow-y:auto; background:#fff; scrollbar-width:thin; }
+.pr-ppmp-opt { display:flex; width:100%; align-items:center; gap:.75rem; padding:.6rem .8rem; border:0; border-bottom:1px solid #f1f4f8; background:#fff; text-align:left; cursor:pointer; color:var(--fods-text); }
+.pr-ppmp-opt:last-child { border-bottom:0; }
+.pr-ppmp-opt:hover:not(:disabled) { background:#f7fafb; }
+.pr-ppmp-opt:focus-visible { outline:2px solid var(--fods-teal); outline-offset:-2px; }
+.pr-ppmp-opt.is-picked { background:var(--fods-teal-soft); }
+.pr-ppmp-opt:disabled { cursor:not-allowed; opacity:.55; }
+.pr-ppmp-check { flex:0 0 20px; width:20px; height:20px; border-radius:6px; border:1.5px solid #b8c2d1; display:grid; place-items:center; color:#fff; font-size:.8rem; background:#fff; }
+.pr-ppmp-opt.is-picked .pr-ppmp-check { background:var(--fods-teal); border-color:var(--fods-teal); }
+.pr-ppmp-main { flex:1 1 auto; min-width:0; }
+.pr-ppmp-no { font-weight:600; font-size:.86rem; display:flex; flex-wrap:wrap; align-items:center; gap:.4rem; }
+.pr-ppmp-no .fods-chip { font-size:.66rem; padding:.05rem .45rem; }
+.pr-ppmp-main { display:block; }
+.pr-ppmp-meta { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; font-size:.74rem; line-height:1.35; color:var(--fods-muted); margin-top:.15rem; }
+.pr-ppmp-bal { display:block; flex:0 0 150px; text-align:right; font-size:.74rem; color:var(--fods-muted); padding-left:.5rem; border-left:1px solid #eef2f6; }
+.pr-ppmp-bar { display:block; }
+.pr-ppmp-bal b { display:block; font-size:.84rem; color:var(--fods-text); font-variant-numeric:tabular-nums; }
+.pr-ppmp-bar { height:4px; border-radius:2px; background:#eef2f6; overflow:hidden; margin-top:.25rem; }
+.pr-ppmp-bar > span { display:block; height:100%; background:var(--fods-teal); }
+.pr-ppmp-opt.is-done .pr-ppmp-bal b { color:#b42318; }
+.pr-ppmp-none { padding:1rem; text-align:center; font-size:.8rem; color:var(--fods-muted); }
+@media (max-width: 575.98px) {
+    .pr-ppmp-bal { flex-basis:96px; }
+    .pr-ppmp-meta { white-space:normal; }
+}
 .pr-note { font-size:.78rem; color:var(--fods-muted); }
 
 /* RFQ tab */
@@ -260,12 +294,23 @@ echo view('templates/myheader.php');
                                 <div class="fods-fsec-head">
                                     <h6>PPMP</h6>
                                 </div>
-                                <div>
-                                    <div class="input-group" style="max-width:560px;">
-                                        <select class="form-select" id="ppmp_lookup" aria-label="PPMP"></select>
-                                        <button type="button" class="btn btn-fods-ghost" id="btn_add_ppmp"><i class="ti ti-plus me-1"></i>Add</button>
+                                <div class="pr-ppmp-picker">
+                                    <div class="pr-ppmp-picked">
+                                        <span class="pr-ppmp-picked-label">Picked <b id="ppmpPickedCount">0</b></span>
+                                        <div class="pr-ppmp-list" id="selected_ppmp_list"></div>
                                     </div>
-                                    <div class="pr-ppmp-list mt-2" id="selected_ppmp_list"></div>
+                                    <div class="pr-ppmp-tools">
+                                        <div class="fods-search pr-ppmp-search">
+                                            <i class="ti ti-search"></i>
+                                            <input type="search" class="form-control form-control-sm" id="ppmp_search" placeholder="Search PPMP no., project, end-user..." aria-label="Search PPMPs">
+                                        </div>
+                                        <select class="form-select form-select-sm pr-ppmp-year" id="ppmp_year" aria-label="Fiscal year"></select>
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" id="ppmp_show_used">
+                                            <label class="form-check-label small" for="ppmp_show_used">Show fully used</label>
+                                        </div>
+                                    </div>
+                                    <div class="pr-ppmp-options" id="ppmp_options" role="listbox" aria-multiselectable="true" aria-label="PPMPs"></div>
                                 </div>
                             </section>
                         </div>
@@ -405,5 +450,5 @@ echo view('templates/myheader.php');
     var __pr_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __pr_tab = <?= json_encode($tab, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=11');?>"></script>
+<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=13');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

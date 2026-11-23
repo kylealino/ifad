@@ -331,17 +331,101 @@ function __mysys_proc_pr_ent() {
 	}
 
 	//PR - PPMPS (the items come from the PPMPs picked, summed per description and unit)
+	// The picker: picked PPMPs as chips, then a searchable list (by fiscal year) where a
+	// click adds or removes a PPMP. Each shows its project, end-user, status and what is
+	// left after the other PRs; a fully used one cannot be picked unless this PR uses it.
+	let ownPPMP = [];           // PPMPs the saved PR already uses
+
+	const PPMP_STATUS = { final: ['tone-green', 'Final'], indicative: ['tone-amber', 'Indicative'], unmarked: ['tone-slate', 'Not marked'] };
+
+	function ppmpOf(no) { return (lookups.ppmps || []).filter(function (p) { return p.value === no; })[0] || null; }
+	function ppmpDone(p) { return Number(p.left) <= 0 && ownPPMP.indexOf(p.value) === -1; }
+
 	function renderSelectedPPMP() {
 		var editable = canSave();
+		document.getElementById('ppmpPickedCount').textContent = selectedPPMP.length;
 		document.getElementById('selected_ppmp_list').innerHTML = selectedPPMP.length
-			? selectedPPMP.map(function (p) {
-				return '<span class="fods-chip tone-teal" data-ppmp="' + esc(p) + '">' + esc(p)
-					+ (editable ? '<button type="button" class="pr-ppmp-remove" data-ppmp="' + esc(p) + '" aria-label="Remove ' + esc(p) + '">&times;</button>' : '') + '</span>';
+			? selectedPPMP.map(function (no) {
+				var p = ppmpOf(no);
+				return '<span class="fods-chip tone-teal" data-ppmp="' + esc(no) + '" title="' + esc(p ? p.project_title || '' : '') + '">' + esc(no)
+					+ (editable ? '<button type="button" class="pr-ppmp-remove" data-ppmp="' + esc(no) + '" aria-label="Remove ' + esc(no) + '">&times;</button>' : '') + '</span>';
 			}).join('')
-			: '<span class="pr-note">No PPMP picked yet.</span>';
+			: '<span class="pr-note">None yet</span>';
+		renderPPMPOptions();
 	}
 
-	function loadPPMPItems() {
+	function renderPPMPOptions() {
+		var box = document.getElementById('ppmp_options');
+		if (!box) { return; }
+		var editable = canSave();
+		var q = String(document.getElementById('ppmp_search').value || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+		var year = document.getElementById('ppmp_year').value;
+		var showUsed = document.getElementById('ppmp_show_used').checked;
+
+		var list = (lookups.ppmps || []).filter(function (p) {
+			var picked = selectedPPMP.indexOf(p.value) !== -1;
+			if (picked) { return true; }   // picked ones always stay in view
+			if (!showUsed && ppmpDone(p)) { return false; }
+			if (year && year !== 'all' && String(p.fiscal_year) !== year) { return false; }
+			var hay = [p.value, p.project_title, p.end_user, p.responsibility_code, p.fiscal_year].join(' ').toLowerCase();
+			return q.every(function (t) { return hay.indexOf(t) !== -1; });
+		});
+
+		if (!list.length) {
+			var hidden = (lookups.ppmps || []).filter(ppmpDone).length;
+			box.innerHTML = '<div class="pr-ppmp-none">No PPMP matches.'
+				+ (hidden && !showUsed ? ' ' + hidden + ' fully used PPMP' + (hidden === 1 ? ' is' : 's are') + ' hidden.' : '') + '</div>';
+			return;
+		}
+
+		box.innerHTML = list.map(function (p) {
+			var picked = selectedPPMP.indexOf(p.value) !== -1;
+			var done = ppmpDone(p);
+			var own = ownPPMP.indexOf(p.value) !== -1;
+			var total = Number(p.total) || 0, left = Number(p.left) || 0;
+			var pct = total ? Math.round(left / total * 100) : 0;
+			var st = PPMP_STATUS[p.status] || PPMP_STATUS.unmarked;
+			var meta = [p.project_title, p.end_user, p.fiscal_year ? 'FY ' + p.fiscal_year : '', p.items ? p.items + ' item' + (p.items == 1 ? '' : 's') : '']
+				.filter(Boolean).map(esc).join(' · ');
+			return '<button type="button" class="pr-ppmp-opt' + (picked ? ' is-picked' : '') + (done ? ' is-done' : '') + '" role="option" aria-selected="' + picked + '"'
+				+ ' data-ppmp="' + esc(p.value) + '"' + (!editable || (done && !picked) ? ' disabled' : '') + '>'
+				+ '<span class="pr-ppmp-check" aria-hidden="true">' + (picked ? '<i class="ti ti-check"></i>' : '') + '</span>'
+				+ '<span class="pr-ppmp-main"><span class="pr-ppmp-no">' + esc(p.value)
+				+ '<span class="fods-chip ' + st[0] + '">' + st[1] + '</span>'
+				+ (own ? '<span class="fods-chip tone-indigo">Used by this PR</span>' : '') + '</span>'
+				+ '<span class="pr-ppmp-meta" title="' + esc(p.project_title || '') + '">' + (meta || '—') + '</span></span>'
+				+ '<span class="pr-ppmp-bal">' + (done ? '<b>Fully used</b>' : '<b>' + left.toLocaleString() + ' of ' + total.toLocaleString() + ' left</b>' + money(p.left_amount))
+				+ '<span class="pr-ppmp-bar"><span style="width:' + pct + '%"></span></span></span>'
+				+ '</button>';
+		}).join('');
+	}
+
+	// Years in the list, newest first; the PR's own year is picked when there are PPMPs for it
+	function ppmpYears() {
+		var sel = document.getElementById('ppmp_year');
+		var years = {};
+		(lookups.ppmps || []).forEach(function (p) { if (p.fiscal_year) { years[p.fiscal_year] = true; } });
+		var list = Object.keys(years).sort().reverse();
+		sel.innerHTML = '<option value="all">All years</option>' + list.map(function (y) { return '<option value="' + esc(y) + '">FY ' + esc(y) + '</option>'; }).join('');
+		var mine = String(document.getElementById('pr_date').value || '').slice(0, 4);
+		sel.value = list.indexOf(mine) !== -1 ? mine : 'all';
+	}
+
+	function togglePPMP(no) {
+		if (!canSave()) { return; }
+		var at = selectedPPMP.indexOf(no);
+		if (at === -1) {
+			var p = ppmpOf(no);
+			if (p && ppmpDone(p)) { toast('warning', 'PPMP ' + no + ' is fully used by other PRs.', 'Fully used'); return; }
+			selectedPPMP.push(no);
+		} else {
+			selectedPPMP.splice(at, 1);
+		}
+		renderSelectedPPMP();
+		loadPPMPItems(true);
+	}
+
+	function loadPPMPItems(announce) {
 		var $ = window.jQuery;
 		var tbody = $('#prGrid tbody');
 		if (selectedPPMP.length === 0) {
@@ -352,11 +436,15 @@ function __mysys_proc_pr_ent() {
 		$.ajax({
 			url: mesiteurl + 'mypr?meaction=LOAD-PPMP',
 			type: 'POST',
-			data: { ppmpno: selectedPPMP },
+			data: { ppmpno: selectedPPMP, recid: record ? record.recid : '' },   // only what is left (this PR's own use counts back)
 			dataType: 'json',
 			success: function (res) {
 				tbody.html((res || []).map(rowHtml).join(''));
 				recalc();
+				if (announce === true) {
+					var n = (res || []).length;
+					toast('info', n + ' item' + (n === 1 ? '' : 's') + ' loaded from ' + selectedPPMP.length + ' PPMP' + (selectedPPMP.length === 1 ? '' : 's') + '. See the Items tab.', 'Items updated');
+				}
 			},
 			error: function (xhr) {
 				toast('error', (xhr.responseJSON && xhr.responseJSON.error) || 'Could not load the PPMP items.', 'Oops!');
@@ -367,24 +455,19 @@ function __mysys_proc_pr_ent() {
 	this.__pr_ppmp = function () {
 		var $ = window.jQuery;
 
-		$('#btn_add_ppmp').on('click', function () {
-			var ppmp = $('#ppmp_lookup').val();
-			if (!ppmp) { toast('warning', 'Select a PPMP first.', 'Oops!'); return; }
-			if (selectedPPMP.indexOf(ppmp) !== -1) { toast('warning', 'That PPMP is already added.', 'Oops!'); return; }
-			selectedPPMP.push(ppmp);
-			$('#ppmp_lookup').val('');
-			renderSelectedPPMP();
-			loadPPMPItems();
+		$('#ppmp_options').on('click', '.pr-ppmp-opt', function () { togglePPMP(this.getAttribute('data-ppmp')); });
+		$('#selected_ppmp_list').on('click', '.pr-ppmp-remove', function () { togglePPMP(this.getAttribute('data-ppmp')); });
+		$('#ppmp_search').on('input', renderPPMPOptions);
+		$('#ppmp_year, #ppmp_show_used').on('change', renderPPMPOptions);
+		// Enter in the search picks the only match
+		$('#ppmp_search').on('keydown', function (e) {
+			if (e.key !== 'Enter') { return; }
+			e.preventDefault();
+			var opts = $('#ppmp_options .pr-ppmp-opt:not(.is-picked):not(:disabled)');
+			if (opts.length === 1) { togglePPMP(opts.attr('data-ppmp')); this.select(); }
 		});
 
-		$('#selected_ppmp_list').on('click', '.pr-ppmp-remove', function () {
-			var ppmp = String($(this).data('ppmp'));
-			selectedPPMP = selectedPPMP.filter(function (p) { return p !== ppmp; });
-			renderSelectedPPMP();
-			loadPPMPItems();
-		});
-
-		$('#prModal').on('click', '.pr-reload', loadPPMPItems);
+		$('#prModal').on('click', '.pr-reload', function () { loadPPMPItems(true); });
 
 		$('#requested_by').on('change', function () {
 			setVal('requested_position', $(this).find(':selected').data('position') || '');
@@ -543,12 +626,12 @@ function __mysys_proc_pr_ent() {
 		// a blank saved date stays blank so it gets filled in; a new PR starts today
 		setVal('pr_date', hd ? (String(hd.pr_date || '').indexOf('0000') === 0 ? '' : hd.pr_date) : new Date().toLocaleDateString('en-CA'));
 
-		document.getElementById('ppmp_lookup').innerHTML = '<option value="">Choose a PPMP...</option>' + (lookups.ppmps || []).map(function (p) {
-			var sub = [p.end_user, p.fiscal_year].filter(Boolean).join(', ');
-			return '<option value="' + esc(p.value) + '">' + esc(p.value) + (sub ? ' — ' + esc(sub) : '') + '</option>';
-		}).join('');
-
-		selectedPPMP = hd ? (hd.ppmps || []).slice() : [];
+		// a PPMP the PRs have fully used cannot be picked, unless this PR already uses it
+		ownPPMP = hd ? (hd.ppmps || []).slice() : [];
+		selectedPPMP = ownPPMP.slice();
+		setVal('ppmp_search', '');
+		document.getElementById('ppmp_show_used').checked = false;
+		ppmpYears();
 
 		// a new PR starts with Box A's default signatory (Approver Mapping)
 		var def = (lookups.signatories || []).filter(function (o) { return String(o.is_default) === '1'; })[0] || {};

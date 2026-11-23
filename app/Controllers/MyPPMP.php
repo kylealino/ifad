@@ -72,10 +72,15 @@ class MyPPMP extends BaseController
         ORDER BY a.`recid` DESC
         ")->getResultArray();
 
-        // One status per PPMP: final, indicative, or not marked yet
+        // One status per PPMP: final, indicative, or not marked yet; plus how much the PRs used
+        $usage = (new \App\Models\MyPPMPUsageModel())->summary();
         foreach ($ppmphddata as &$row) {
             $row['status'] = self::statusOf($row);
             unset($row['is_indicative'], $row['is_final']);
+            $u = $usage[(int) $row['recid']] ?? ['total_qty' => 0, 'used_qty' => 0, 'used_amount' => 0];
+            $row['total_qty'] = (int) $u['total_qty'];
+            $row['used_qty'] = (int) $u['used_qty'];
+            $row['used_amount'] = round((float) $u['used_amount'], 2);
         }
         unset($row);
 

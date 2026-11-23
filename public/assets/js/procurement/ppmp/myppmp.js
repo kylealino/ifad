@@ -48,6 +48,17 @@ function __mysys_ppmp_ent() {
 		return '<span class="fods-chip ' + s[0] + '"><span class="fods-dot"></span>' + s[1] + '</span>';
 	}
 
+	// How much of a PPMP the PRs have used (quantities; MyPPMPUsageModel)
+	function fullyUsed(r) { return num(r.total_qty) > 0 && num(r.used_qty) >= num(r.total_qty); }
+	function usageHtml(r) {
+		var total = num(r.total_qty), used = num(r.used_qty);
+		if (!used) { return ''; }
+		var pct = total ? Math.min(100, Math.round(used / total * 100)) : 0;
+		return '<div class="small ' + (fullyUsed(r) ? 'text-danger fw-semibold' : 'text-muted') + ' mt-1">'
+			+ (fullyUsed(r) ? 'Fully used' : 'Used ' + used.toLocaleString() + ' of ' + total.toLocaleString()) + '</div>'
+			+ '<div class="ppmp-used-bar" title="' + pct + '% used by PRs"><span style="width:' + pct + '%"></span></div>';
+	}
+
 	// Final wins when both switches are on (same rule as MyPPMP::statusOf)
 	function statusOf(hd) {
 		if (String(hd.is_final) === '1') { return 'final'; }
@@ -110,7 +121,7 @@ function __mysys_ppmp_ent() {
 		$.fn.dataTable.ext.search.push(function (settings, data, idx) {
 			if (settings.nTable.id !== 'ppmpTable') { return true; }
 			var row = settings.aoData[idx]._aData;
-			return inYear(row) && (filter === 'all' || row.status === filter);
+			return inYear(row) && (filter === 'all' || (filter === 'fully_used' ? fullyUsed(row) : row.status === filter));
 		});
 
 		table = $('#ppmpTable').DataTable({
@@ -149,7 +160,7 @@ function __mysys_ppmp_ent() {
 				},
 				{
 					data: 'status', className: 'cell-right',
-					render: function (v, type) { return type === 'display' ? chip(v) : (STATUS[v] || STATUS.unmarked)[1]; }
+					render: function (v, type, r) { return type === 'display' ? chip(v) + usageHtml(r) : (STATUS[v] || STATUS.unmarked)[1] + (fullyUsed(r) ? ' Fully used' : ''); }
 				},
 				{
 					data: 'added_at', className: 'd-none d-xl-table-cell text-muted small text-nowrap',
@@ -443,6 +454,73 @@ function __mysys_ppmp_ent() {
 		$('#submitBtn').toggleClass('d-none', !canSave()).text(hd ? 'Save changes' : 'Create PPMP');
 	}
 
+	//PPMP - ITEM VERSIONS: the original items (the grid), then one version after each
+	// PR that used this PPMP, oldest first, with what that PR took and what is left
+	function prLabel(v) { return v.prno ? 'PR ' + v.prno : 'PR #' + v.pr_id; }
+
+	function renderVersions(hd) {
+		var bar = document.getElementById('ppmpVersions');
+		var list = hd && hd.usage ? hd.usage.versions || [] : [];
+		if (!list.length) { bar.classList.add('d-none'); bar.innerHTML = ''; showVersion(hd, -1); return; }
+		bar.classList.remove('d-none');
+		bar.innerHTML = '<button type="button" class="active" data-version="-1" role="tab">Original<small>As planned</small></button>'
+			+ list.map(function (v, i) {
+				return '<button type="button" data-version="' + i + '" role="tab"' + (v.fully_used ? ' class="is-done"' : '') + '>'
+					+ 'Version ' + (i + 1) + ' · ' + esc(prLabel(v))
+					+ '<small>' + (v.fully_used ? 'Fully used' : esc(fmtDate(v.pr_date || v.added_at))) + '</small></button>';
+			}).join('');
+		showVersion(hd, -1);
+	}
+
+	function showVersion(hd, index) {
+		var $ = window.jQuery;
+		$('#ppmpVersions button').removeClass('active').filter('[data-version="' + index + '"]').addClass('active');
+		var original = index < 0;
+		$('#ppmpGrid').toggleClass('d-none', !original);
+		$('#ppmpVersionView').toggleClass('d-none', original);
+		if (original) { return; }
+
+		var versions = hd.usage.versions;
+		var v = versions[index];
+		var before = index > 0 ? versions[index - 1].left : null;
+		var items = (hd.items || []).filter(function (it) { return String(it.item_desc || '').trim() !== ''; });
+		var tot = { planned: 0, took: 0, left: 0, amount: 0 };
+
+		var body = items.map(function (it) {
+			var planned = num(it.quantity);
+			var took = num(v.used[it.recid]);
+			var left = v.left[it.recid] != null ? num(v.left[it.recid]) : planned;
+			var prior = before && before[it.recid] != null ? planned - num(before[it.recid]) : 0;
+			var amount = left * num(it.unit_cost);
+			tot.planned += planned; tot.took += took; tot.left += left; tot.amount += amount;
+			return '<tr' + (left <= 0 ? ' class="is-zero"' : '') + '>'
+				+ '<td style="overflow-wrap:anywhere">' + esc(it.item_desc) + '</td>'
+				+ '<td>' + esc(it.size || '') + '</td>'
+				+ '<td class="num">' + planned.toLocaleString() + '</td>'
+				+ '<td class="num">' + (prior ? prior.toLocaleString() : '—') + '</td>'
+				+ '<td class="num' + (took ? ' took' : '') + '">' + (took ? took.toLocaleString() : '—') + '</td>'
+				+ '<td class="num left">' + left.toLocaleString() + '</td>'
+				+ '<td class="num">' + money(num(it.unit_cost)) + '</td>'
+				+ '<td class="num">' + money(amount) + '</td></tr>';
+		}).join('');
+
+		$('#ppmpVersionView').html(
+			'<div class="ppmp-grid-head"><div><div class="ppmp-grid-title">Version ' + (index + 1) + ' · after ' + esc(prLabel(v))
+				+ ' <span class="ppmp-grid-sub">' + esc(fmtDate(v.pr_date || v.added_at)) + '</span>'
+				+ (v.fully_used ? ' <span class="fods-chip tone-red ms-1">Fully used</span>' : '') + '</div></div>'
+				+ '<a class="btn btn-sm btn-fods-ghost" href="' + mesiteurl + 'mypr?meaction=PR-MAIN&recid=' + encodeURIComponent(v.pr_id) + '" target="_blank" rel="noopener"><i class="ti ti-external-link me-1"></i>Open ' + esc(prLabel(v)) + '</a></div>'
+			+ (num(v.over) > 0 ? '<div class="ppmp-version-note"><i class="ti ti-alert-triangle me-1"></i>This PR asked for ' + num(v.over).toLocaleString() + ' more than was left on this PPMP.</div>' : '')
+			+ '<div class="ppmp-grid-wrap"><table class="ppmp-version-table"><thead><tr>'
+			+ '<th>Description</th><th>Unit</th><th class="num">Planned</th><th class="num">Used before</th><th class="num">Used by this PR</th><th class="num">Left</th><th class="num">Unit cost</th><th class="num">Amount left</th>'
+			+ '</tr></thead><tbody>' + body + '</tbody>'
+			+ '<tfoot><tr><td colspan="2">Total</td><td class="num">' + tot.planned.toLocaleString() + '</td><td></td><td class="num">' + tot.took.toLocaleString() + '</td>'
+			+ '<td class="num">' + tot.left.toLocaleString() + '</td><td></td><td class="num">' + money(tot.amount) + '</td></tr></tfoot></table></div>');
+	}
+
+	this.__ppmp_versions = function () {
+		window.jQuery('#ppmpVersions').on('click', 'button', function () { if (record) { showVersion(record, +this.getAttribute('data-version')); } });
+	};
+
 	this.__open_ppmp = function (recid) {
 		var $ = window.jQuery;
 		var modalEl = document.getElementById('ppmpModal');
@@ -455,6 +533,7 @@ function __mysys_ppmp_ent() {
 			$('#ppmpGrid').html(gridHtml(hd ? hd.items : null));
 			applyLocks();
 			recalc();
+			renderVersions(hd);
 			bootstrap.Modal.getOrCreateInstance(modalEl).show();
 		}
 
@@ -555,6 +634,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_ppmp_ent.__ppmp_details();
 	__mysys_ppmp_ent.__ppmp_saving();
 	__mysys_ppmp_ent.__ppmp_print();
+	__mysys_ppmp_ent.__ppmp_versions();
 
 	// Deep link: ?recid= opens that PPMP right away
 	if (window.__ppmp_open) { __mysys_ppmp_ent.__open_ppmp(window.__ppmp_open); }

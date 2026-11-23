@@ -44,6 +44,25 @@ echo view('templates/myheader.php');
 .ppmp-row-actions .fods-icon-btn { width:28px; height:28px; font-size:.95rem; }
 .ppmp-empty { padding:1.25rem; text-align:center; color:var(--fods-muted); font-size:.82rem; }
 
+/* Item versions: the original, then one after each PR that used the PPMP */
+.ppmp-versions { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:.75rem; }
+.ppmp-versions button { display:inline-flex; flex-direction:column; align-items:flex-start; gap:.05rem; border:1px solid var(--fods-border); background:#fff; border-radius:10px; padding:.4rem .75rem; font-size:.78rem; color:var(--fods-text); cursor:pointer; text-align:left; line-height:1.25; }
+.ppmp-versions button small { font-size:.68rem; color:var(--fods-muted); }
+.ppmp-versions button:hover { border-color:#c7d0db; }
+.ppmp-versions button.active { border-color:var(--fods-teal); background:var(--fods-teal-soft); box-shadow:0 0 0 1px var(--fods-teal) inset; }
+.ppmp-versions button.is-done small { color:#b42318; font-weight:600; }
+.ppmp-version-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.84rem; }
+.ppmp-version-table th { background:#f8fafc; color:var(--fods-muted); font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:.6rem .7rem; border-bottom:1px solid var(--fods-border); text-align:left; white-space:nowrap; }
+.ppmp-version-table td { padding:.55rem .7rem; border-bottom:1px solid #f1f4f8; vertical-align:top; }
+.ppmp-version-table .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ppmp-version-table tr.is-zero td { color:#94a3b8; }
+.ppmp-version-table td.took { color:#b54708; font-weight:600; }
+.ppmp-version-table td.left { font-weight:700; }
+.ppmp-version-table tfoot td { font-weight:600; background:#fafbfc; border-top:1px solid var(--fods-border); border-bottom:0; }
+.ppmp-version-note { font-size:.75rem; color:#b54708; padding:.5rem .9rem 0; }
+.ppmp-used-bar { height:4px; border-radius:2px; background:#eef2f6; overflow:hidden; margin-top:.3rem; width:90px; }
+.ppmp-used-bar > span { display:block; height:100%; background:var(--fods-teal); }
+
 /* Editor footer totals */
 .ppmp-totals { display:flex; flex-wrap:wrap; gap:1.25rem; align-items:center; font-size:.82rem; color:var(--fods-muted); }
 .ppmp-totals b { color:var(--fods-text); font-size:.95rem; font-variant-numeric:tabular-nums; }
@@ -123,6 +142,7 @@ echo view('templates/myheader.php');
                 <button type="button" data-filter="unmarked">Not marked</button>
                 <button type="button" data-filter="indicative">Indicative</button>
                 <button type="button" data-filter="final">Final</button>
+                <button type="button" data-filter="fully_used">Fully used</button>
             </div>
             <div class="fods-search">
                 <i class="ti ti-search"></i>
@@ -255,7 +275,10 @@ echo view('templates/myheader.php');
                         <!-- Items -->
                         <div class="tab-pane fade" id="ppmpPaneItems">
                             <div class="fods-pane-pad">
+                                <!-- the original items, then one version after each PR that used this PPMP -->
+                                <div class="ppmp-versions d-none" id="ppmpVersions" role="tablist" aria-label="Item versions"></div>
                                 <div class="ppmp-grid-card" id="ppmpGrid"></div>
+                                <div class="ppmp-grid-card d-none" id="ppmpVersionView"></div>
                             </div>
                         </div>
                     </div>
@@ -297,5 +320,5 @@ echo view('templates/myheader.php');
     var __ppmp_perms = <?= json_encode($perms) ?>;
     var __ppmp_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/ppmp/myppmp.js?v=5');?>"></script>
+<script src="<?=base_url('assets/js/procurement/ppmp/myppmp.js?v=6');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

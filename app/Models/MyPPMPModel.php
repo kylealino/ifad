@@ -45,6 +45,8 @@ class MyPPMPModel extends Model
 			WHERE `ppmp_id` = ?
 			ORDER BY `recid` ASC
 		", [$recid])->getResultArray();
+		// the versions of its items: the original, then one after each PR that used it
+		$hd['usage'] = (new MyPPMPUsageModel())->versions($recid);
 		return $hd;
 	}
 
@@ -145,6 +147,50 @@ class MyPPMPModel extends Model
 			</script>
 			";
 			die();
+		}
+
+		// A PPMP the PRs have used: an item cannot go below what they took, and the
+		// PPMP no. cannot change (PRs are linked to it by that number)
+		if (!empty($recid)) {
+			$used = (new MyPPMPUsageModel())->used_per_key($recid);
+			if (!empty($used)) {
+				$fail = function ($msg) {
+					echo "
+					<script>
+					toastr.error(" . json_encode($msg, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ", 'Oops!', {
+							progressBar: true,
+							closeButton: true,
+							timeOut:4000,
+						});
+					</script>
+					";
+					die();
+				};
+				$old = $this->db->query("SELECT `ppmpno` FROM tbl_ppmp_hd WHERE `recid` = ?", [$recid])->getRowArray();
+				if ($old && mb_strtolower(trim($old['ppmpno'])) !== mb_strtolower(trim((string) $ppmpno))) {
+					$fail('This PPMP is already used by a PR, so its PPMP no. cannot be changed.');
+				}
+				$planned = [];
+				$labels = [];
+				foreach ((array) $ppmpdtdata as $line) {
+					$m = array_pad(explode("x|x", (string) $line), 15, '');
+					if (trim($m[0]) === '') { continue; }
+					$k = MyPPMPUsageModel::key($m[0], $m[3]);
+					$planned[$k] = ($planned[$k] ?? 0) + (int) str_replace(',', '', $m[2]);
+					$labels[$k] = trim($m[0]) . (trim($m[3]) !== '' ? ' (' . trim($m[3]) . ')' : '');
+				}
+				// names of items removed from the grid, from the saved PPMP
+				foreach ($this->db->query("SELECT `item_desc`, `size` FROM tbl_ppmp_dt WHERE `ppmp_id` = ?", [$recid])->getResultArray() as $r) {
+					$k = MyPPMPUsageModel::key($r['item_desc'], $r['size']);
+					$labels[$k] = $labels[$k] ?? (trim($r['item_desc']) . (trim($r['size']) !== '' ? ' (' . trim($r['size']) . ')' : ''));
+				}
+				foreach ($used as $k => $q) {
+					if (($planned[$k] ?? 0) < $q) {
+						$name = $labels[$k] ?? 'An item';
+						$fail($name . ': the PRs have already taken ' . $q . ', so the quantity cannot go below that.');
+					}
+				}
+			}
 		}
 
 		if (empty($recid)) {

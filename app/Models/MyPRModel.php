@@ -200,6 +200,46 @@ class MyPRModel extends Model
 		// the estimated cost saved is the same sum, so it always matches its Box B
 		$estimated_cost = $lines_total;
 
+		// A PR takes only what is left of its PPMPs (other PRs' use counted, its own not):
+		// a fully used PPMP cannot be picked, and a line cannot ask for more than is left.
+		// A locked PR only sets its PR no., so it is not checked.
+		if (!(!empty($saved) && self::is_locked($saved))) {
+			$usage = new MyPPMPUsageModel();
+			$picked = array_values(array_filter((array) $ppmp_list, fn ($p) => is_string($p) && trim($p) !== ''));
+			$was = empty($recid) ? [] : array_map(fn ($r) => mb_strtolower(trim($r['ppmpno'])),
+				$this->db->query("SELECT `ppmpno` FROM tbl_pr_ppmp WHERE `pr_id` = ?", [$recid])->getResultArray());
+			$left = $usage->left_per_ppmp($recid ?: null);
+			$fail = function ($msg) {
+				echo "
+				<script>
+				toastr.error(" . json_encode($msg, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ", 'Oops!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:4500,
+					});
+				</script>
+				";
+				die();
+			};
+			foreach ($picked as $p) {
+				$k = mb_strtolower(trim($p));
+				if (array_key_exists($k, $left) && $left[$k] <= 0 && !in_array($k, $was, true)) {
+					$fail('PPMP ' . trim($p) . ' is fully used by other PRs. Remove it from this PR.');
+				}
+			}
+			$lines = array_map(function ($line) {
+				$m = array_pad(explode("x|x", (string) $line), 5, '');
+				return [$m[0], $m[1], (int) str_replace(',', '', $m[2])];
+			}, (array) $prdtdata);
+			$over = $usage->over_for_pr($recid ?: null, $picked, $lines);
+			if (!empty($over)) {
+				[$desc, $unit, $asked, $have] = $over[0];
+				$more = count($over) > 1 ? ' (and ' . (count($over) - 1) . ' more item' . (count($over) > 2 ? 's' : '') . ')' : '';
+				$fail($desc . ($unit !== '' ? ' (' . $unit . ')' : '') . ': this PR asks for ' . $asked . ' but only ' . $have
+					. ' is left on its PPMPs' . $more . '. Lower the quantity, or click Reload from PPMP.');
+			}
+		}
+
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::PR_ADD, 'Saving');
 

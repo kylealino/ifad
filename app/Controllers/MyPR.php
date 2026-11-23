@@ -46,7 +46,11 @@ class MyPR extends BaseController
                 if (!fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
-                return $this->response->setJSON($this->mypr->ppmp_items((array) $this->request->getPost('ppmpno')));
+                // only what is left of them: what other PRs took is not offered again
+                return $this->response->setJSON((new \App\Models\MyPPMPUsageModel())->remaining_items(
+                    (array) $this->request->getPost('ppmpno'),
+                    $this->request->getPost('recid')
+                ));
 
             case 'PR-SAVE':
                 $this->mypr->pr_save();
@@ -127,11 +131,27 @@ class MyPR extends BaseController
         SELECT
             `ppmpno` AS value,
             `end_user`,
-            `fiscal_year`
+            `fiscal_year`,
+            `project_title`,
+            `responsibility_code`,
+            `is_indicative`,
+            `is_final`
         FROM `tbl_ppmp_hd`
         WHERE `ppmpno` <> ''
-        ORDER BY `ppmpno` ASC
+        ORDER BY `fiscal_year` DESC, `ppmpno` ASC
         ")->getResultArray();
+        // what is left of each PPMP after every counted PR (a fully used one cannot be picked)
+        $bal = (new \App\Models\MyPPMPUsageModel())->balances();
+        foreach ($ppmpdata as &$p) {
+            $b = $bal[mb_strtolower(trim($p['value']))] ?? ['items' => 0, 'total_qty' => 0, 'left_qty' => 0, 'total_amount' => 0, 'left_amount' => 0];
+            $p['status'] = MyPPMP::statusOf($p);
+            unset($p['is_indicative'], $p['is_final']);
+            $p['items'] = (int) $b['items'];
+            $p['total'] = (int) $b['total_qty'];
+            $p['left'] = (int) $b['left_qty'];
+            $p['left_amount'] = round((float) $b['left_amount'], 2);
+        }
+        unset($p);
 
         return view('procurement/pr/pr-main', [
             'prhddata' => $prhddata,
