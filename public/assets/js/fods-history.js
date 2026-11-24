@@ -29,6 +29,8 @@
 		DELETED: ['Deleted', 'red', 'ti-trash', 'deleted'],
 		RFQ_ADDED: ['RFQ added', 'amber', 'ti-file-plus', 'update'],
 		PRNO_SET: ['PR no. assigned', 'amber', 'ti-hash', 'update'],
+		DOCUMENT_ADDED: ['Document added', 'teal', 'ti-paperclip', 'update'],
+		DOCUMENT_REMOVED: ['Document removed', 'red', 'ti-trash', 'update'],
 		ACTIVATED: ['Activated', 'slate', 'ti-player-play', 'status'],
 		DEACTIVATED: ['Deactivated', 'slate', 'ti-player-pause', 'status'],
 		PERMISSIONS_UPDATED: ['Permissions updated', 'amber', 'ti-shield-check', 'update']

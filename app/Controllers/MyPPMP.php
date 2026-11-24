@@ -47,7 +47,41 @@ class MyPPMP extends BaseController
                 if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) { return view('errors/html/access-restricted'); }
                 return view('procurement/ppmp/ppmp-pdf');
                 break;
+
+            // Supporting documents (Documents tab): add, remove, open
+            case 'DOC-UPLOAD':
+                return $this->json($this->myppmp->attachment_add($this->request->getPost('recid')));
+
+            case 'DOC-REMOVE':
+                return $this->json($this->myppmp->attachment_remove($this->request->getPost('id')));
+
+            case 'DOC-FILE':
+                if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) {
+                    return $this->response->setStatusCode(403)->setBody('Access denied.');
+                }
+                return $this->document($this->myppmp->attachment_file($this->request->getGet('id')), $this->request->getGet('dl') === '1');
         }
+    }
+
+    // Model results carry 'error' on failure -> 422 so the JS shows it
+    private function json(array $result) {
+        return $this->response->setStatusCode(isset($result['error']) ? 422 : 200)->setJSON($result);
+    }
+
+    // PDFs and images open in the browser (the preview); other files, or ?dl=1, download
+    private function document(?array $file, bool $download) {
+        if ($file === null) {
+            return $this->response->setStatusCode(404)->setBody('Document not found.');
+        }
+        $inline = !$download && ($file['is_image'] || $file['mime_type'] === 'application/pdf');
+        // plain-ASCII name for old browsers, the real (UTF-8) name for the rest
+        $ascii = preg_replace('/[^\x20-\x7E]|["\\\\]/', '_', $file['orig_name']);
+        return $this->response
+            ->setHeader('Content-Type', $file['mime_type'])
+            ->setHeader('Content-Disposition', ($inline ? 'inline' : 'attachment') . '; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode($file['orig_name']))
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setHeader('Cache-Control', 'private, max-age=86400')
+            ->setBody(file_get_contents($file['path']));
     }
 
 
@@ -140,7 +174,10 @@ class MyPPMP extends BaseController
             'perms' => [
                 'add' => fods_has_access(\Config\AccessCodes::PPMP_ADD),
                 'edit' => fods_has_access(\Config\AccessCodes::PPMP_UPDATE),
+                'attach' => \App\Models\MyPPMPModel::can_attach(),   // add / remove supporting documents
             ],
+            'doc_max_mb' => \App\Models\MyPPMPModel::DOC_MAX_BYTES / 1048576,
+            'doc_max_files' => \App\Models\MyPPMPModel::DOC_MAX_FILES,
             'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that PPMP directly
         ]);
     }

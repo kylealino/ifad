@@ -47,6 +47,8 @@ class MyPPMPModel extends Model
 		", [$recid])->getResultArray();
 		// the versions of its items: the original, then one after each PR that used it
 		$hd['usage'] = (new MyPPMPUsageModel())->versions($recid);
+		// its supporting documents (Documents tab)
+		$hd['attachments'] = $this->attachments($recid);
 		return $hd;
 	}
 
@@ -394,6 +396,87 @@ class MyPPMPModel extends Model
 			exit;
 		}
 
+	}
+
+	//PPMP - SUPPORTING DOCUMENTS (Documents tab). Files are stored under
+	// writable/uploads/ppmp/<year>/ and served only through DOC-FILE.
+	const DOC_MAX_BYTES = 10485760;   // 10 MB a file
+	const DOC_MAX_FILES = 10;         // per upload
+
+	public function attachments($ppmp_id) {
+		return array_map(fn ($r) => $r + ['url' => 'myppmp?meaction=DOC-FILE&id=' . $r['recid']], $this->db->query("
+			SELECT a.`recid`, a.`orig_name`, a.`mime_type`, a.`file_size`, a.`is_image`, a.`added_by`, a.`added_at`,
+				COALESCE(NULLIF(u.`full_name`, ''), a.`added_by`) AS added_by_name
+			FROM tbl_ppmp_attachment a
+			LEFT JOIN myua_user u ON u.`username` = a.`added_by`
+			WHERE a.`ppmp_id` = ?
+			ORDER BY a.`recid` ASC
+		", [$ppmp_id])->getResultArray());
+	}
+
+	// Adding and removing documents: whoever may add or update PPMPs
+	public static function can_attach() {
+		return fods_has_any_access([\Config\AccessCodes::PPMP_ADD, \Config\AccessCodes::PPMP_UPDATE]);
+	}
+
+	// Adds the 'attachments[]' files to a saved PPMP: ['attachments' => list] or ['error' => ...]
+	public function attachment_add($recid) {
+		if (!self::can_attach()) {
+			return ['error' => 'You do not have permission to add documents to PPMPs.'];
+		}
+		$hd = $this->db->query("SELECT `recid`, `ppmpno` FROM tbl_ppmp_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		if (empty($hd)) {
+			return ['error' => 'Save the PPMP first, then add its documents.'];
+		}
+		$uploads = model('App\Models\MyUploadsModel');
+		[$files, $error] = $uploads->upload_files(false, self::DOC_MAX_BYTES, 0, self::DOC_MAX_FILES);
+		if ($error !== '') {
+			return ['error' => $error];
+		}
+		if (empty($files)) {
+			return ['error' => 'Pick at least one file.'];
+		}
+		$names = [];
+		foreach ($files as $up) {
+			$row = $uploads->upload_store('ppmp', $up);
+			$this->db->query("
+				INSERT INTO tbl_ppmp_attachment (`ppmp_id`, `file_name`, `orig_name`, `mime_type`, `file_size`, `is_image`, `added_by`, `added_at`)
+				VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+			", [$hd['recid'], $row['file_name'], $row['orig_name'], $row['mime_type'], $row['file_size'], $row['is_image'], $this->cuser]);
+			$names[] = $row['orig_name'];
+		}
+		MyHistoryModel::log('ppmp', $hd['recid'], 'DOCUMENT_ADDED', implode(', ', $names), null, $hd['ppmpno']);
+		return ['attachments' => $this->attachments($hd['recid'])];
+	}
+
+	// Removes one document, its stored file too: ['attachments' => list] or ['error' => ...]
+	public function attachment_remove($id) {
+		if (!self::can_attach()) {
+			return ['error' => 'You do not have permission to remove PPMP documents.'];
+		}
+		$doc = $this->db->query("
+			SELECT a.*, h.`ppmpno` FROM tbl_ppmp_attachment a JOIN tbl_ppmp_hd h ON h.`recid` = a.`ppmp_id` WHERE a.`recid` = ?
+		", [$id])->getRowArray();
+		if (empty($doc)) {
+			return ['error' => 'That document was already removed.'];
+		}
+		$this->db->query("DELETE FROM tbl_ppmp_attachment WHERE `recid` = ?", [$doc['recid']]);
+		$path = model('App\Models\MyUploadsModel')->upload_path('ppmp', $doc['file_name']);
+		if ($path !== null) {
+			@unlink($path);
+		}
+		MyHistoryModel::log('ppmp', $doc['ppmp_id'], 'DOCUMENT_REMOVED', $doc['orig_name'], null, $doc['ppmpno']);
+		return ['attachments' => $this->attachments($doc['ppmp_id'])];
+	}
+
+	// One document with its path on disk (null when it is gone)
+	public function attachment_file($id) {
+		$doc = $this->db->query("SELECT * FROM tbl_ppmp_attachment WHERE `recid` = ?", [$id])->getRowArray();
+		if (empty($doc)) {
+			return null;
+		}
+		$path = model('App\Models\MyUploadsModel')->upload_path('ppmp', $doc['file_name']);
+		return $path === null ? null : $doc + ['path' => $path];
 	}
 
 

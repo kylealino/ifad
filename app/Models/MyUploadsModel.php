@@ -2,8 +2,8 @@
 namespace App\Models;
 use CodeIgniter\Model;
 
-// File uploads shared by Messages (chat attachments) and the Helpdesk
-// (ticket screenshots): what may be uploaded, checked against the file's
+// File uploads shared by Messages (chat attachments), the Helpdesk (ticket
+// screenshots) and PPMP supporting documents: what may be uploaded, checked against the file's
 // real content, and where it is stored (writable/uploads/<folder>/<year>/).
 class MyUploadsModel extends Model
 {
@@ -41,12 +41,12 @@ class MyUploadsModel extends Model
 	//UPLOADS - VALIDATE the 'attachments[]' files: [files, error]
 	// Each file comes back as ['file' => UploadedFile, 'ext', 'mime', 'is_image'].
 	// Types are checked against the file's content, not the name the browser sent.
-	public function upload_files(bool $imagesOnly, int $maxBytes, int $maxTotal = 0) {
+	public function upload_files(bool $imagesOnly, int $maxBytes, int $maxTotal = 0, int $maxFiles = self::MAX_FILES) {
 		$files = array_values(array_filter((array) ($this->request->getFileMultiple('attachments') ?? []), fn ($f) => $f !== null && $f->getError() !== UPLOAD_ERR_NO_FILE));
 		$what = $imagesOnly ? 'images' : 'files';
 
-		if (count($files) > self::MAX_FILES) {
-			return [[], 'Attach up to ' . self::MAX_FILES . " {$what} at a time."];
+		if (count($files) > $maxFiles) {
+			return [[], 'Attach up to ' . $maxFiles . " {$what} at a time."];
 		}
 
 		$out = [];
@@ -74,7 +74,7 @@ class MyUploadsModel extends Model
 				return [[], "{$name} is not an image (JPG, PNG, GIF or WEBP only)."];
 			}
 			if (!isset(self::DOC_TYPES[$ext]) || in_array($mime, self::BLOCKED_MIMES, true) || ($ext === 'pdf' && $mime !== 'application/pdf')) {
-				return [[], "{$name} can't be sent. Allowed: images, PDF, Word, Excel, PowerPoint, CSV, TXT and ZIP."];
+				return [[], "{$name} can't be attached. Allowed: images, PDF, Word, Excel, PowerPoint, CSV, TXT and ZIP."];
 			}
 			$out[] = ['file' => $file, 'ext' => $ext, 'mime' => self::DOC_TYPES[$ext], 'is_image' => 0];
 		}

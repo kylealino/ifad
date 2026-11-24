@@ -535,6 +535,7 @@ function __mysys_ppmp_ent() {
 			applyLocks();
 			recalc();
 			renderVersions(hd);
+			renderDocs(hd ? hd.attachments : null);
 			bootstrap.Modal.getOrCreateInstance(modalEl).show();
 		}
 
@@ -617,7 +618,7 @@ function __mysys_ppmp_ent() {
 		});
 	};
 
-	//PPMP - UPLOAD: fills the editor from the office's PPMP spreadsheet (.xlsx, .xls or .csv,
+	//PPMP - IMPORT FROM EXCEL: fills the editor from the office's PPMP spreadsheet (.xlsx, .xls or .csv,
 	// the PPMP form layout). Header: Fiscal Year, PPMP No., End-User, RC (kept only when it is a
 	// known responsibility code), Indicative / Final when marked. Items: the rows under
 	// "Column 1 ... Column 12" until TOTAL BUDGET / Prepared by. Signatories: the name under
@@ -843,7 +844,7 @@ function __mysys_ppmp_ent() {
 
 		var total = data.items.reduce(function (t, it) { return t + num(it.estimated_budget); }, 0);
 		toastr.success(data.items.length + ' item' + (data.items.length === 1 ? '' : 's') + ' (' + money(total) + ') from ' + esc(fileName) + '. Check them, then save.',
-			'File uploaded', { progressBar: true, closeButton: true, timeOut: 4000 });
+			'Imported from Excel', { progressBar: true, closeButton: true, timeOut: 4000 });
 		if (notes.length) {
 			toastr.warning(notes.map(esc).join('<br>'), 'Before saving', { closeButton: true, timeOut: 0, extendedTimeOut: 0 });
 		}
@@ -895,6 +896,160 @@ function __mysys_ppmp_ent() {
 		});
 	};
 
+	//PPMP - DOCUMENTS: supporting files kept with a saved PPMP. Adding and removing take
+	// effect right away (no Save needed); PDFs and images open in a preview, others download.
+	const DOC_KINDS = [
+		[/pdf/, 'ti-file-text', 'tone-red'],
+		[/^image\//, 'ti-photo', 'tone-indigo'],
+		[/word/, 'ti-file-description', 'tone-indigo'],
+		[/sheet|excel|csv/, 'ti-file-spreadsheet', 'tone-green'],
+		[/presentation|powerpoint/, 'ti-presentation', 'tone-amber'],
+		[/zip/, 'ti-file-zip', 'tone-slate']
+	];
+	const docLimits = window.__ppmp_doc_limits || { mb: 10, files: 10 };
+
+	function docKind(mime) {
+		for (var i = 0; i < DOC_KINDS.length; i++) { if (DOC_KINDS[i][0].test(mime || '')) { return DOC_KINDS[i]; } }
+		return [null, 'ti-file', 'tone-slate'];
+	}
+
+	function fileSize(n) {
+		n = num(n);
+		return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+	}
+
+	function canPreview(d) { return String(d.is_image) === '1' || d.mime_type === 'application/pdf'; }
+
+	function renderDocs(list) {
+		var $ = window.jQuery;
+		var saved = !!record;
+		var editable = saved && !!perms.attach;
+		list = list || [];
+		$('#ppmpDocCount').text(list.length ? list.length : '');
+		$('#ppmpDocsNew').toggleClass('d-none', saved);
+		$('#ppmpDocsBody').toggleClass('d-none', !saved);
+		$('#ppmpDrop').toggleClass('d-none', !editable);
+		if (!saved) { $('#ppmpDocs').empty(); return; }
+		if (!list.length) {
+			$('#ppmpDocs').html('<div class="ppmp-docs-empty">No supporting documents yet.</div>');
+			return;
+		}
+		$('#ppmpDocs').html(list.map(function (d) {
+			var k = docKind(d.mime_type);
+			var url = mesiteurl + d.url;
+			return '<div class="ppmp-doc" data-doc="' + esc(d.recid) + '">'
+				+ '<span class="ppmp-doc-icon fods-chip ' + k[2] + '"><i class="ti ' + k[1] + '"></i></span>'
+				+ '<div class="ppmp-doc-main"><button type="button" class="ppmp-doc-name ppmp-doc-open" title="' + esc(d.orig_name) + '">' + esc(d.orig_name) + '</button>'
+				+ '<div class="ppmp-doc-meta">' + fileSize(d.file_size) + ' · ' + esc(d.added_by_name || d.added_by) + ' · ' + esc(fmtDate(d.added_at)) + '</div></div>'
+				+ '<div class="ppmp-doc-acts">'
+				+ (canPreview(d) ? '<button type="button" class="fods-icon-btn ppmp-doc-open" title="View"><i class="ti ti-eye"></i></button>' : '')
+				+ '<a class="fods-icon-btn" href="' + esc(url) + '&dl=1" title="Download"><i class="ti ti-download"></i></a>'
+				+ (editable ? '<button type="button" class="fods-icon-btn is-danger ppmp-doc-remove" title="Remove"><i class="ti ti-trash"></i></button>' : '')
+				+ '</div></div>';
+		}).join(''));
+	}
+
+	function openDoc(d) {
+		var url = mesiteurl + d.url;
+		if (!canPreview(d)) { window.location.href = url + '&dl=1'; return; }
+		document.getElementById('ppmpDocTitle').textContent = d.orig_name;
+		document.getElementById('ppmpDocDownload').setAttribute('href', url + '&dl=1');
+		document.getElementById('ppmpDocView').innerHTML = String(d.is_image) === '1'
+			? '<img src="' + esc(url) + '" alt="' + esc(d.orig_name) + '">'
+			: '<iframe src="' + esc(url) + '" title="' + esc(d.orig_name) + '"></iframe>';
+		bootstrap.Modal.getOrCreateInstance(document.getElementById('ppmpDocModal')).show();
+	}
+
+	function uploadDocs(files) {
+		var $ = window.jQuery;
+		files = Array.prototype.slice.call(files || []);
+		if (!files.length || !record || !perms.attach) { return; }
+		if (files.length > docLimits.files) {
+			toastr.warning('Add up to ' + docLimits.files + ' files at a time.', 'Too many files', { closeButton: true, timeOut: 2500 });
+			return;
+		}
+		var big = files.filter(function (f) { return f.size > docLimits.mb * 1048576; })[0];
+		if (big) {
+			toastr.warning(esc(big.name) + ' is over ' + docLimits.mb + ' MB.', 'File too big', { closeButton: true, timeOut: 2500 });
+			return;
+		}
+		var fd = new FormData();
+		fd.append('meaction', 'DOC-UPLOAD');
+		fd.append('recid', record.recid);
+		files.forEach(function (f) { fd.append('attachments[]', f, f.name); });
+		var drop = $('#ppmpDrop').addClass('is-busy');
+		$.ajax({ type: 'POST', url: mesiteurl + 'myppmp', data: fd, processData: false, contentType: false, dataType: 'json', global: false })
+			.done(function (res) {
+				record.attachments = res.attachments;
+				renderDocs(res.attachments);
+				toastr.success(files.length + ' document' + (files.length === 1 ? '' : 's') + ' added.', 'Saved', { progressBar: true, timeOut: 2000 });
+			})
+			.fail(function (xhr) {
+				toastr.error(esc((xhr.responseJSON && xhr.responseJSON.error) || 'The files could not be uploaded.'), 'Cannot add the files', { closeButton: true, timeOut: 4000 });
+			})
+			.always(function () { drop.removeClass('is-busy'); });
+	}
+
+	// Files pasted (screenshots too): clipboardData.files, or items when that is empty
+	function clipboardFiles(e) {
+		var cd = (e.originalEvent || e).clipboardData;
+		if (!cd) { return []; }
+		var files = Array.prototype.slice.call(cd.files || []);
+		if (!files.length && cd.items) {
+			Array.prototype.forEach.call(cd.items, function (it) { if (it.kind === 'file') { var f = it.getAsFile(); if (f) { files.push(f); } } });
+		}
+		var stamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
+		return files.map(function (f) {
+			return (!f.name || f.name === 'image.png') ? new File([f], 'screenshot-' + stamp + '.png', { type: f.type || 'image/png' }) : f;
+		});
+	}
+
+	this.__ppmp_docs = function () {
+		var $ = window.jQuery;
+		var input = document.getElementById('ppmpDocFile');
+		var drop = $('#ppmpDrop');
+
+		$('#ppmpDocAdd').on('click', function () { input.value = ''; input.click(); });
+		input.addEventListener('change', function () { uploadDocs(this.files); });
+
+		drop.on('dragenter dragover', function (e) { e.preventDefault(); drop.addClass('is-over'); })
+			.on('dragleave dragend', function () { drop.removeClass('is-over'); })
+			.on('drop', function (e) {
+				e.preventDefault();
+				drop.removeClass('is-over');
+				uploadDocs(e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.files);
+			});
+		// paste anywhere in the Documents tab
+		$('#ppmpModal').on('paste', function (e) {
+			if (!$('#ppmpPaneDocs').hasClass('active') || $('#ppmpDrop').hasClass('d-none')) { return; }
+			var files = clipboardFiles(e);
+			if (files.length) { e.preventDefault(); uploadDocs(files); }
+		});
+
+		$('#ppmpDocs').on('click', '.ppmp-doc-open', function () {
+			var id = $(this).closest('.ppmp-doc').data('doc');
+			var d = (record && record.attachments || []).filter(function (x) { return String(x.recid) === String(id); })[0];
+			if (d) { openDoc(d); }
+		});
+		$('#ppmpDocs').on('click', '.ppmp-doc-remove', function () {
+			var id = $(this).closest('.ppmp-doc').data('doc');
+			var d = (record && record.attachments || []).filter(function (x) { return String(x.recid) === String(id); })[0];
+			if (!d || !window.confirm('Remove "' + d.orig_name + '" from this PPMP?')) { return; }
+			$.ajax({ type: 'POST', url: mesiteurl + 'myppmp', data: { meaction: 'DOC-REMOVE', id: id }, dataType: 'json', global: false })
+				.done(function (res) {
+					record.attachments = res.attachments;
+					renderDocs(res.attachments);
+					toastr.info('Document removed.', '', { progressBar: true, timeOut: 2000 });
+				})
+				.fail(function (xhr) {
+					toastr.error(esc((xhr.responseJSON && xhr.responseJSON.error) || 'The document could not be removed.'), 'Oops!', { closeButton: true });
+				});
+		});
+
+		// the preview stops loading when it closes
+		document.getElementById('ppmpDocModal').addEventListener('hidden.bs.modal', function () { document.getElementById('ppmpDocView').innerHTML = ''; });
+	};
+
 	//PPMP - PRINT
 	this.__showPdfInModal = function (recid) {
 		document.getElementById('ppmpPrintFrame').src = mesiteurl + 'myppmp?meaction=PPMP-PRINT&recid=' + encodeURIComponent(recid);
@@ -915,6 +1070,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_ppmp_ent.__ppmp_print();
 	__mysys_ppmp_ent.__ppmp_versions();
 	__mysys_ppmp_ent.__ppmp_upload();
+	__mysys_ppmp_ent.__ppmp_docs();
 
 	// Deep link: ?recid= opens that PPMP right away
 	if (window.__ppmp_open) { __mysys_ppmp_ent.__open_ppmp(window.__ppmp_open); }
