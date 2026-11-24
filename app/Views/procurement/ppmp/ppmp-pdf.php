@@ -402,6 +402,10 @@ WHERE
 $rw = $query->getResultArray();
 $expected_delivery_period = '';
 
+// Rows end at PPMP_BOTTOM (legal landscape is 215.9 mm high; the footer starts 15 mm from the
+// bottom and FPDF breaks pages by itself at 195.9 mm). The total and the signatures need PPMP_SIGN_H.
+if (!defined('PPMP_BOTTOM')) { define('PPMP_BOTTOM', 195); define('PPMP_SIGN_H', 30); }
+
 // Splits text into lines that fit $w mm in the current font (a word too long for a line stays whole)
 if (!function_exists('ppmp_wrap')) {
     function ppmp_wrap($pdf, string $text, float $w): array {
@@ -455,7 +459,9 @@ foreach ($rw as $data) {
         $funding_source = '';
     }
 
-    if ($pdf->GetY() > 155) { // adjust threshold as needed
+    // a row starts a new page only when it would cross the bottom (the footer sits below it)
+    $need = max(count(ppmp_wrap($pdf, (string) $item_desc, 58)) * 5, count(ppmp_wrap($pdf, (string) $mop, 19)) * 3 + 1, 5);
+    if ($pdf->GetY() + $need > PPMP_BOTTOM) {
         $pdf->AddPage();
     }
 
@@ -513,10 +519,15 @@ foreach ($rw as $data) {
 
 $currentY = $pdf->GetY();
 
-if ($pdf->PageNo() == 1) {
+// the total and the signatures go under the last row; when they do not fit, on a new page
+if ($currentY + PPMP_SIGN_H > PPMP_BOTTOM) {
+    $pdf->AddPage();
+    $currentY = $pdf->GetY();
+} elseif ($pdf->PageNo() == 1) {
 
-    // Fill empty rows until Y reaches 135 (FIRST PAGE ONLY)
-    while ($currentY < 155) {
+    // a PPMP that fits on one page: empty rows down to the total and the signatures (the last
+    // page of a longer PPMP ends right after its last item)
+    while ($currentY + 5 + PPMP_SIGN_H <= PPMP_BOTTOM) {
 
         $pdf->SetXY(20,  $currentY); $pdf->Cell(60, 5, '', 1, 0, 'C'); // AIR FRESHENER
         $pdf->SetXY(80,  $currentY); $pdf->Cell(20, 5, '', 1, 0, 'C'); // Goods
