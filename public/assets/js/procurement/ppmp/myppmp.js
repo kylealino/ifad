@@ -230,7 +230,7 @@ function __mysys_ppmp_ent() {
 			+ '<td class="num">' + number('quantity', 'Quantity') + '</td>'
 			+ '<td>' + text('size', 'Unit', ' maxlength="50" placeholder="Unit"') + '</td>'
 			+ '<td class="num">' + number('unit_cost', 'Unit cost') + '</td>'
-			+ '<td>' + text('mop', 'Mode of procurement', ' maxlength="50" placeholder="Pick a mode"') + '</td>'
+			+ '<td>' + text('mop', 'Mode of procurement', ' maxlength="100" placeholder="Pick a mode"') + '</td>'
 			+ '<td>' + text('is_preproc', 'Pre-procurement conference', ' maxlength="10" placeholder="Yes / No"') + '</td>'
 			+ '<td>' + month('proc_start', 'Start of procurement') + '</td>'
 			+ '<td>' + month('proc_end', 'End of procurement') + '</td>'
@@ -452,6 +452,7 @@ function __mysys_ppmp_ent() {
 		}
 
 		$('#submitBtn').toggleClass('d-none', !canSave()).text(hd ? 'Save changes' : 'Create PPMP');
+		$('#ppmpUploadBtn').toggleClass('d-none', !canSave());
 	}
 
 	//PPMP - ITEM VERSIONS: the original items (the grid), then one version after each
@@ -616,6 +617,284 @@ function __mysys_ppmp_ent() {
 		});
 	};
 
+	//PPMP - UPLOAD: fills the editor from the office's PPMP spreadsheet (.xlsx, .xls or .csv,
+	// the PPMP form layout). Header: Fiscal Year, PPMP No., End-User, RC (kept only when it is a
+	// known responsibility code), Indicative / Final when marked. Items: the rows under
+	// "Column 1 ... Column 12" until TOTAL BUDGET / Prepared by. Signatories: the name under
+	// "Prepared by:" and "Submitted by:". Nothing is saved until the user clicks Save.
+	function loadXlsx() {
+		return new Promise(function (resolve, reject) {
+			if (window.XLSX) { resolve(window.XLSX); return; }
+			var s = document.createElement('script');
+			s.src = window.__ppmp_xlsx;   // local copy of SheetJS, loaded on the first upload
+			s.onload = function () { resolve(window.XLSX); };
+			s.onerror = function () { reject(new Error('The spreadsheet reader could not be loaded.')); };
+			document.head.appendChild(s);
+		});
+	}
+
+	function cellText(v) {
+		if (v == null) { return ''; }
+		if (v instanceof Date) { return v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0'); }
+		return String(v).replace(/\s+/g, ' ').trim();
+	}
+
+	function lc(v) { return cellText(v).toLowerCase(); }
+
+	// "9,360.00", "₱ 780", 780 -> 780
+	function toNumber(v) {
+		if (typeof v === 'number') { return v; }
+		var n = parseFloat(cellText(v).replace(/[₱P,\s]/gi, ''));
+		return isNaN(n) ? '' : n;
+	}
+
+	// 01/2027, 1/2027, 2027-01, Jan 2027, a date cell or an Excel date number -> 2027-01
+	const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+	function toMonth(v) {
+		if (v instanceof Date) { return cellText(v); }
+		if (typeof v === 'number' && v > 20000 && v < 80000) {
+			var d = new Date(Math.round((v - 25569) * 86400000));
+			return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+		}
+		var s = cellText(v), m;
+		if ((m = s.match(/^(\d{1,2})\s*[\/\-.]\s*(?:\d{1,2}\s*[\/\-.]\s*)?(\d{4})$/))) { return m[2] + '-' + m[1].padStart(2, '0'); }
+		if ((m = s.match(/^(\d{4})\s*[\/\-.]\s*(\d{1,2})/))) { return m[1] + '-' + m[2].padStart(2, '0'); }
+		if ((m = s.match(/^([a-z]{3})[a-z]*\.?\s*,?\s*(\d{4})$/i)) && MONTHS.indexOf(m[1].toLowerCase()) !== -1) {
+			return m[2] + '-' + String(MONTHS.indexOf(m[1].toLowerCase()) + 1).padStart(2, '0');
+		}
+		return '';
+	}
+
+	// "03/2027" -> from = to = 2027-03; "01/2027 to 03/2027" or "01/2027 - 03/2027" -> both
+	function toPeriod(v) {
+		if (typeof v !== 'string') { var one = toMonth(v); return [one, one]; }
+		var parts = cellText(v).match(/\d{1,2}\s*\/\s*(?:\d{1,2}\s*\/\s*)?\d{4}|\d{4}\s*-\s*\d{1,2}|[a-z]{3,9}\.?\s*,?\s*\d{4}/gi) || [];
+		var from = parts.length ? toMonth(parts[0].replace(/\s+/g, '')) : '';
+		var to = parts.length > 1 ? toMonth(parts[parts.length - 1].replace(/\s+/g, '')) : from;
+		return [from, to || from];
+	}
+
+	function toYesNo(v) {
+		var s = lc(v);
+		if (s === 'yes' || s === 'y') { return 'Yes'; }
+		if (s === 'no' || s === 'n') { return 'No'; }
+		return cellText(v);
+	}
+
+	// GAA is the General Fund (Fund 101); the fund codes print as 101 / 184 / 174
+	function toFund(v) {
+		var s = lc(v);
+		if (s === 'gaa' || s === '101' || s === 'general fund') { return 'General Fund'; }
+		if (s === '184' || s === 'trust fund') { return 'Trust Fund'; }
+		if (s === '174' || s.indexOf('project fund') === 0) { return 'Project Fund (Externally Funded)'; }
+		return cellText(v);
+	}
+
+	// The value of a "Label: value" cell, or the next filled cell to its right
+	function valueAfter(grid, r, c, label) {
+		var own = cellText(grid[r][c]).replace(label, '').replace(/^\s*[:.]?\s*/, '');
+		if (own) { return own; }
+		for (var j = c + 1; j < grid[r].length; j++) {
+			var t = cellText(grid[r][j]);
+			if (t) { return t.replace(/^:\s*/, ''); }
+		}
+		return '';
+	}
+
+	function parsePPMP(grid) {
+		var out = { header: {}, items: [], notes: [] };
+		var find = function (re, from, to) {
+			for (var r = from || 0; r < Math.min(to == null ? grid.length : to, grid.length); r++) {
+				for (var c = 0; c < (grid[r] || []).length; c++) { if (re.test(cellText(grid[r][c]))) { return [r, c]; } }
+			}
+			return null;
+		};
+
+		// the item columns: the "Column 1 ... Column 12" row under the column titles
+		var colRow = -1, cols = {};
+		for (var r = 0; r < grid.length && colRow < 0; r++) {
+			(grid[r] || []).forEach(function (v, c) {
+				var m = cellText(v).match(/^column\s*(\d{1,2})$/i);
+				if (m) { cols[+m[1]] = c; colRow = r; }
+			});
+		}
+		if (colRow < 0 || cols[1] == null) { return null; }
+
+		// quantity, size and unit cost share "Column 3": size and unit cost are found by their titles
+		var titleOf = function (re) {
+			for (var r = Math.max(0, colRow - 3); r < colRow; r++) {
+				for (var c = 0; c < (grid[r] || []).length; c++) { if (re.test(cellText(grid[r][c]))) { return c; } }
+			}
+			return null;
+		};
+		var qty = cols[3];
+		var at = {
+			item_desc: cols[1], item_type: cols[2], quantity: qty,
+			size: titleOf(/^size$/i) != null ? titleOf(/^size$/i) : (qty != null ? qty + 1 : null),
+			unit_cost: titleOf(/^unit cost$/i) != null ? titleOf(/^unit cost$/i) : (qty != null ? qty + 2 : null),
+			mop: cols[4], is_preproc: cols[5], proc_start: cols[6], proc_end: cols[7], delivery: cols[8],
+			funding_source: cols[9], estimated_budget: cols[10], attached_document: cols[11], remarks: cols[12]
+		};
+		var get = function (row, k) { return at[k] == null ? '' : row[at[k]]; };
+
+		// header (above the item columns)
+		var hit;
+		if ((hit = find(/^fiscal\s*year/i, 0, colRow))) {
+			var fy = valueAfter(grid, hit[0], hit[1], /^fiscal\s*year/i).match(/\d{4}/);
+			if (fy) { out.header.fiscal_year = fy[0]; }
+		}
+		if ((hit = find(/^ppmp\s*no\.?/i, 0, colRow))) { out.header.ppmpno = valueAfter(grid, hit[0], hit[1], /^ppmp\s*no\.?/i); }
+		if ((hit = find(/^end-?\s*user/i, 0, colRow))) { out.header.end_user = valueAfter(grid, hit[0], hit[1], /^end-?\s*user[^:]*:?/i); }
+		if ((hit = find(/^rc$|^responsibility\s*code/i, 0, colRow))) { out.header.rc = valueAfter(grid, hit[0], hit[1], /^rc$|^responsibility\s*code:?/i); }
+		if ((hit = find(/^projects?,?\s*programs/i, 0, colRow))) { out.header.ppa = valueAfter(grid, hit[0], hit[1], /^projects?,?\s*programs?\s*and\s*activities\s*:?/i); }
+		// Indicative / Final count only when a mark (x, ✓) sits beside the word
+		['indicative', 'final'].forEach(function (k) {
+			var h = find(new RegExp('^' + k + '$', 'i'), 0, colRow);
+			if (!h) { return; }
+			var row = grid[h[0]];
+			var marked = [row[h[1] - 1], row[h[1] + 1]].some(function (v) { return /^(x|✓|✔|☑|☒|■|\/|yes)$/i.test(cellText(v)); });
+			out.header['is_' + k] = marked;
+		});
+
+		// items: from below the column numbers until the totals or the signatures
+		for (var i = colRow + 1; i < grid.length; i++) {
+			var row = grid[i] || [];
+			var joined = row.map(lc).join(' ');
+			if (/total budget|prepared by|submitted by/.test(joined)) { break; }
+			var desc = cellText(get(row, 'item_desc'));
+			if (!desc) { continue; }
+			var period = toPeriod(get(row, 'delivery'));
+			var item = {
+				item_desc: desc.slice(0, 250),
+				item_type: cellText(get(row, 'item_type')),
+				quantity: toNumber(get(row, 'quantity')),
+				size: cellText(get(row, 'size')),
+				unit_cost: toNumber(get(row, 'unit_cost')),
+				mop: cellText(get(row, 'mop')),
+				is_preproc: toYesNo(get(row, 'is_preproc')),
+				proc_start: toMonth(get(row, 'proc_start')),
+				proc_end: toMonth(get(row, 'proc_end')),
+				expected_delivery_from: period[0],
+				expected_delivery_to: period[1],
+				funding_source: toFund(get(row, 'funding_source')),
+				estimated_budget: toNumber(get(row, 'estimated_budget')),
+				attached_document: cellText(get(row, 'attached_document')),
+				remarks: cellText(get(row, 'remarks'))
+			};
+			if (item.estimated_budget === '' && item.quantity !== '' && item.unit_cost !== '') {
+				item.estimated_budget = Math.round(item.quantity * item.unit_cost * 100) / 100;
+			}
+			if (item.quantity !== '' && Math.round(item.quantity) !== item.quantity) {
+				out.notes.push('"' + desc.slice(0, 40) + '": quantity ' + item.quantity + ' was rounded to a whole number.');
+				item.quantity = Math.round(item.quantity);
+			}
+			out.items.push(item);
+		}
+
+		// signatories: the first name under each label (same column, within a few rows)
+		var nameUnder = function (re) {
+			var h = find(re, colRow);
+			if (!h) { return ''; }
+			var own = cellText(grid[h[0]][h[1]]).replace(re, '').replace(/^\s*:?\s*/, '');
+			if (own) { return own; }
+			for (var r = h[0] + 1; r < Math.min(grid.length, h[0] + 6); r++) {
+				var t = cellText((grid[r] || [])[h[1]]);
+				if (t && !/^signature/i.test(t)) { return t; }
+			}
+			return '';
+		};
+		out.header.prepared_by = nameUnder(/^prepared\s*by\s*:?/i);
+		out.header.submitted_by = nameUnder(/^submitted\s*by\s*:?/i);
+		return out;
+	}
+
+	function applyImport(data, fileName) {
+		var $ = window.jQuery;
+		var h = data.header;
+		var notes = data.notes.slice();
+		var set = function (id, v) { if (v) { setVal(id, String(v).slice(0, +(document.getElementById(id).getAttribute('maxlength') || 250))); } };
+
+		set('ppmpno', h.ppmpno);
+		set('end_user', h.end_user);
+		set('prepared_by', h.prepared_by);
+		set('submitted_by', h.submitted_by);
+		if (h.fiscal_year) {
+			var sel = document.getElementById('fiscal_year');
+			if (!sel.querySelector('option[value="' + h.fiscal_year + '"]')) { sel.insertAdjacentHTML('beforeend', '<option value="' + esc(h.fiscal_year) + '">' + esc(h.fiscal_year) + '</option>'); }
+			sel.value = h.fiscal_year;
+		}
+		if (h.is_indicative) { document.getElementById('is_indicative').checked = true; }
+		if (h.is_final) { document.getElementById('is_final').checked = true; }
+
+		// the responsibility code: only a known one (it sets the project title)
+		var known = (lookups.projects || []).filter(function (p) { return String(p.responsibility_code).trim().toLowerCase() === String(h.rc || '').trim().toLowerCase(); })[0];
+		if (known) {
+			setVal('responsibility_code', known.responsibility_code);
+			setVal('project_title', String(known.project_title || '').replace(/\s+/g, ' ').trim());
+		} else if (h.rc || h.ppa) {
+			notes.push('Pick the responsibility code: the file has "' + (h.rc || h.ppa) + '", which is not a responsibility code.');
+		}
+		if (!h.ppmpno && !document.getElementById('ppmpno').value) { notes.push('The file has no PPMP no.: type one before saving.'); }
+
+		$('#ppmpGrid').html(gridHtml(data.items));
+		applyLocks();
+		recalc();
+		bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#ppmpPaneItems"]')).show();
+
+		var total = data.items.reduce(function (t, it) { return t + num(it.estimated_budget); }, 0);
+		toastr.success(data.items.length + ' item' + (data.items.length === 1 ? '' : 's') + ' (' + money(total) + ') from ' + esc(fileName) + '. Check them, then save.',
+			'File uploaded', { progressBar: true, closeButton: true, timeOut: 4000 });
+		if (notes.length) {
+			toastr.warning(notes.map(esc).join('<br>'), 'Before saving', { closeButton: true, timeOut: 0, extendedTimeOut: 0 });
+		}
+	}
+
+	function readFile(file) {
+		var reader = new FileReader();
+		reader.onload = function () {
+			loadXlsx().then(function (XLSX) {
+				var wb = XLSX.read(new Uint8Array(reader.result), { type: 'array', cellDates: true });
+				// the first sheet that has the PPMP item columns
+				var data = null;
+				wb.SheetNames.some(function (n) {
+					data = parsePPMP(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '', blankrows: true }));
+					return data && data.items.length;
+				});
+				if (!data || !data.items.length) {
+					toastr.error('No PPMP items were found in ' + esc(file.name) + '. Use the PPMP form, with the "Column 1 ... Column 12" row above the items.', 'Cannot read the file', { closeButton: true, timeOut: 6000 });
+					return;
+				}
+				applyImport(data, file.name);
+			}).catch(function (err) {
+				toastr.error(esc(err && err.message ? err.message : 'The file could not be read.'), 'Cannot read the file', { closeButton: true });
+			});
+		};
+		reader.onerror = function () { toastr.error('The file could not be read.', 'Cannot read the file', { closeButton: true }); };
+		reader.readAsArrayBuffer(file);
+	}
+
+	this.__ppmp_upload = function () {
+		var $ = window.jQuery;
+		var input = document.getElementById('ppmpUploadFile');
+
+		$('#ppmpUploadBtn').on('click', function () {
+			var count = $('#ppmpGrid tbody tr').length;
+			if (count && !window.confirm('Replace the ' + count + ' item' + (count === 1 ? '' : 's') + ' in this PPMP with the items in the file?')) { return; }
+			input.value = '';
+			input.click();
+		});
+
+		input.addEventListener('change', function () {
+			var file = this.files && this.files[0];
+			if (!file) { return; }
+			if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+				toastr.error('Pick an Excel (.xlsx, .xls) or CSV file.', 'Cannot read the file', { closeButton: true });
+				return;
+			}
+			readFile(file);
+		});
+	};
+
 	//PPMP - PRINT
 	this.__showPdfInModal = function (recid) {
 		document.getElementById('ppmpPrintFrame').src = mesiteurl + 'myppmp?meaction=PPMP-PRINT&recid=' + encodeURIComponent(recid);
@@ -635,6 +914,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_ppmp_ent.__ppmp_saving();
 	__mysys_ppmp_ent.__ppmp_print();
 	__mysys_ppmp_ent.__ppmp_versions();
+	__mysys_ppmp_ent.__ppmp_upload();
 
 	// Deep link: ?recid= opens that PPMP right away
 	if (window.__ppmp_open) { __mysys_ppmp_ent.__open_ppmp(window.__ppmp_open); }

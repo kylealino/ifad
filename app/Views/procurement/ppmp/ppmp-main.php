@@ -181,6 +181,8 @@ echo view('templates/myheader.php');
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="ppmpUploadBtn" title="Fill this PPMP from an Excel or CSV file"><i class="ti ti-file-upload me-1"></i>Upload file</button>
+                        <input type="file" id="ppmpUploadFile" accept=".xlsx,.xls,.csv" hidden>
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="ppmpPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="ppmp" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -319,6 +321,7 @@ echo view('templates/myheader.php');
     var __ppmp_lookups = <?= json_encode($lookups, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __ppmp_perms = <?= json_encode($perms) ?>;
     var __ppmp_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var __ppmp_xlsx = <?= json_encode(base_url('assets/libs/xlsx/xlsx.full.min.js')) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/ppmp/myppmp.js?v=6');?>"></script>
+<script src="<?=base_url('assets/js/procurement/ppmp/myppmp.js?v=9');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

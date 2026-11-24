@@ -401,6 +401,21 @@ WHERE
 
 $rw = $query->getResultArray();
 $expected_delivery_period = '';
+
+// Splits text into lines that fit $w mm in the current font (a word too long for a line stays whole)
+if (!function_exists('ppmp_wrap')) {
+    function ppmp_wrap($pdf, string $text, float $w): array {
+        $lines = [];
+        $cur = '';
+        foreach (preg_split('/\s+/', trim($text)) as $word) {
+            if ($word === '') { continue; }
+            $try = $cur === '' ? $word : $cur . ' ' . $word;
+            if ($cur !== '' && $pdf->GetStringWidth($try) > $w) { $lines[] = $cur; $cur = $word; } else { $cur = $try; }
+        }
+        if ($cur !== '') { $lines[] = $cur; }
+        return $lines ?: [''];
+    }
+}
 foreach ($rw as $data) {
     $item_desc = $data['item_desc'];
     $item_type = $data['item_type'];
@@ -451,8 +466,10 @@ foreach ($rw as $data) {
     $pdf->SetXY(20, $startY);
     $pdf->MultiCell(60, 5, $item_desc, 0, 'L');
 
-    // Compute dynamic row height
-    $endY = $pdf->GetY();
+    // Compute dynamic row height (a long mode of procurement wraps in its column and can make the row taller)
+    $mopLines = ppmp_wrap($pdf, (string) $mop, 19);
+    $mopH = count($mopLines) * 3;
+    $endY = max($pdf->GetY(), $startY + $mopH + 1);
     $rowHeight = $endY - $startY;
 
     // DRAW CELL BORDERS
@@ -477,14 +494,15 @@ foreach ($rw as $data) {
     $pdf->SetXY(80,  $middleY); $pdf->Cell(20, 5, $item_type, 0, 0, 'C');
     $pdf->SetXY(100, $middleY); $pdf->Cell(15, 5, $quantity, 0, 0, 'C');
     $pdf->SetXY(115, $middleY); $pdf->Cell(15, 5, $size, 0, 0, 'C');
-    $pdf->SetXY(130, $middleY); $pdf->Cell(20, 5, $unit_cost, 0, 0, 'C');
-    $pdf->SetXY(150, $middleY); $pdf->Cell(20, 5, $mop, 0, 0, 'C');
+    $pdf->SetXY(130, $middleY); $pdf->Cell(20, 5, number_format((float) $unit_cost, 2), 0, 0, 'C');
+    $mopY = $startY + ($rowHeight - $mopH) / 2;
+    foreach ($mopLines as $i => $line) { $pdf->SetXY(150, $mopY + $i * 3); $pdf->Cell(20, 3, $line, 0, 0, 'C'); }
     $pdf->SetXY(170, $middleY); $pdf->Cell(20, 5, $is_preproc, 0, 0, 'C');
     $pdf->SetXY(190, $middleY); $pdf->Cell(20, 5, $proc_start, 0, 0, 'C');
     $pdf->SetXY(210, $middleY); $pdf->Cell(20, 5, $proc_end, 0, 0, 'C');
     $pdf->SetXY(230, $middleY); $pdf->Cell(30, 5, $expected_delivery_period, 0, 0, 'C');
     $pdf->SetXY(260, $middleY); $pdf->Cell(15, 5, $funding_source, 0, 0, 'C');
-    $pdf->SetXY(275, $middleY); $pdf->Cell(20, 5, $estimated_budget, 0, 0, 'C');
+    $pdf->SetXY(275, $middleY); $pdf->Cell(20, 5, number_format((float) $estimated_budget, 2), 0, 0, 'C');
     $pdf->SetXY(295, $middleY); $pdf->Cell(20, 5, $attached_document, 0, 0, 'C');
     $pdf->SetXY(315, $middleY); $pdf->Cell(20, 5, $remarks, 0, 0, 'C');
 
