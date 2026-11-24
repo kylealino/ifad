@@ -5,6 +5,9 @@ use CodeIgniter\Model;
 class MyPRModel extends Model
 {
 
+	// Every PR is for the institute: not entered on the form, saved and printed as this
+	const ENTITY_NAME = 'FOOD AND NUTRITION RESEARCH INSTITUTE';
+
     protected $db;
 
     public function __construct(){
@@ -114,7 +117,7 @@ class MyPRModel extends Model
 	//PR - SAVE
 	public function pr_save() {
 		$recid = $this->request->getPostGet('recid');
-		$entity_name = $this->request->getPostGet('entity_name');
+		$entity_name = self::ENTITY_NAME;
 		$office = $this->request->getPostGet('office');
 		$prno = trim((string) $this->request->getPostGet('prno'));
 		$responsibility_code = $this->request->getPostGet('responsibility_code');

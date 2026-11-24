@@ -32,7 +32,7 @@ WHERE
 );
 
 $data = $query->getRowArray();
-$entity_name = $data['entity_name'];
+$entity_name = \App\Models\MyPRModel::ENTITY_NAME;
 $office = $data['office'];
 $prno = $data['prno'];
 $responsibility_code = $data['responsibility_code'];

@@ -256,10 +256,6 @@ echo view('templates/myheader.php');
                                         <input type="text" class="form-control" id="fund_cluster" name="fund_cluster" maxlength="50">
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label" for="entity_name">Entity name</label>
-                                        <input type="text" class="form-control" id="entity_name" name="entity_name" maxlength="250">
-                                    </div>
-                                    <div class="col-md-6">
                                         <label class="form-label" for="office">Office / section</label>
                                         <input type="text" class="form-control" id="office" name="office" maxlength="200">
                                     </div>
@@ -450,5 +446,5 @@ echo view('templates/myheader.php');
     var __pr_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __pr_tab = <?= json_encode($tab, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=13');?>"></script>
+<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=14');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

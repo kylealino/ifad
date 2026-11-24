@@ -621,7 +621,7 @@ function __mysys_proc_pr_ent() {
 		form.reset();
 		form.classList.remove('was-validated');
 
-		['recid', 'prno', 'entity_name', 'office', 'responsibility_code', 'fund_cluster', 'end_user', 'charge_to', 'purpose'].forEach(function (f) { setVal(f, hd ? hd[f] : ''); });
+		['recid', 'prno', 'office', 'responsibility_code', 'fund_cluster', 'end_user', 'charge_to', 'purpose'].forEach(function (f) { setVal(f, hd ? hd[f] : ''); });
 
 		// a blank saved date stays blank so it gets filled in; a new PR starts today
 		setVal('pr_date', hd ? (String(hd.pr_date || '').indexOf('0000') === 0 ? '' : hd.pr_date) : new Date().toLocaleDateString('en-CA'));
@@ -813,7 +813,6 @@ function __mysys_proc_pr_ent() {
 			var val = function (id) { return document.getElementById(id).value; };
 			var mparam = {
 				recid: val('recid'),
-				entity_name: val('entity_name'),
 				office: val('office'),
 				prno: val('prno'),
 				responsibility_code: val('responsibility_code'),
