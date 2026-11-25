@@ -422,7 +422,26 @@ function __mysys_proc_pr_ent() {
 			selectedPPMP.splice(at, 1);
 		}
 		renderSelectedPPMP();
+		fillRCFromPPMP();
 		loadPPMPItems(true);
+	}
+
+	// Responsibility code = the picked PPMPs' codes in the order picked, each code once
+	// (case and spaces ignored), joined with ", ". Runs only when the picks change, so a
+	// saved PR keeps its code until someone picks or removes a PPMP.
+	function fillRCFromPPMP() {
+		var seen = {}, codes = [];
+		selectedPPMP.forEach(function (no) {
+			var p = ppmpOf(no);
+			String(p ? p.responsibility_code || '' : '').split(',').forEach(function (c) {
+				c = c.trim();
+				var k = c.toLowerCase().replace(/\s+/g, '');
+				if (c && !seen[k]) { seen[k] = true; codes.push(c); }
+			});
+		});
+		var el = document.getElementById('responsibility_code');
+		el.value = codes.join(', ');
+		if (el.value.length > 150) { toast('warning', 'The responsibility codes are longer than 150 characters. Shorten them before saving.', 'Responsibility code'); }
 	}
 
 	function loadPPMPItems(announce) {

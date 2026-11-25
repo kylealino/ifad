@@ -450,5 +450,5 @@ echo view('templates/myheader.php');
     var __pr_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __pr_tab = <?= json_encode($tab, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=15');?>"></script>
+<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=16');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>
