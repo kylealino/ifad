@@ -10,6 +10,11 @@ $nav = fods_nav();
 $current = fods_nav_current();
 $role_name = $user['role_name'] !== '' ? $user['role_name'] : 'No role assigned';
 $org_unit = implode(' · ', array_filter([$user['division'], $user['section']], fn ($v) => $v !== '' && $v !== '-'));
+// Profile picture (My Account) or initials; data-fods-avatar lets My Account swap it without a reload
+$avatar_url = fods_avatar_url($user['username'], $user['avatar']);
+$avatar_html = '<span class="fods-avatar tone-teal' . ($avatar_url !== '' ? ' has-photo' : '') . '" data-fods-avatar data-initials="' . esc(fods_initials($user['full_name']), 'attr') . '">'
+    . ($avatar_url !== '' ? '<img src="' . esc($avatar_url, 'attr') . '" alt="">' : esc(fods_initials($user['full_name'])))
+    . '</span>';
 // Pages outside the sidebar (e.g. Messages) name themselves
 $page_title = $pageTitle ?? ($current['label'] ?? 'Home');
 
@@ -35,8 +40,10 @@ try {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="shortcut icon" type="image/png" href="<?=base_url('assets/images/logos/fnrilogo.png')?>" />
   <title><?= esc($page_title . ' · FODS') ?></title>
+  <meta name="csrf-token" content="<?= csrf_hash() ?>" data-header="<?= esc(config('Security')->headerName) ?>" />
+  <script src="<?=base_url('assets/js/fods-csrf.js?v=1')?>"></script>
   <link rel="stylesheet" href="<?=base_url('assets/css/styles.css')?>" />
-  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=21')?>" />
+  <link rel="stylesheet" href="<?=base_url('assets/css/fods.css?v=22')?>" />
   <script>
     // Apply the remembered collapsed sidebar before first paint (no flicker)
     try { if (localStorage.getItem('fods.sidebar.collapsed') === '1') document.documentElement.classList.add('fods-collapsed'); } catch (e) {}
@@ -134,7 +141,7 @@ try {
 
         <div class="dropdown">
           <button type="button" class="fods-profile" data-bs-toggle="dropdown" data-bs-offset="0,8" aria-expanded="false">
-            <span class="fods-avatar tone-teal"><?= esc(fods_initials($user['full_name'])) ?></span>
+            <?= $avatar_html ?>
             <span class="fods-profile-text d-none d-md-flex">
               <strong><?= esc($user['full_name']) ?></strong>
               <small><?= esc($role_name) ?></small>
@@ -144,7 +151,7 @@ try {
 
           <div class="dropdown-menu dropdown-menu-end fods-profile-menu">
             <div class="fods-profile-head">
-              <span class="fods-avatar tone-teal"><?= esc(fods_initials($user['full_name'])) ?></span>
+              <?= $avatar_html ?>
               <div style="min-width:0">
                 <div class="fods-profile-name"><?= esc($user['full_name']) ?></div>
                 <div class="fods-profile-meta">@<?= esc($user['username']) ?></div>
@@ -159,6 +166,7 @@ try {
                 <div><span>Office</span><span><?= esc($org_unit) ?></span></div>
               <?php endif; ?>
             </div>
+            <a class="fods-profile-link" href="<?= site_url('myaccount') ?>?meaction=MAIN"><i class="ti ti-user-circle"></i>My account<i class="ti ti-chevron-right ms-auto"></i></a>
             <div class="fods-profile-foot">
               <form action="<?= site_url('mylogout'); ?>" method="post" id="fodsLogoutForm">
                 <?= csrf_field(); ?>

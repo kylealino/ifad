@@ -149,7 +149,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body pt-0">
-                <img src="" alt="" id="imgModalImg">
+                <img alt="" id="imgModalImg">
                 <div class="text-end mt-2"><a href="#" target="_blank" rel="noopener" class="small" id="imgModalLink"><i class="ti ti-external-link"></i> Open full size</a></div>
             </div>
         </div>

@@ -910,6 +910,7 @@
         </div>
         
         <form action="<?=site_url();?>mylogin-auth" method="post" novalidate>
+            <?= csrf_field(); ?>
             <div class="form-group">
                 <label class="form-label">Username</label>
                 <div class="input-wrapper">

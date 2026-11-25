@@ -85,19 +85,38 @@ if (!function_exists('fods_current_user')) {
             return $user;
         }
 
+        // u.* so the page still works on a database where the My Account columns
+        // (email, contact_no, avatar: migration-my-account-11252026.sql) are not added yet
         $username = session('__xsys_myuserzicas__');
         $row = empty($username) ? null : \Config\Database::connect()->query("
-            SELECT u.`username`, u.`full_name`, u.`division`, u.`section`, u.`position`, r.`role_name`
+            SELECT u.*, r.`role_name`
             FROM `myua_user` u
             LEFT JOIN `tbl_roles` r ON r.`recid` = u.`role_id`
             WHERE u.`username` = ?
             LIMIT 1
         ", [$username])->getRowArray();
+        $keep = ['recid', 'username', 'full_name', 'division', 'section', 'position', 'email', 'contact_no', 'avatar', 'role_name'];
+        $row = array_intersect_key((array) $row, array_flip($keep));
 
         return $user = array_merge([
-            'username' => (string) $username, 'full_name' => (string) $username,
-            'division' => '', 'section' => '', 'position' => '', 'role_name' => '',
-        ], array_filter((array) $row, fn ($v) => $v !== null));
+            'recid' => '', 'username' => (string) $username, 'full_name' => (string) $username,
+            'division' => '', 'section' => '', 'position' => '', 'email' => '', 'contact_no' => '', 'avatar' => '', 'role_name' => '',
+        ], array_filter($row, fn ($v) => $v !== null));
+    }
+}
+
+if (!function_exists('fods_avatar_url')) {
+    /**
+     * Profile picture URL of a user ('' when they have none). The file name is
+     * in the URL so a new picture is fetched at once, and the old one can be
+     * cached by the browser.
+     */
+    function fods_avatar_url(string $username, string $avatar): string
+    {
+        if (trim($avatar) === '' || trim($username) === '') {
+            return '';
+        }
+        return site_url('myaccount') . '?meaction=PHOTO&u=' . rawurlencode($username) . '&v=' . substr(md5($avatar), 0, 10);
     }
 }
 

@@ -253,7 +253,11 @@ echo view('templates/myheader.php');
                                     </div>
                                     <div class="col-6 col-md-3">
                                         <label class="form-label" for="fund_cluster">Fund cluster</label>
-                                        <input type="text" class="form-control" id="fund_cluster" name="fund_cluster" maxlength="50">
+                                        <select class="form-select" id="fund_cluster" name="fund_cluster">
+                                            <option value="">Choose...</option>
+                                            <option value="01">01</option>
+                                            <option value="07">07</option>
+                                        </select>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label" for="office">Office / section</label>
@@ -446,5 +450,5 @@ echo view('templates/myheader.php');
     var __pr_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __pr_tab = <?= json_encode($tab, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=14');?>"></script>
+<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=15');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

@@ -158,7 +158,22 @@ class MyPRModel extends Model
 			die();
 		}
 		// (a locked PR only takes its PR no., so it needs no signatory here)
-		$saved = empty($recid) ? null : $this->db->query("SELECT `is_approved_certa`, `is_disapproved_certa`, `is_approved_certb`, `is_disapproved_certb` FROM tbl_pr_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		$saved = empty($recid) ? null : $this->db->query("SELECT `fund_cluster`, `is_approved_certa`, `is_disapproved_certa`, `is_approved_certb`, `is_disapproved_certb` FROM tbl_pr_hd WHERE `recid` = ?", [$recid])->getRowArray();
+
+		// fund cluster is blank, 01 or 07 (an older PR may keep the value it was saved with)
+		$fund_cluster = trim((string) $fund_cluster);
+		if (!in_array($fund_cluster, ['', '01', '07'], true) &&!(!empty($saved) && $fund_cluster === trim((string) $saved['fund_cluster']))) {
+			echo "
+			<script>
+			toastr.error('Pick the fund cluster: 01 or 07.', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2500,
+				});
+			</script>
+			";
+			die();
+		}
 		if ($requested_by === '' && !(!empty($saved) && self::is_locked($saved))) {
 			echo "
 			<script>

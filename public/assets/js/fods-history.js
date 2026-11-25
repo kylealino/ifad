@@ -43,7 +43,8 @@
 		certified_a: 'Box A signatory', certified_b: 'Box B signatory', certified_c: 'Box C signatory',
 		position_a: 'Box A position', position_b: 'Box B position', position_c: 'Box C position',
 		uacs_code: 'UACS code', mfopaps_code: 'MFO/PAP code', payee_tin: 'TIN', payee_account_num: 'Account no.',
-		vat_percent: 'VAT %', ewt_percent: 'EWT %', pt_percent: 'PT %', fund_cluster_code: 'Fund cluster', role_id: 'Role'
+		vat_percent: 'VAT %', ewt_percent: 'EWT %', pt_percent: 'PT %', fund_cluster_code: 'Fund cluster', role_id: 'Role',
+		contact_no: 'Contact no.', email: 'Email'
 	};
 
 	function esc(s) {

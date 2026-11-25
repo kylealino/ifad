@@ -621,7 +621,14 @@ function __mysys_proc_pr_ent() {
 		form.reset();
 		form.classList.remove('was-validated');
 
-		['recid', 'prno', 'office', 'responsibility_code', 'fund_cluster', 'end_user', 'charge_to', 'purpose'].forEach(function (f) { setVal(f, hd ? hd[f] : ''); });
+		['recid', 'prno', 'office', 'responsibility_code', 'end_user', 'charge_to', 'purpose'].forEach(function (f) { setVal(f, hd ? hd[f] : ''); });
+
+		// fund cluster: Choose... / 01 / 07, as on ORS/BURS; an older PR saved with another value keeps it as an extra option
+		var fc = document.getElementById('fund_cluster');
+		$(fc).find('option.fc-legacy').remove();
+		var fcv = hd ? String(hd.fund_cluster == null ? '' : hd.fund_cluster).trim() : '';
+		if (fcv !== '' && fcv !== '01' && fcv !== '07') { $('<option class="fc-legacy">').val(fcv).text(fcv).appendTo(fc); }
+		fc.value = fcv;
 
 		// a blank saved date stays blank so it gets filled in; a new PR starts today
 		setVal('pr_date', hd ? (String(hd.pr_date || '').indexOf('0000') === 0 ? '' : hd.pr_date) : new Date().toLocaleDateString('en-CA'));

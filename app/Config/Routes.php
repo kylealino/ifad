@@ -11,16 +11,15 @@ $routes->add('mylogin-auth', 'MyLogIn::auth');
 $routes->add('mylogout', 'MyLogIn::logout');
 $routes->get('mydashboard', 'MyDashboard::index',['filter' => 'myauthuser']);
 $routes->get('dashboard/saob-session-data', 'MyDashboard::getSaobSessionData',['filter' => 'myauthuser']);
-$routes->get('myaccount', 'MyAccount::index',['filter' => 'myauthuser']);
 $routes->get('mydashboarddev', 'MyDashboardDev::index',['filter' => 'myauthuser']);
 
 //User Management - User module
 $routes->get('myua', 'MyUserManagement::index',['filter' => 'myauthuser']);
 $routes->post('myua', 'MyUserManagement::index',['filter' => 'myauthuser']);
 
-//User Management - User module
-$routes->get('myaccount', 'MyUserAccount::index',['filter' => 'myauthuser']);
-$routes->post('myaccount', 'MyUserAccount::index',['filter' => 'myauthuser']);
+//My Account (profile dropdown): own details, password, profile picture
+$routes->get('myaccount', 'MyAccount::index',['filter' => 'myauthuser']);
+$routes->post('myaccount', 'MyAccount::index',['filter' => 'myauthuser']);
 
 //Data-entity - Autocomplete data hovers
 $routes->post('mydata-entity', 'MyDataEntity::index',['filter' => 'myauthuser']);
