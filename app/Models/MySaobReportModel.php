@@ -752,5 +752,212 @@ class MySaobReportModel extends Model
 		
 	}
 	
+	//MONTHLY STATUS - one row per project of a program, as of the end of a month (YYYY-MM).
+	// Shared by the Print status PDF (saob-savings-pdf.php) and the status dashboard, so both
+	// show the same figures. Allotment = direct + indirect MOOE approved budget, admin cost =
+	// savings lines, obligations = ORS direct + indirect MOOE lines matched on project title.
+	public function monthly_status_rows($program, $month) {
+		$start = date('Y-m-01', strtotime(strlen($month) === 7 ? $month . '-01' : $month));
+		$end   = date('Y-m-t', strtotime($start));
+		$year  = date('Y', strtotime($start));
+
+		return $this->db->query("
+SELECT
+    budget.program_title,
+    budget.project_title,
+    budget.division_name AS unit_division,
+    budget.responsibility_code,
+    budget.project_leader,
+
+    /* TOTAL ALLOTMENT */
+      (
+            COALESCE((SELECT SUM(dmooe.approved_budget) FROM tbl_budget_direct_mooe_dt dmooe
+                  JOIN tbl_budget_hd hd ON dmooe.project_id = hd.recid
+                  WHERE hd.project_title = budget.project_title),0)
+            + COALESCE((SELECT SUM(idmooe.approved_budget) FROM tbl_budget_indirect_mooe_dt idmooe
+                  JOIN tbl_budget_hd hd ON idmooe.project_id = hd.recid
+                  WHERE hd.project_title = budget.project_title),0)
+      ) AS allotment,
+
+    /* ADMIN COST */
+    COALESCE((SELECT SUM(approved_budget)
+              FROM tbl_budget_savings_dt
+              WHERE project_id = budget.recid),0) AS admin_cost,
+
+    /* THIS MONTH */
+
+   (
+      + COALESCE((SELECT SUM(dmooe.amount) FROM tbl_ors_direct_mooe_dt dmooe
+         JOIN tbl_ors_hd hd ON dmooe.project_id = hd.recid
+         WHERE dmooe.project_title = budget.project_title AND hd.ors_date BETWEEN :start: AND :end:),0)
+      + COALESCE((SELECT SUM(idmooe.amount) FROM tbl_ors_indirect_mooe_dt idmooe
+         JOIN tbl_ors_hd hd ON idmooe.project_id = hd.recid
+         WHERE idmooe.project_title = budget.project_title AND hd.ors_date BETWEEN :start: AND :end:),0)
+   ) AS this_month,
+
+    /* TO DATE (Jan to Selected Month) */
+    (
+      + COALESCE((SELECT SUM(dmooe.amount) FROM tbl_ors_direct_mooe_dt dmooe
+            JOIN tbl_ors_hd hd ON dmooe.project_id = hd.recid
+            WHERE dmooe.project_title = budget.project_title AND hd.ors_date BETWEEN :ystart: AND :end:),0)
+      + COALESCE((SELECT SUM(idmooe.amount) FROM tbl_ors_indirect_mooe_dt idmooe
+            JOIN tbl_ors_hd hd ON idmooe.project_id = hd.recid
+            WHERE idmooe.project_title = budget.project_title AND hd.ors_date BETWEEN :ystart: AND :end:),0)
+    ) AS todate
+
+
+FROM tbl_budget_hd budget
+WHERE TRIM(budget.program_title) = TRIM(:program:)
+AND budget.duration_from <= :yend:
+AND budget.duration_to   >= :ystart:
+
+ORDER BY 
+    CASE 
+        /* --- PROGRAM-SPECIFIC TOP PRIORITIES --- */
+        
+        /* 1. Technical Services: 4-2026 goes FIRST */
+        WHEN budget.responsibility_code LIKE '%-4-2026' 
+             AND budget.responsibility_code NOT LIKE '%-4-%-2026'  /* Exclude patterns with extra numbers */
+             AND budget.program_title = 'Technical Services on Food and Nutrition'
+             THEN 0
+
+        /* 2. Technical Services: 4-4-2026 goes SECOND */
+        WHEN budget.responsibility_code LIKE '%-4-4-2026' 
+             AND budget.program_title = 'Technical Services on Food and Nutrition'
+             THEN 1
+
+        /* 3. Nutritional Assessment: 3-2026 priority */
+        WHEN budget.responsibility_code LIKE '%-3-2026' 
+             AND budget.program_title = 'Nutritional Assessment and Monitoring on Food and Nutrition'
+             THEN 2
+
+        /* 4. Nutrigenomics: 2-3-2026 priority */
+        WHEN budget.responsibility_code LIKE '%-00000-2-3-2026' 
+             AND budget.program_title LIKE '%Expanding the FNRI%'
+             THEN 3
+
+        /* 5. ENNS program: 3-3-2026 at the top */
+        WHEN budget.responsibility_code LIKE '%-3-3-2026' 
+             AND budget.program_title LIKE '%Expanded National Nutrition Survey%' 
+             THEN 4
+             
+        /* 6. ENNS program: 3-4-2026 directly under 3-3-2026 */
+        WHEN budget.responsibility_code LIKE '%-3-4-2026' 
+             AND budget.program_title LIKE '%Expanded National Nutrition Survey%' 
+             THEN 5
+
+        /* --- GENERAL GROUPS (Adjusted Priorities) --- */
+
+        /* Group 1: Admin/Support Units (FAD/MIS) */
+        WHEN budget.responsibility_code LIKE '%-3-4(FAD)-%' THEN 6
+        WHEN budget.responsibility_code LIKE '%-3-4(MIS)-%' THEN 7
+        
+        /* Group 2: The 2-3 series Manual sequencing */
+        WHEN budget.responsibility_code LIKE '%-00000-2-3-1-2026' THEN 8
+        WHEN budget.responsibility_code LIKE '%-00000-2-3-2-2026' THEN 9
+        
+        /* Propelling (2-3-3) for Nutrigenomics */
+        WHEN budget.responsibility_code LIKE '%-00000-2-3-3-2026' 
+             AND budget.program_title LIKE '%Expanding the FNRI%'
+             THEN 10
+        
+        /* Group 3: Generic codes */
+        WHEN budget.responsibility_code LIKE '%-3-3-2026' THEN 11
+        WHEN budget.responsibility_code = :rc_general: THEN 12
+
+        /* --- PROGRAM-SPECIFIC BOTTOM PRIORITIES --- */
+
+        /* Move Unprogrammed to the absolute bottom for ENNS */
+        WHEN budget.project_title = 'Unprogrammed' 
+             AND budget.program_title LIKE '%Expanded National Nutrition Survey%' 
+             THEN 14
+
+        ELSE 13
+    END ASC,
+
+    /* Secondary sort for numerical codes */
+    CAST(
+        SUBSTRING_INDEX(
+            SUBSTRING_INDEX(budget.responsibility_code, '-', -2),
+        '-', 1
+        ) AS UNSIGNED
+    ) ASC,
+
+    /* Tertiary sort: year */
+    CAST(
+        SUBSTRING_INDEX(budget.responsibility_code, '-', -1)
+    AS UNSIGNED) ASC
+ 
+		", [
+			'program'    => (string) $program,
+			'start'      => $start,
+			'end'        => $end,
+			'ystart'     => $year . '-01-01',
+			'yend'       => $year . '-12-31',
+			'rc_general' => '19-003-00-00000-2-' . $year,
+		])->getResultArray();
+	}
+
+	//MONTHLY STATUS DASHBOARD - the rows with their computed columns, totals, and the
+	// program's obligations per month from January up to the month picked
+	public function monthly_status($program, $month) {
+		$rows = [];
+		$tot = ['allotment' => 0, 'admin_cost' => 0, 'revised' => 0, 'this_month' => 0, 'todate' => 0, 'balance' => 0];
+		foreach ($this->monthly_status_rows($program, $month) as $r) {
+			$row = [
+				'responsibility_code' => (string) $r['responsibility_code'],
+				'project_title'       => (string) $r['project_title'],
+				'unit_division'       => (string) $r['unit_division'],
+				'project_leader'      => (string) $r['project_leader'],
+				'allotment'           => round((float) $r['allotment'], 2),
+				'admin_cost'          => round((float) $r['admin_cost'], 2),
+				'this_month'          => round((float) $r['this_month'], 2),
+				'todate'              => round((float) $r['todate'], 2),
+			];
+			$row['revised'] = round($row['allotment'] + $row['admin_cost'], 2);
+			$row['balance'] = round($row['revised'] - $row['todate'], 2);
+			$row['percent'] = $row['revised'] > 0 ? round($row['todate'] / $row['revised'] * 100, 2) : 0;
+			foreach ($tot as $k => $v) {
+				$tot[$k] = $v + $row[$k];
+			}
+			$rows[] = $row;
+		}
+		$tot = array_map(fn ($v) => round($v, 2), $tot);
+		$tot['percent'] = $tot['revised'] > 0 ? round($tot['todate'] / $tot['revised'] * 100, 2) : 0;
+
+		// Obligations per month (same lines as the To date column, each title once)
+		$start = date('Y-01-01', strtotime($month . '-01'));
+		$end   = date('Y-m-t', strtotime($month . '-01'));
+		$byMonth = [];
+		$titles = array_values(array_unique(array_column($rows, 'project_title')));
+		if ($titles) {
+			foreach (['tbl_ors_direct_mooe_dt', 'tbl_ors_indirect_mooe_dt'] as $table) {
+				$q = $this->db->query("
+					SELECT MONTH(hd.ors_date) AS m, SUM(dt.amount) AS amount
+					FROM {$table} dt
+					JOIN tbl_ors_hd hd ON dt.project_id = hd.recid
+					WHERE dt.project_title IN ? AND hd.ors_date BETWEEN ? AND ?
+					GROUP BY MONTH(hd.ors_date)
+				", [$titles, $start, $end])->getResultArray();
+				foreach ($q as $x) {
+					$byMonth[(int) $x['m']] = ($byMonth[(int) $x['m']] ?? 0) + (float) $x['amount'];
+				}
+			}
+		}
+		$monthly = [];
+		for ($i = 1; $i <= (int) date('n', strtotime($month . '-01')); $i++) {
+			$monthly[] = ['month' => $i, 'label' => date('M', mktime(0, 0, 0, $i, 1)), 'amount' => round($byMonth[$i] ?? 0, 2)];
+		}
+
+		return [
+			'program' => (string) $program,
+			'month'   => $month,
+			'as_of'   => date('F j, Y', strtotime($end)),
+			'rows'    => $rows,
+			'totals'  => $tot,
+			'monthly' => $monthly,
+		];
+	}
+
 } //end main class
 ?>
