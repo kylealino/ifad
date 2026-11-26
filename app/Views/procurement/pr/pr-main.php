@@ -140,21 +140,21 @@ echo view('templates/myheader.php');
     <!-- Stat cards (filled by mypr.js for the selected year) -->
     <div class="row g-3 mb-4" id="prTableCards">
         <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="prTable" data-filter="unnumbered">
+            <button type="button" class="fods-stat" data-table="prTable" data-filter="in_approval">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="unnumbered">0</div><div class="fods-stat-label" data-card-label="unnumbered">No PR no. yet</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="prTable" data-filter="numbered">
-                <div class="fods-stat-icon tone-indigo"><i class="ti ti-hash"></i></div>
-                <div><div class="fods-stat-value" data-card-value="numbered">0</div><div class="fods-stat-label" data-card-label="numbered">PR no. assigned</div></div>
+            <button type="button" class="fods-stat" data-table="prTable" data-filter="disapproved">
+                <div class="fods-stat-icon tone-red"><i class="ti ti-arrow-back-up"></i></div>
+                <div><div class="fods-stat-value" data-card-value="returned">0</div><div class="fods-stat-label" data-card-label="returned">Returned</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="prTable" data-filter="rfq">
-                <div class="fods-stat-icon tone-green"><i class="ti ti-file-invoice"></i></div>
-                <div><div class="fods-stat-value" data-card-value="rfq">0</div><div class="fods-stat-label" data-card-label="rfq">RFQ issued</div></div>
+            <button type="button" class="fods-stat" data-table="prTable" data-filter="approved">
+                <div class="fods-stat-icon tone-green"><i class="ti ti-circle-check"></i></div>
+                <div><div class="fods-stat-value" data-card-value="approved">0</div><div class="fods-stat-label" data-card-label="approved">Approved</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -450,5 +450,5 @@ echo view('templates/myheader.php');
     var __pr_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __pr_tab = <?= json_encode($tab, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=16');?>"></script>
+<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=17');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

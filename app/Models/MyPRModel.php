@@ -38,18 +38,11 @@ class MyPRModel extends Model
 		return trim((string) ($box === 'a' ? $hd['requested_by'] : $hd['approved_by']));
 	}
 
-	// Only the signatory named on the current box decides it (matched on the
-	// user's full name); an administrator can decide any step
+	// Anyone whose role has the Approve code decides the box the record is
+	// waiting at (like ORS, BURS, Budget, LDDAP-ADA and ADA). The name on the
+	// box is the printed signatory; the user who decides is kept as cert*_approver.
 	public static function can_decide(array $hd) {
-		$box = self::step_of($hd);
-		if ($box === '' || !fods_has_access(\Config\AccessCodes::PRAPPROVAL_APPROVE)) {
-			return false;
-		}
-		if (fods_is_admin()) {
-			return true;
-		}
-		$name = self::signatory($hd, $box);
-		return $name !== '' && mb_strtolower($name) === mb_strtolower(trim(fods_current_user()['full_name']));
+		return self::step_of($hd) !== '' && fods_has_access(\Config\AccessCodes::PRAPPROVAL_APPROVE);
 	}
 
 	// Locked once the requesting office approves Box A, until someone disapproves it
@@ -695,7 +688,7 @@ class MyPRModel extends Model
 		if (!self::can_decide($hd)) {
 			echo "
 			<script>
-			toastr.error('Only the Box " . strtoupper($box) . " signatory of this PR or an administrator can decide this step', 'Oops!', {
+			toastr.error('You do not have permission to approve purchase requests', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:3000,

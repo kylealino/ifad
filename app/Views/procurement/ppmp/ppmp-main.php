@@ -120,7 +120,7 @@ echo view('templates/myheader.php');
                 </ol>
             </nav>
             <h1 class="fods-page-title">Project Procurement Management Plan</h1>
-            <p class="fods-page-sub">Plan what each project will procure for the year, then mark the plan indicative or final.</p>
+            <p class="fods-page-sub">Plan what each project will procure for the year, mark the plan indicative or final, then submit it for approval.</p>
         </div>
         <div class="fods-page-actions d-flex">
             <select class="form-select form-select-sm fods-year" id="ppmpYear" aria-label="Fiscal year"></select>
@@ -133,21 +133,21 @@ echo view('templates/myheader.php');
     <!-- Stat cards (filled by myppmp.js for the selected year) -->
     <div class="row g-3 mb-4" id="ppmpTableCards">
         <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="ppmpTable" data-filter="all">
-                <div class="fods-stat-icon tone-indigo"><i class="ti ti-calendar-stats"></i></div>
-                <div><div class="fods-stat-value" data-card-value="records">0</div><div class="fods-stat-label" data-card-label="records">PPMPs</div></div>
-            </button>
-        </div>
-        <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="ppmpTable" data-filter="indicative">
+            <button type="button" class="fods-stat" data-table="ppmpTable" data-filter="pending">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="indicative">0</div><div class="fods-stat-label" data-card-label="indicative">Indicative</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="ppmpTable" data-filter="final">
+            <button type="button" class="fods-stat" data-table="ppmpTable" data-filter="disapproved">
+                <div class="fods-stat-icon tone-red"><i class="ti ti-arrow-back-up"></i></div>
+                <div><div class="fods-stat-value" data-card-value="returned">0</div><div class="fods-stat-label" data-card-label="returned">Returned</div></div>
+            </button>
+        </div>
+        <div class="col-6 col-xl-3">
+            <button type="button" class="fods-stat" data-table="ppmpTable" data-filter="approved">
                 <div class="fods-stat-icon tone-green"><i class="ti ti-circle-check"></i></div>
-                <div><div class="fods-stat-value" data-card-value="final">0</div><div class="fods-stat-label" data-card-label="final">Final</div></div>
+                <div><div class="fods-stat-value" data-card-value="approved">0</div><div class="fods-stat-label" data-card-label="approved">Approved</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -161,7 +161,10 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="ppmpTableFilter">
-                <button type="button" class="active" data-filter="all">All</button>
+                <button type="button" class="active" data-filter="all">All records</button>
+                <button type="button" data-filter="pending">For approval</button>
+                <button type="button" data-filter="disapproved">Returned</button>
+                <button type="button" data-filter="approved">Approved</button>
                 <button type="button" data-filter="unmarked">Not marked</button>
                 <button type="button" data-filter="indicative">Indicative</button>
                 <button type="button" data-filter="final">Final</button>
@@ -207,6 +210,8 @@ echo view('templates/myheader.php');
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="ppmpUploadBtn" title="Fill this PPMP from the PPMP spreadsheet (Excel or CSV)"><i class="ti ti-file-spreadsheet me-1"></i>Import from Excel</button>
                         <input type="file" id="ppmpUploadFile" accept=".xlsx,.xls,.csv" hidden>
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="ppmpPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
+                        <button type="button" class="btn btn-sm btn-danger d-none" id="ppmpDisapproveBtn"><i class="ti ti-x me-1"></i>Disapprove</button>
+                        <button type="button" class="btn btn-sm btn-success d-none" id="ppmpApproveBtn"><i class="ti ti-check me-1"></i>Approve</button>
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="ppmp" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -387,5 +392,5 @@ echo view('templates/myheader.php');
     var __ppmp_xlsx = <?= json_encode(base_url('assets/libs/xlsx/xlsx.full.min.js')) ?>;
     var __ppmp_doc_limits = <?= json_encode(['mb' => $doc_max_mb, 'files' => $doc_max_files]) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/ppmp/myppmp.js?v=11');?>"></script>
+<script src="<?=base_url('assets/js/procurement/ppmp/myppmp.js?v=12');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

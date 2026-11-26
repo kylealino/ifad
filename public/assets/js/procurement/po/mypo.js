@@ -601,7 +601,7 @@ function __mysys_po_ent() {
 		signStatus('a', hd);
 		signStatus('b', hd);
 
-		// Approve / disapprove the box it is at: only its named signatory, or an Administrator
+		// Approve / disapprove the box it is at: anyone whose role has the Approve code
 		// (can_decide comes from MyPOModel::can_decide with the record)
 		var decide = !!hd && !!hd.can_decide;
 		$('#poApproveBtn, #poDisapproveBtn').toggleClass('d-none', !decide);

@@ -16,6 +16,13 @@ function __mysys_ppmp_ent() {
 		final: ['tone-green', 'Final']
 	};
 
+	// Approval, one step (same rule as MyPPMP::approvalOf)
+	const APPROVAL = {
+		pending: ['tone-amber', 'For approval'],
+		approved: ['tone-green', 'Approved'],
+		disapproved: ['tone-red', 'Returned']
+	};
+
 	// Item columns, in the order ppmp_save() reads them. Each row is sent as
 	// description x|x type x|x quantity x|x unit x|x unit cost x|x mode x|x pre-procurement
 	// x|x start x|x end x|x delivery from x|x delivery to x|x funds x|x budget x|x documents x|x remarks
@@ -46,6 +53,25 @@ function __mysys_ppmp_ent() {
 	function chip(status) {
 		var s = STATUS[status] || STATUS.unmarked;
 		return '<span class="fods-chip ' + s[0] + '"><span class="fods-dot"></span>' + s[1] + '</span>';
+	}
+
+	function approvalChip(a) {
+		var s = APPROVAL[a] || APPROVAL.pending;
+		return '<span class="fods-chip ' + s[0] + '"><span class="fods-dot"></span>' + s[1] + '</span>';
+	}
+
+	function approvalOf(hd) {
+		if (String(hd.is_disapproved) === '1') { return 'disapproved'; }
+		return String(hd.is_approved) === '1' ? 'approved' : 'pending';
+	}
+
+	// Filter pills and cards: approval (For approval / Returned / Approved), the plan's
+	// type (Not marked / Indicative / Final), or Fully used
+	function inGroup(r, key) {
+		if (key === 'all') { return true; }
+		if (key === 'fully_used') { return fullyUsed(r); }
+		if (APPROVAL[key]) { return r.approval === key; }
+		return r.status === key;
 	}
 
 	// How much of a PPMP the PRs have used (quantities; MyPPMPUsageModel)
@@ -79,23 +105,21 @@ function __mysys_ppmp_ent() {
 
 	function inYear(r) { return year === 'all' || yearOf(r) === year; }
 
-	//PPMP - STAT CARDS: PPMPs, Indicative, Final, Estimated budget
+	//PPMP - STAT CARDS: For approval, Returned, Approved, Estimated budget (like PO / PR)
 	function renderCards() {
 		var $ = window.jQuery;
 		var list = rows.filter(inYear);
 		var amount = function (l) { return l.reduce(function (t, r) { return t + num(r.amount); }, 0); };
-		var items = list.reduce(function (t, r) { return t + num(r.items); }, 0);
-		var card = function (key, status, label) {
-			var l = list.filter(function (r) { return r.status === status; });
+		var card = function (key, group, label) {
+			var l = list.filter(function (r) { return inGroup(r, group); });
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
-		$('[data-card-value="records"]').text(list.length.toLocaleString());
-		$('[data-card-label="records"]').text('PPMPs · ' + items.toLocaleString() + ' item' + (items === 1 ? '' : 's'));
-		card('indicative', 'indicative', 'Indicative');
-		card('final', 'final', 'Final');
+		card('pending', 'pending', 'For approval');
+		card('returned', 'disapproved', 'Returned');
+		card('approved', 'approved', 'Approved');
 		$('[data-card-value="total"]').text(money(amount(list)));
-		$('[data-card-label="total"]').text('Estimated budget');
+		$('[data-card-label="total"]').text('Estimated budget · ' + list.length.toLocaleString() + ' PPMP' + (list.length === 1 ? '' : 's'));
 	}
 
 	function yearPicker(onChange) {
@@ -121,7 +145,7 @@ function __mysys_ppmp_ent() {
 		$.fn.dataTable.ext.search.push(function (settings, data, idx) {
 			if (settings.nTable.id !== 'ppmpTable') { return true; }
 			var row = settings.aoData[idx]._aData;
-			return inYear(row) && (filter === 'all' || (filter === 'fully_used' ? fullyUsed(row) : row.status === filter));
+			return inYear(row) && inGroup(row, filter);
 		});
 
 		table = $('#ppmpTable').DataTable({
@@ -159,8 +183,11 @@ function __mysys_ppmp_ent() {
 					}
 				},
 				{
-					data: 'status', className: 'cell-right',
-					render: function (v, type, r) { return type === 'display' ? chip(v) + usageHtml(r) : (STATUS[v] || STATUS.unmarked)[1] + (fullyUsed(r) ? ' Fully used' : ''); }
+					data: 'approval', className: 'cell-right',
+					render: function (v, type, r) {
+						if (type !== 'display') { return (APPROVAL[v] || APPROVAL.pending)[1] + ' ' + (STATUS[r.status] || STATUS.unmarked)[1] + (fullyUsed(r) ? ' Fully used' : ''); }
+						return approvalChip(v) + '<div class="mt-1">' + chip(r.status) + '</div>' + usageHtml(r);
+					}
 				},
 				{
 					data: 'added_at', className: 'd-none d-xl-table-cell text-muted small text-nowrap',
@@ -199,9 +226,10 @@ function __mysys_ppmp_ent() {
 		$(document).on('click', '#ppmpTable .ppmp-print', function () { __mysys_ppmp_ent.__showPdfInModal($(this).data('recid')); });
 	};
 
-	// New PPMPs need Add, saved ones need Update
+	// New PPMPs need Add, saved ones need Update; an approved PPMP is locked
 	function canSave() {
-		return record ? !!perms.edit : !!perms.add;
+		if (!record) { return !!perms.add; }
+		return !!perms.edit && approvalOf(record) !== 'approved';
 	}
 
 	//PPMP - ITEMS GRID
@@ -438,20 +466,32 @@ function __mysys_ppmp_ent() {
 		var $ = window.jQuery;
 
 		$('#ppmpModalTitle').text(hd ? (hd.ppmpno ? 'PPMP ' + hd.ppmpno : 'PPMP #' + hd.recid) : 'New PPMP');
+		var approval = hd ? approvalOf(hd) : null;
 		$('#ppmpModalSub').html(hd
-			? esc(hd.end_user) + ' · ' + esc(hd.fiscal_year) + ' &nbsp;' + chip(statusOf(hd))
+			? esc(hd.end_user) + ' · ' + esc(hd.fiscal_year) + ' &nbsp;' + approvalChip(approval) + ' ' + chip(statusOf(hd))
 			: 'Fill in the project details, then the items to procure.');
 
 		$('#ppmpPrintBtn').toggleClass('d-none', !hd);
 
-		var banner = $('#ppmpBanner').removeClass('alert-info d-none');
-		if (!canSave()) {
+		var banner = $('#ppmpBanner').removeClass('alert-success alert-danger alert-info d-none');
+		if (approval === 'approved') {
+			banner.addClass('alert-success').html('<b>Approved</b>' + (hd.approver ? ' by ' + esc(hd.approver) : '') + (hd.remarks ? ' — ' + esc(hd.remarks) : '')
+				+ '. It can no longer be edited' + (perms.attach ? '; documents can still be added.' : '.'));
+		} else if (approval === 'disapproved') {
+			banner.addClass('alert-danger').html('<b>Returned</b>' + (hd.approver ? ' by ' + esc(hd.approver) : '') + (hd.remarks ? ' — ' + esc(hd.remarks) : '')
+				+ (canSave() ? '<div class="small mt-1">Saving your corrections sends it back for approval.</div>' : ''));
+		} else if (!canSave() && !(hd && hd.can_decide)) {
 			banner.addClass('alert-info').html('<b>View only</b> — you don\'t have permission to ' + (record ? 'edit' : 'add') + ' PPMPs.');
 		} else {
 			banner.addClass('d-none');
 		}
 
-		$('#submitBtn').toggleClass('d-none', !canSave()).text(hd ? 'Save changes' : 'Create PPMP');
+		// Approve / disapprove: anyone whose role has PPMP Approval - Approve, while it waits
+		// (can_decide comes from MyPPMPModel::can_decide with the record)
+		var decide = !!hd && !!hd.can_decide;
+		$('#ppmpApproveBtn, #ppmpDisapproveBtn').toggleClass('d-none', !decide);
+
+		$('#submitBtn').toggleClass('d-none', !canSave()).text(!hd ? 'Create PPMP' : (approval === 'disapproved' ? 'Save & resubmit' : 'Save changes'));
 		$('#ppmpUploadBtn').toggleClass('d-none', !canSave());
 	}
 
@@ -520,6 +560,39 @@ function __mysys_ppmp_ent() {
 
 	this.__ppmp_versions = function () {
 		window.jQuery('#ppmpVersions').on('click', 'button', function () { if (record) { showVersion(record, +this.getAttribute('data-version')); } });
+	};
+
+	//PPMP - APPROVE / DISAPPROVE (one step; remarks required to disapprove)
+	this.__ppmp_decision = function () {
+		var $ = window.jQuery;
+
+		function openDecision(mode) {
+			if (!record || !record.can_decide) { return; }
+			var approve = mode === 'approve';
+			FodsDecision.open({
+				host: document.getElementById('ppmpModal'),
+				mode: mode,
+				title: (approve ? 'Approve' : 'Disapprove') + ' PPMP',
+				subtitle: (record.ppmpno ? 'PPMP ' + record.ppmpno : 'PPMP #' + record.recid) + ' · ' + (record.end_user || ''),
+				facts: [['Estimated budget', $('#ppmpFootBudget').text(), true], ['Fiscal year', record.fiscal_year || '—'], ['After this', approve ? 'Approved (locked)' : 'Returned to the preparer']],
+				maxlength: 250,
+				submit: function (remarks, done) {
+					$.ajax({
+						type: 'POST',
+						url: mesiteurl + 'myppmp',
+						data: { recid: record.recid, remarks: remarks, meaction: approve ? 'MAIN-APPROVE' : 'MAIN-DISAPPROVE' },
+						global: false,
+						cache: false,
+						success: function (data) { $('.me-outp-msg').html(data); FodsDecision.close(); },
+						error: function (xhr, status, error) { toastr.error('The decision could not be saved. ' + (error || ''), 'Oops!', { closeButton: true }); },
+						complete: done
+					});
+				}
+			});
+		}
+
+		document.getElementById('ppmpApproveBtn').addEventListener('click', function () { openDecision('approve'); });
+		document.getElementById('ppmpDisapproveBtn').addEventListener('click', function () { openDecision('disapprove'); });
 	};
 
 	this.__open_ppmp = function (recid) {
@@ -1071,6 +1144,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_ppmp_ent.__ppmp_versions();
 	__mysys_ppmp_ent.__ppmp_upload();
 	__mysys_ppmp_ent.__ppmp_docs();
+	__mysys_ppmp_ent.__ppmp_decision();
 
 	// Deep link: ?recid= opens that PPMP right away
 	if (window.__ppmp_open) { __mysys_ppmp_ent.__open_ppmp(window.__ppmp_open); }

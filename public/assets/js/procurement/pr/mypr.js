@@ -102,19 +102,19 @@ function __mysys_proc_pr_ent() {
 
 	function inYear(r) { return year === 'all' || yearOf(r) === year; }
 
-	//PR - STAT CARDS: No PR no. yet, PR no. assigned, RFQ issued, Estimated cost
+	//PR - STAT CARDS: For approval, Returned, Approved, Estimated cost (like PO)
 	function renderCards() {
 		var $ = window.jQuery;
 		var list = rows.filter(inYear);
 		var amount = function (l) { return l.reduce(function (t, r) { return t + num(r.estimated_cost); }, 0); };
-		var card = function (key, label) {
-			var l = list.filter(function (r) { return r.status === key; });
+		var card = function (key, group, label) {
+			var l = list.filter(function (r) { return inGroup(r, group); });
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
-		card('unnumbered', 'No PR no. yet');
-		card('numbered', 'PR no. assigned');
-		card('rfq', 'RFQ issued');
+		card('pending', 'in_approval', 'For approval');
+		card('returned', 'disapproved', 'Returned');
+		card('approved', 'approved', 'Approved');
 		$('[data-card-value="total"]').text(money(amount(list)));
 		$('[data-card-label="total"]').text('Estimated cost · ' + list.length.toLocaleString() + ' PR' + (list.length === 1 ? '' : 's'));
 	}
@@ -735,7 +735,7 @@ function __mysys_proc_pr_ent() {
 		signStatus('a', hd);
 		signStatus('b', hd);
 
-		// Approve / disapprove the box it is at: only its named signatory, or an Administrator
+		// Approve / disapprove the box it is at: anyone whose role has the Approve code
 		// (can_decide comes from MyPRModel::can_decide with the record)
 		var decide = !!hd && !!hd.can_decide;
 		$('#prApproveBtn, #prDisapproveBtn').toggleClass('d-none', !decide);

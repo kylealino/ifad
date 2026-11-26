@@ -95,6 +95,7 @@ class MyAssistantModel extends Model
 		return array_values(array_filter([
 			AccessCodes::ORSAPPROVAL_APPROVE, AccessCodes::BURSAPPROVAL_APPROVE, AccessCodes::DISBURSEMENTAPPROVAL_APPROVE,
 			AccessCodes::LDDAPADAAPPROVAL_APPROVE, AccessCodes::ADAAPPROVAL_APPROVE, AccessCodes::POAPPROVAL_APPROVE, AccessCodes::PRAPPROVAL_APPROVE,
+			AccessCodes::PPMPAPPROVAL_APPROVE,
 		], fn ($c) => fods_has_access($c)));
 	}
 
@@ -393,7 +394,7 @@ PROMPT;
 				'status' => ['type' => 'string', 'enum' => ['pending', 'approved', 'disapproved', 'paid', 'unpaid', 'any'], 'description' => 'pending = still in approval; approved = approved for payment; paid / unpaid = has / has no LDDAP-ADA or ADA. Default any.'],
 				'limit' => $limit,
 			]),
-			$fn('my_pending_approvals', 'What is waiting for THIS user to approve right now: ORS, BURS, DV, LDDAP-ADA, ADA, PO and PR steps they can decide, with counts and the oldest items.', []),
+			$fn('my_pending_approvals', 'What is waiting for THIS user to approve right now: ORS, BURS, DV, LDDAP-ADA, ADA, PO, PR and PPMP steps they can decide, with counts and the oldest items.', []),
 			$fn('search_payees', 'Payees / suppliers. With a name: find them (office, address, payment method, and their obligation and disbursement totals). Without a name: the whole payee list, i.e. how many payees FODS has, how many lack an account no. or TIN, and the count per payment method (same as the Payees page). Use this, not get_overview, for "how many payees do we have". Never includes bank account numbers or TINs.', [
 				'name' => ['type' => 'string', 'description' => 'Part of the payee name. Leave out for the payee list totals.'],
 			]),
@@ -604,9 +605,9 @@ PROMPT;
 		$out = [];
 		// where each is decided (the approval pages, not the entry pages)
 		$pages = ['ORS' => 'ORS Approval', 'BURS' => 'BURS Approval', 'Disbursement vouchers' => 'Disbursement Approval', 'LDDAP-ADA' => 'LDDAP-ADA Approval',
-			'ADA' => 'ADA Approval', 'Purchase orders' => 'PO Approval', 'Purchase requests' => 'PR Approval'];
+			'ADA' => 'ADA Approval', 'Purchase orders' => 'PO Approval', 'Purchase requests' => 'PR Approval', 'PPMP' => 'PPMP'];
 		$routes = ['ORS' => 'myorsapproval', 'BURS' => 'mybursapproval', 'Disbursement vouchers' => 'mydisbursementapproval', 'LDDAP-ADA' => 'mylddapadaapproval',
-			'ADA' => 'myadaapproval', 'Purchase orders' => 'mypoapproval', 'Purchase requests' => 'myprapproval'];
+			'ADA' => 'myadaapproval', 'Purchase orders' => 'mypoapproval', 'Purchase requests' => 'myprapproval', 'PPMP' => 'myppmp?meaction=MAIN'];
 		$add = function ($module, array $items) use (&$out, $pages, $routes) {
 			$out[$module] = ['count' => count($items), 'decide_on_page' => $pages[$module] ?? '', 'page_link' => $routes[$module] ?? '', 'oldest_first' => array_slice($items, 0, 5)];
 		};
@@ -662,6 +663,12 @@ PROMPT;
 				}
 			}
 			$add('Purchase requests', $items);
+		}
+
+		if (fods_has_access(AccessCodes::PPMPAPPROVAL_APPROVE)) {
+			$items = array_map(fn ($r) => ['ppmp_no' => $r['ppmpno'], 'fiscal_year' => $r['fiscal_year'], 'end_user' => $r['end_user'], 'link' => 'myppmp?meaction=MAIN&recid=' . (int) $r['recid']],
+				$this->db->query("SELECT `recid`, `ppmpno`, `fiscal_year`, `end_user` FROM tbl_ppmp_hd WHERE `is_approved` = 0 AND `is_disapproved` = 0 ORDER BY `recid` ASC")->getResultArray());
+			$add('PPMP', $items);
 		}
 
 		return ['waiting' => $out, 'note' => 'Only steps this user can decide are counted. Decide them on the matching approval page.'];
@@ -955,10 +962,11 @@ PROMPT;
 					+ self::tally($rows, [\App\Controllers\MyPO::class, 'statusOf'], ['A' => 'accounting', 'B' => 'approving officer']) + ['link' => 'mypo'];
 
 			case 'ppmp':
-				$rows = $q("SELECT h.`is_final`, h.`is_indicative`, (SELECT COALESCE(SUM(d.`estimated_budget`), 0) FROM tbl_ppmp_dt d WHERE d.`ppmp_id` = h.`recid`) amount FROM tbl_ppmp_hd h WHERE 1" . $yr('fiscal_year'));
+				$rows = $q("SELECT h.`is_final`, h.`is_indicative`, h.`is_approved`, h.`is_disapproved`, (SELECT COALESCE(SUM(d.`estimated_budget`), 0) FROM tbl_ppmp_dt d WHERE d.`ppmp_id` = h.`recid`) amount FROM tbl_ppmp_hd h WHERE 1" . $yr('fiscal_year'));
 				$by = ['final' => 0, 'indicative' => 0, 'unmarked' => 0];
 				foreach ($rows as $r) { $by[\App\Controllers\MyPPMP::statusOf($r)]++; }
-				return ['records' => count($rows), 'estimated_budget' => $sum($rows, 'amount')] + $by + ['link' => 'myppmp'];
+				return ['records' => count($rows), 'estimated_budget' => $sum($rows, 'amount')]
+					+ self::tally($rows, [\App\Controllers\MyPPMP::class, 'approvalOf']) + $by + ['link' => 'myppmp'];
 
 			case 'budget':
 				$parts = [];
@@ -993,7 +1001,7 @@ PROMPT;
 		'rci'      => ['RCI', [AccessCodes::RCI_VIEW], 'tbl_rci_hd', ['reportno'], 'created_at', 'myrci?meaction=MAIN&recid='],
 		'pr'       => ['PR', [AccessCodes::PR_VIEW, AccessCodes::PRAPPROVAL_VIEW], 'tbl_pr_hd', ['prno'], 'pr_date', 'mypr?meaction=PR-MAIN&recid='],
 		'po'       => ['PO', [AccessCodes::PO_VIEW, AccessCodes::POAPPROVAL_VIEW], 'tbl_po_hd', ['pono'], 'po_date', 'mypo?meaction=MAIN&recid='],
-		'ppmp'     => ['PPMP', [AccessCodes::PPMP_VIEW], 'tbl_ppmp_hd', ['ppmpno'], 'added_at', 'myppmp?meaction=MAIN&recid='],
+		'ppmp'     => ['PPMP', [AccessCodes::PPMP_VIEW, AccessCodes::PPMPAPPROVAL_VIEW], 'tbl_ppmp_hd', ['ppmpno'], 'added_at', 'myppmp?meaction=MAIN&recid='],
 		'budget'   => ['Budget allotment', [AccessCodes::BUDGET_VIEW, AccessCodes::BUDGETAPPROVAL_VIEW], 'tbl_budget_hd', ['trxno'], 'added_at', 'mybudgetallotment?meaction=MAIN&recid='],
 		'saob'     => ['SAOB allotment', [AccessCodes::SAOB_VIEW], 'tbl_saob_hd', ['trxno'], 'added_at', 'mysaobrpt?meaction=MAIN&recid='],
 	];
@@ -1219,7 +1227,8 @@ PROMPT;
 				return [
 					'type' => $label, 'ppmp_no' => $h['ppmpno'], 'fiscal_year' => $h['fiscal_year'], 'end_user' => $h['end_user'],
 					'project' => $h['project_title'], 'responsibility_code' => $h['responsibility_code'],
-					'status' => ucfirst(\App\Controllers\MyPPMP::statusOf($h)), 'prepared_by' => $h['prepared_by'], 'submitted_by' => $h['submitted_by'],
+					'status' => ucfirst(\App\Controllers\MyPPMP::statusOf($h)), 'approval' => ['pending' => 'For approval', 'approved' => 'Approved', 'disapproved' => 'Returned'][\App\Controllers\MyPPMP::approvalOf($h)],
+					'approved_by' => $h['approver'] ?? '', 'approval_remarks' => $h['remarks'] ?? '', 'prepared_by' => $h['prepared_by'], 'submitted_by' => $h['submitted_by'],
 					'item_count' => count($dt), 'estimated_budget' => self::money(array_sum(array_column($dt, 'estimated_budget'))),
 					'items' => $lines(array_map(fn ($l) => ['item' => mb_substr((string) $l['item_desc'], 0, 80), 'qty' => (float) $l['quantity'], 'unit_cost' => self::money($l['unit_cost']), 'budget' => self::money($l['estimated_budget']), 'mode' => $l['mop']], $dt)),
 					'more_items' => $extra($dt), 'link' => $link,

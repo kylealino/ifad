@@ -784,7 +784,7 @@ function __mysys_disbursement_ent() {
 
 		signStatus(hd);
 
-		// Approve / disapprove the box it is at: only its named signatory, or an Administrator
+		// Approve / disapprove the box it is at: anyone whose role has the Approve code
 		// (can_decide comes from MyDisbursementModel::can_decide with the record)
 		var decide = !!hd && !!hd.can_decide;
 		$('#dvApproveBtn, #dvDisapproveBtn').toggleClass('d-none', !decide);

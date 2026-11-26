@@ -21,7 +21,7 @@ class MyPPMP extends BaseController
 
         switch ($meaction) {
             case 'MAIN':
-                if (fods_has_access(\Config\AccessCodes::PPMP_VIEW)) {
+                if (fods_has_any_access([\Config\AccessCodes::PPMP_VIEW, \Config\AccessCodes::PPMPAPPROVAL_VIEW])) {
                     return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -29,7 +29,7 @@ class MyPPMP extends BaseController
 
             // One PPMP with its items, for the editor modal
             case 'MAIN-LOAD':
-                if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::PPMP_VIEW, \Config\AccessCodes::PPMPAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $record = $this->myppmp->ppmp_load($this->request->getGet('recid'));
@@ -43,8 +43,17 @@ class MyPPMP extends BaseController
                 return redirect()->to('myppmp?meaction=MAIN');
                 break;
 
+            // Approval (one step), decided in the editor
+            case 'MAIN-APPROVE':
+                $this->myppmp->ppmp_approve();
+                return redirect()->to('myppmp?meaction=MAIN');
+
+            case 'MAIN-DISAPPROVE':
+                $this->myppmp->ppmp_disapprove();
+                return redirect()->to('myppmp?meaction=MAIN');
+
             case 'PPMP-PRINT':
-                if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::PPMP_VIEW, \Config\AccessCodes::PPMPAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('procurement/ppmp/ppmp-pdf');
                 break;
 
@@ -56,7 +65,7 @@ class MyPPMP extends BaseController
                 return $this->json($this->myppmp->attachment_remove($this->request->getPost('id')));
 
             case 'DOC-FILE':
-                if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::PPMP_VIEW, \Config\AccessCodes::PPMPAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setBody('Access denied.');
                 }
                 return $this->document($this->myppmp->attachment_file($this->request->getGet('id')), $this->request->getGet('dl') === '1');
@@ -97,6 +106,9 @@ class MyPPMP extends BaseController
             a.`responsibility_code`,
             a.`is_indicative`,
             a.`is_final`,
+            a.`is_approved`,
+            a.`is_disapproved`,
+            a.`approver`,
             a.`added_at`,
             a.`added_by`,
             COALESCE(d.n,0) AS items,
@@ -106,11 +118,13 @@ class MyPPMP extends BaseController
         ORDER BY a.`recid` DESC
         ")->getResultArray();
 
-        // One status per PPMP: final, indicative, or not marked yet; plus how much the PRs used
+        // Per PPMP: its type (final, indicative, or not marked yet), where it is in
+        // approval, and how much the PRs used
         $usage = (new \App\Models\MyPPMPUsageModel())->summary();
         foreach ($ppmphddata as &$row) {
             $row['status'] = self::statusOf($row);
-            unset($row['is_indicative'], $row['is_final']);
+            $row['approval'] = self::approvalOf($row);
+            unset($row['is_indicative'], $row['is_final'], $row['is_approved'], $row['is_disapproved']);
             $u = $usage[(int) $row['recid']] ?? ['total_qty' => 0, 'used_qty' => 0, 'used_amount' => 0];
             $row['total_qty'] = (int) $u['total_qty'];
             $row['used_qty'] = (int) $u['used_qty'];
@@ -174,6 +188,7 @@ class MyPPMP extends BaseController
             'perms' => [
                 'add' => fods_has_access(\Config\AccessCodes::PPMP_ADD),
                 'edit' => fods_has_access(\Config\AccessCodes::PPMP_UPDATE),
+                'approve' => fods_has_access(\Config\AccessCodes::PPMPAPPROVAL_APPROVE),
                 'attach' => \App\Models\MyPPMPModel::can_attach(),   // add / remove supporting documents
             ],
             'doc_max_mb' => \App\Models\MyPPMPModel::DOC_MAX_BYTES / 1048576,
@@ -193,6 +208,14 @@ class MyPPMP extends BaseController
             return 'indicative';
         }
         return 'unmarked';
+    }
+
+    // Approval, one step like LDDAP-ADA / ADA: pending, approved, or disapproved (returned)
+    public static function approvalOf(array $hd) {
+        if (($hd['is_disapproved'] ?? '0') == '1') {
+            return 'disapproved';
+        }
+        return ($hd['is_approved'] ?? '0') == '1' ? 'approved' : 'pending';
     }
 
 

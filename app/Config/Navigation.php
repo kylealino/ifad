@@ -55,7 +55,8 @@ class Navigation extends BaseConfig
         [
             'label' => 'Procurement',
             'items' => [
-                ['label' => 'PPMP', 'icon' => 'ti-calendar-stats', 'route' => 'myppmp', 'query' => 'meaction=MAIN', 'access' => AccessCodes::PPMP_VIEW],
+                ['label' => 'PPMP', 'icon' => 'ti-calendar-stats', 'route' => 'myppmp', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::PPMP_VIEW, AccessCodes::PPMPAPPROVAL_VIEW]],
+                ['label' => 'PPMP Approval', 'icon' => 'ti-clipboard-check', 'route' => 'myppmp', 'query' => 'meaction=MAIN', 'access' => AccessCodes::PPMPAPPROVAL_VIEW, 'hidden' => true],
                 ['label' => 'Purchase Request', 'icon' => 'ti-shopping-cart', 'route' => 'mypr', 'query' => 'meaction=PR-MAIN', 'access' => [AccessCodes::PR_VIEW, AccessCodes::PRAPPROVAL_VIEW]],
                 ['label' => 'PR Approval', 'icon' => 'ti-clipboard-check', 'route' => 'myprapproval', 'query' => '', 'access' => AccessCodes::PRAPPROVAL_VIEW, 'hidden' => true],
                 ['label' => 'Purchase Order', 'icon' => 'ti-receipt', 'route' => 'mypo', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::PO_VIEW, AccessCodes::POAPPROVAL_VIEW]],

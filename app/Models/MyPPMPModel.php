@@ -49,7 +49,21 @@ class MyPPMPModel extends Model
 		$hd['usage'] = (new MyPPMPUsageModel())->versions($recid);
 		// its supporting documents (Documents tab)
 		$hd['attachments'] = $this->attachments($recid);
+		// approval (one step): whether this user may decide it now
+		$hd['approval'] = \App\Controllers\MyPPMP::approvalOf($hd);
+		$hd['can_decide'] = self::can_decide($hd);
 		return $hd;
+	}
+
+	// Anyone whose role has PPMP Approval - Approve decides a PPMP that is waiting
+	// for approval (like LDDAP-ADA and ADA)
+	public static function can_decide(array $hd) {
+		return \App\Controllers\MyPPMP::approvalOf($hd) === 'pending' && fods_has_access(\Config\AccessCodes::PPMPAPPROVAL_APPROVE);
+	}
+
+	// An approved PPMP can no longer be edited (its documents still can)
+	public static function is_locked(array $hd) {
+		return \App\Controllers\MyPPMP::approvalOf($hd) === 'approved';
 	}
 
 	//PPMP - SAVE
@@ -151,6 +165,22 @@ class MyPPMPModel extends Model
 			die();
 		}
 
+		if (!empty($recid)) {
+			$saved = $this->db->query("SELECT `is_approved`, `is_disapproved` FROM tbl_ppmp_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			if (!empty($saved) && self::is_locked($saved)) {
+				echo "
+				<script>
+				toastr.error('This PPMP is already approved and can no longer be edited', 'Oops!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2500,
+					});
+				</script>
+				";
+				die();
+			}
+		}
+
 		// A PPMP the PRs have used: an item cannot go below what they took, and the
 		// PPMP no. cannot change (PRs are linked to it by that number)
 		if (!empty($recid)) {
@@ -237,7 +267,7 @@ class MyPPMPModel extends Model
 			fods_require_access(\Config\AccessCodes::PPMP_UPDATE, 'Updating');
 			$before = MyHistoryModel::row('tbl_ppmp_hd', $recid);
 
-			$current = $this->db->query("SELECT `recid` FROM tbl_ppmp_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			$current = $this->db->query("SELECT `recid`, `is_disapproved` FROM tbl_ppmp_hd WHERE `recid` = ?", [$recid])->getRowArray();
 			if (empty($current)) {
 				echo "
 				<script>
@@ -252,6 +282,12 @@ class MyPPMPModel extends Model
 			}
 
 			$this->db->transStart();
+
+			// saving a returned PPMP sends it back for approval
+			$resubmit = $current['is_disapproved'] == '1';
+			if ($resubmit) {
+				$this->db->query("UPDATE tbl_ppmp_hd SET `is_pending` = '1', `is_approved` = '0', `is_disapproved` = '0' WHERE `recid` = ?", [$recid]);
+			}
 
 			$this->db->query("
 				UPDATE
@@ -282,7 +318,7 @@ class MyPPMPModel extends Model
 
 			$project_id = $recid;
 
-			$status = "PPMP updated successfully";
+			$status = $resubmit ? "PPMP updated and sent back for approval" : "PPMP updated successfully";
 			$color = "info";
 		}
 
@@ -362,7 +398,7 @@ class MyPPMPModel extends Model
 			if (empty($recid)) {
 				MyHistoryModel::log('ppmp', $project_id, 'CREATED', '', null, $ppmpno);
 			} else {
-				MyHistoryModel::log('ppmp', $recid, 'UPDATED', '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_ppmp_hd', $recid)), $ppmpno);
+				MyHistoryModel::log('ppmp', $recid, $resubmit ? 'RESUBMITTED' : 'UPDATED', $resubmit ? 'Corrected and resubmitted for approval' : '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_ppmp_hd', $recid)), $ppmpno);
 			}
 		}
 
@@ -396,6 +432,84 @@ class MyPPMPModel extends Model
 			exit;
 		}
 
+	}
+
+	//PPMP - APPROVAL / DISAPPROVAL (single step, like LDDAP-ADA / ADA)
+	public function ppmp_approve() { $this->ppmp_decide(true); }
+	public function ppmp_disapprove() { $this->ppmp_decide(false); }
+
+	private function ppmp_decide($approve) {
+		$recid = $this->request->getPostGet('recid');
+		$remarks = trim((string) $this->request->getPostGet('remarks'));
+
+		fods_require_access(\Config\AccessCodes::PPMPAPPROVAL_APPROVE, $approve ? 'Approve' : 'Disapprove');
+
+		// Only a PPMP that is still waiting can be decided
+		$hd = $this->db->query("SELECT `recid`, `ppmpno`, `is_approved`, `is_disapproved` FROM tbl_ppmp_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		if (empty($hd) || !self::can_decide($hd)) {
+			echo "
+			<script>
+			toastr.error('This PPMP is not pending approval', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2500,
+				});
+			</script>
+			";
+			exit;
+		}
+		if (!$approve && $remarks === '') {
+			echo "
+			<script>
+			toastr.error('Remarks are required when disapproving', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			</script>
+			";
+			exit;
+		}
+
+		$query = $this->db->query("
+			UPDATE tbl_ppmp_hd
+			SET
+				`is_pending` = '0',
+				`is_approved` = ?,
+				`is_disapproved` = ?,
+				`approver` = ?,
+				`remarks` = ?
+			WHERE `recid` = ?
+		", [$approve ? 1 : 0, $approve ? 0 : 1, $this->cuser, mb_substr($remarks, 0, 250), $recid]);
+
+		if ($query) {
+			MyHistoryModel::log('ppmp', $recid, $approve ? 'APPROVED' : 'DISAPPROVED', $remarks, null, $hd['ppmpno']);
+			$status = $approve ? "PPMP approved" : "PPMP disapproved";
+			$color = $approve ? "success" : "warning";
+			echo "
+			<script>
+				toastr.{$color}('{$status}', 'Well Done!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:2000,
+					});
+				setTimeout(function() {
+						window.location.href = 'myppmp?meaction=MAIN';
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
+			</script>
+			";
+			exit;
+		}
+		echo "
+		<script>
+		toastr.error('The decision could not be saved. Nothing was changed.', 'Oops!', {
+				progressBar: true,
+				closeButton: true,
+				timeOut:3000,
+			});
+		</script>
+		";
+		exit;
 	}
 
 	//PPMP - SUPPORTING DOCUMENTS (Documents tab). Files are stored under
