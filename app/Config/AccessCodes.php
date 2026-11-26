@@ -154,8 +154,18 @@ class AccessCodes
     public const POAPPROVAL_VIEW    = '44001';
     public const POAPPROVAL_APPROVE = '44005';
 
-    // 45 - PR Approval (Box A requesting office, then Box B approval; each
-    //      step is decided by the signatory named on it, or an Administrator)
+    // 45 - PR Approval (Box A requesting office, then Box B approval; anyone
+    //      whose role has Approve decides the box the PR waits at)
     public const PRAPPROVAL_VIEW    = '45001';
     public const PRAPPROVAL_APPROVE = '45005';
+
+    // 46 - Approver Mapping (who signs each box of each module)
+    public const APPROVERMAP_VIEW   = '46001';
+    public const APPROVERMAP_ADD    = '46002';
+    public const APPROVERMAP_UPDATE = '46003';
+    public const APPROVERMAP_DELETE = '46004';
+
+    // 47 - PPMP Approval (one step, like LDDAP-ADA / ADA; decided in the PPMP editor)
+    public const PPMPAPPROVAL_VIEW    = '47001';
+    public const PPMPAPPROVAL_APPROVE = '47005';
 }

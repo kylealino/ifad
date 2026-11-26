@@ -118,6 +118,34 @@ class MyOrsModel extends Model
 			die();
 		}
 
+		// Serial no. is used once across ORS and BURS (a DV links back to its obligation
+		// by it). Checked when it is set or changed, so records that already share a
+		// serial can still be edited; it may stay blank.
+		$__no = trim((string) $serialno);
+		if ($__no !== '') {
+			$__cur = empty($recid) ? null : $this->db->query("SELECT `serialno` AS n FROM tbl_ors_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			if (!$__cur || trim((string) $__cur['n']) !== $__no) {
+				$__dup = $this->db->query("
+					SELECT 'ORS / BURS' AS t FROM tbl_ors_hd WHERE TRIM(`serialno`) = ? AND `recid` <> ?
+					UNION ALL
+					SELECT 'ORS / BURS' AS t FROM tbl_burs_hd WHERE TRIM(`serialno`) = ?
+					LIMIT 1
+				", [$__no, (int) $recid, $__no])->getRowArray();
+				if (!empty($__dup)) {
+					echo "
+					<script>
+					toastr.error('That serial no. is already used on another ORS or BURS!', 'Oops!', {
+							progressBar: true,
+							closeButton: true,
+							timeOut:2500,
+						});
+					</script>
+					";
+					die();
+				}
+			}
+		}
+
 		if (empty($recid)) {
 
 			fods_require_access(\Config\AccessCodes::ORS_ADD, 'Saving');
@@ -461,6 +489,7 @@ class MyOrsModel extends Model
 				";
 				die();
 			}
+			$before = MyHistoryModel::row('tbl_ors_hd', $recid);
 			$is_disapproved = $current['is_disapproved_certa'] == '1' || $current['is_disapproved_certb'] == '1';
 			if ($current['is_approved_certa'] == '1' && !$is_disapproved) {
 				echo "
@@ -821,6 +850,16 @@ class MyOrsModel extends Model
 			$color = "info";
 		}
 
+		//HISTORY
+		if ($query) {
+			if (empty($recid)) {
+				MyHistoryModel::log('ors', $project_id, 'CREATED', '', null, $serialno);
+			} else {
+				MyHistoryModel::log('ors', $recid, !empty($is_disapproved) ? 'RESUBMITTED' : 'UPDATED', '',
+					MyHistoryModel::diff($before, MyHistoryModel::row('tbl_ors_hd', $recid)), $serialno);
+			}
+		}
+
 		if ($query) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
@@ -829,11 +868,11 @@ class MyOrsModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
-						window.location.href = 'myors?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+						window.location.href = 'myobligation?meaction=MAIN'; // back to the ORS / BURS list
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -898,7 +937,7 @@ class MyOrsModel extends Model
 		if (!$waiting) {
 			echo "
 			<script>
-			toastr.error('This ORS is not waiting for Certification " . strtoupper($box) . "', 'Oops!', {
+			toastr.error('This ORS is not pending certification at Box " . strtoupper($box) . "', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2500,
@@ -945,6 +984,10 @@ class MyOrsModel extends Model
 		}
 		$status = $approve ? "ORS certified (Box " . strtoupper($box) . ")" : "ORS disapproved";
 		$color = $approve ? "success" : "warning";
+		if ($query) {
+			$ref = $this->db->query("SELECT `serialno` FROM tbl_ors_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			MyHistoryModel::log('ors', $recid, ($approve ? 'CERTIFIED_BOX_' : 'DISAPPROVED_BOX_') . strtoupper($box), $remarks, null, $ref['serialno'] ?? '');
+		}
 
 		if ($query) {
 			// Echo JavaScript to show the toast and then redirect
@@ -953,11 +996,11 @@ class MyOrsModel extends Model
 				toastr.$color('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
-						window.location.href = 'myorsapproval'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+						window.location.href = 'myobligation?meaction=MAIN'; // back to the ORS / BURS list
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast

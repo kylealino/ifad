@@ -81,7 +81,7 @@ echo view('templates/myheader.php');
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
-                    <li class="breadcrumb-item"><a href="#">Administration</a></li>
+                    <li class="breadcrumb-item"><a href="#">Library</a></li>
                     <li class="breadcrumb-item active" aria-current="page">User Management</li>
                 </ol>
             </nav>
@@ -318,7 +318,7 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= USER MODAL ============================= -->
-<div class="modal fade fods-modal" id="userModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade fods-modal fods-flat" id="userModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <form class="myua-validation" novalidate>
@@ -330,73 +330,82 @@ echo view('templates/myheader.php');
                             <div class="fods-modal-sub" id="userModalSub">Create an account and assign a role.</div>
                         </div>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="user" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal"></button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="recid" value=""/>
-
-                    <div class="fods-section mt-0">Profile</div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label" for="full_name">Full name</label>
-                            <input type="text" id="full_name" class="form-control" placeholder="e.g. Juan A. Dela Cruz" required/>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Profile</h6>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="position">Position</label>
-                            <input type="text" id="position" class="form-control" required/>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="division">Division</label>
-                            <input type="text" id="division" class="form-control" required/>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="section">Section</label>
-                            <input type="text" id="section" class="form-control" required/>
-                        </div>
-                    </div>
-
-                    <div class="fods-section">Account &amp; access</div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label" for="username">Username</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white">@</span>
-                                <input type="text" id="username" class="form-control" required/>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label req" for="full_name">Full name</label>
+                                <input type="text" id="full_name" class="form-control" placeholder="e.g. Juan A. Dela Cruz" required/>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label req" for="position">Position</label>
+                                <input type="text" id="position" class="form-control" required/>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label req" for="division">Division</label>
+                                <input type="text" id="division" class="form-control" required/>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label req" for="section">Section</label>
+                                <input type="text" id="section" class="form-control" required/>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="password">Password</label>
-                            <div class="input-group">
-                                <input type="password" id="password" class="form-control" autocomplete="new-password"/>
-                                <button class="btn btn-fods-ghost" type="button" id="togglePassword" style="border-radius:0 10px 10px 0;"><i class="ti ti-eye" id="toggleIcon"></i></button>
+                    </section>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Sign-in and access</h6>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label req" for="username">Username</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white">@</span>
+                                    <input type="text" id="username" class="form-control" required/>
+                                </div>
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="password">Password</label>
+                                <div class="input-group">
+                                    <input type="password" id="password" class="form-control" autocomplete="new-password"/>
+                                    <button class="btn btn-fods-ghost" type="button" id="togglePassword" style="border-radius:0 10px 10px 0;" aria-label="Show or hide the password"><i class="ti ti-eye" id="toggleIcon"></i></button>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="role_id">Role</label>
+                                <select id="role_id" class="form-select">
+                                    <option value="">No role — no module access</option>
+                                    <?php foreach ($rolesdata as $r): ?>
+                                        <option value="<?= $r['recid'] ?>"><?= esc($r['role_name']) ?><?= $r['is_active'] == 0 ? ' (inactive)' : '' ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-text">The user gets every module permission of this role.</div>
+                            </div>
+                            <?php if ($sorfRoles !== null): ?>
+                            <div class="col-12">
+                                <label class="form-label" for="sorf_role_id">Document Request System (SORF) role</label>
+                                <select id="sorf_role_id" class="form-select">
+                                    <option value="">No access to SORF</option>
+                                    <?php foreach ($sorfRoles as $r): ?>
+                                        <option value="<?= $r['recid'] ?>"><?= esc($r['role_name']) ?><?= $r['is_active'] == 0 ? ' (switched off)' : '' ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-text">IFAD Portal system 2. What each SORF role may do is set in SORF under Roles &amp; Permissions.</div>
+                            </div>
+                            <?php endif; ?>
                         </div>
-                        <div class="col-12">
-                            <label class="form-label" for="role_id">Role</label>
-                            <select id="role_id" class="form-select">
-                                <option value="">No role — no module access</option>
-                                <?php foreach ($rolesdata as $r): ?>
-                                    <option value="<?= $r['recid'] ?>"><?= esc($r['role_name']) ?><?= $r['is_active'] == 0 ? ' (inactive)' : '' ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="form-text">The user gets every module permission of this role.</div>
-                        </div>
-                        <?php if ($sorfRoles !== null): ?>
-                        <div class="col-12">
-                            <label class="form-label" for="sorf_role_id">Document Request System (SORF) role</label>
-                            <select id="sorf_role_id" class="form-select">
-                                <option value="">No access to SORF</option>
-                                <?php foreach ($sorfRoles as $r): ?>
-                                    <option value="<?= $r['recid'] ?>"><?= esc($r['role_name']) ?><?= $r['is_active'] == 0 ? ' (switched off)' : '' ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="form-text">IFAD Portal system 2. What each SORF role may do is set in SORF under Roles &amp; Permissions.</div>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-
+                    </section>
                     <!-- Signatory designations (cert_tag, ada_tag, is_ppmp_signatory) are not set here: they stay as they are in the database -->
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-fods px-4" id="userSubmitBtn">Create user</button>
@@ -407,7 +416,7 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= ROLE MODAL ============================= -->
-<div class="modal fade fods-modal" id="roleModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade fods-modal fods-flat" id="roleModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
             <form class="myua-role-validation" novalidate>
@@ -419,19 +428,30 @@ echo view('templates/myheader.php');
                             <div class="fods-modal-sub">Set module permissions after saving.</div>
                         </div>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="role" data-history-field="role_recid"><i class="ti ti-history me-1"></i>History</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal"></button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="recid" id="role_recid" value=""/>
-                    <div class="mb-3">
-                        <label class="form-label" for="role_name">Role name</label>
-                        <input type="text" name="role_name" id="role_name" class="form-control" placeholder="e.g. Budget Officer" required>
-                    </div>
-                    <div>
-                        <label class="form-label" for="role_description">Description</label>
-                        <textarea name="description" id="role_description" rows="3" class="form-control" placeholder="What does this role do?"></textarea>
-                    </div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Role</h6>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label req" for="role_name">Role name</label>
+                                <input type="text" name="role_name" id="role_name" class="form-control" placeholder="e.g. Budget Officer" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="role_description">Role description</label>
+                                <textarea name="description" id="role_description" rows="3" class="form-control" placeholder="What does this role do?"></textarea>
+                            </div>
+                        </div>
+                    </section>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-fods px-4" id="roleSubmitBtn">Create role</button>

@@ -12,9 +12,9 @@ function __mysys_lddapada_ent() {
 	let picked = [];            // DV numbers in the order they were added
 
 	const STATUS = {
-		pending: ['tone-amber', 'Pending'],
+		pending: ['tone-amber', 'For approval'],
 		approved: ['tone-green', 'Approved'],
-		disapproved: ['tone-red', 'Disapproved']
+		disapproved: ['tone-red', 'Returned']
 	};
 
 	function esc(s) {
@@ -70,7 +70,7 @@ function __mysys_lddapada_ent() {
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
-		card('pending', 'pending', 'Pending');
+		card('pending', 'pending', 'For approval');
 		card('returned', 'disapproved', 'Returned');
 		card('approved', 'approved', 'Approved');
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -243,10 +243,24 @@ function __mysys_lddapada_ent() {
 		recalc();
 	}
 
+	// The other LDDAP-ADA (not returned) a DV is already on, or '' (the server checks it too)
+	function takenBy(dv) {
+		var d = (lookups.dvs || []).filter(function (x) { return x.dvno === dv; })[0];
+		if (!d || !d.on_ids) { return ''; }
+		var mine = record ? String(record.recid) : '';
+		var others = String(d.on_ids).split(',').filter(function (id) { return id !== mine; });
+		return others.length ? (d.on_lddapada || 'another LDDAP-ADA') : '';
+	}
+
 	function addDv(dv) {
 		var $ = window.jQuery;
 		if (!dv || picked.indexOf(dv) !== -1) {
 			if (dv) { toastr.info('DV ' + dv + ' is already on this LDDAP-ADA.', 'Already added', { closeButton: true }); }
+			return;
+		}
+		var taken = takenBy(dv);
+		if (taken) {
+			toastr.error('DV ' + dv + ' is already on LDDAP-ADA ' + taken + '. A DV can be paid on another LDDAP-ADA only after that one is returned.', 'Oops!', { closeButton: true, timeOut: 3000 });
 			return;
 		}
 		$.ajax({ type: 'POST', url: mesiteurl + 'mylddapada?meaction=LOAD-DV', data: { dvno: [dv] }, dataType: 'json' })
@@ -295,8 +309,9 @@ function __mysys_lddapada_ent() {
 		}).on('focus', function () {
 			if (!this.disabled) { $(this).autocomplete('search', this.value); }
 		}).autocomplete('instance')._renderItem = function (ul, item) {
-			return $('<li>').append('<div><b>' + esc(item.dvno) + '</b> <span class="text-muted">' + money(item.net_amount) + '</span>'
-				+ '<span class="ors-ac-sub">' + esc(item.payee_name) + (item.on_lddapada ? ' · on LDDAP-ADA ' + esc(item.on_lddapada) : '') + '</span></div>').appendTo(ul);
+			var taken = takenBy(item.dvno);
+			return $('<li>').toggleClass('text-muted', !!taken).append('<div><b>' + esc(item.dvno) + '</b> <span class="text-muted">' + money(item.net_amount) + '</span>'
+				+ '<span class="ors-ac-sub">' + esc(item.payee_name) + (taken ? ' · already on LDDAP-ADA ' + esc(taken) : '') + '</span></div>').appendTo(ul);
 		};
 	};
 
@@ -321,7 +336,7 @@ function __mysys_lddapada_ent() {
 	function fillSignatories(hd) {
 		(lookups.signatures || []).forEach(function (s) {
 			var name = hd && hd[s.field] ? hd[s.field] : s.default;
-			options(s.field, lookups.signatories || [], name);
+			options(s.field, s.options || [], name);
 			var pos = hd && hd[s.position_field] ? hd[s.position_field] : '';
 			if (!pos) {
 				var opt = document.getElementById(s.field).selectedOptions[0];
@@ -382,8 +397,45 @@ function __mysys_lddapada_ent() {
 		} else {
 			banner.addClass('d-none');
 		}
+		$('#ldApproveBtn, #ldDisapproveBtn').toggleClass('d-none', !canDecide(hd));
 		$('#submitBtn').toggleClass('d-none', !canSave()).text(!hd ? 'Create LDDAP-ADA' : (status === 'disapproved' ? 'Save & resubmit' : 'Save changes'));
 	}
+
+	// One approval step: anyone with LDDAP-ADA Approval - Approve decides a pending one
+	function canDecide(hd) { return !!hd && !!perms.approve && statusOf(hd) === 'pending'; }
+
+	//LDDAP-ADA - APPROVE / DISAPPROVE (remarks required to disapprove)
+	this.__ld_decision = function () {
+		var $ = window.jQuery;
+
+		function openDecision(mode) {
+			if (!canDecide(record)) { return; }
+			var approve = mode === 'approve';
+			FodsDecision.open({
+				host: document.getElementById('ldModal'),
+				mode: mode,
+				title: (approve ? 'Approve' : 'Disapprove') + ' LDDAP-ADA',
+				subtitle: (record.lddapadano || 'LDDAP-ADA #' + record.recid) + (record.ckno ? ' · Check ' + record.ckno : ''),
+				facts: [['Net amount', $('#ldFootNet').text(), true], ['DVs', $('#ldFootCount').text()], ['Step', 'LDDAP-ADA approval'], ['After this', approve ? 'Approved' : 'Returned to the preparer']],
+				maxlength: 100,
+				submit: function (remarks, done) {
+					$.ajax({
+						type: 'POST',
+						url: mesiteurl + 'mylddapadaapproval',
+						data: { recid: record.recid, remarks: remarks, meaction: approve ? 'MAIN-APPROVE' : 'MAIN-DISAPPROVE' },
+						global: false,
+						cache: false,
+						success: function (data) { $('.me-outp-msg').html(data); FodsDecision.close(); },
+						error: function (xhr, status, error) { toastr.error('[LDDAP-ADA]', 'Error loading page...' + error, { closeButton: true }); },
+						complete: done
+					});
+				}
+			});
+		}
+
+		document.getElementById('ldApproveBtn').addEventListener('click', function () { openDecision('approve'); });
+		document.getElementById('ldDisapproveBtn').addEventListener('click', function () { openDecision('disapprove'); });
+	};
 
 	this.__open_ld = function (recid) {
 		var $ = window.jQuery;
@@ -494,7 +546,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_lddapada_ent.__ld_details();
 	__mysys_lddapada_ent.__ld_saving();
 	__mysys_lddapada_ent.__ld_print();
+	__mysys_lddapada_ent.__ld_decision();
 
-	// Deep link (e.g. from LDDAP-ADA Approval): open that LDDAP-ADA right away
+	// Deep link (e.g. an old LDDAP-ADA Approval link): open that LDDAP-ADA right away
 	if (window.__ld_open) { __mysys_lddapada_ent.__open_ld(window.__ld_open); }
 });

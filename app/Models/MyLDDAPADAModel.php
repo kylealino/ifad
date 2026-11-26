@@ -7,24 +7,12 @@ class MyLDDAPADAModel extends Model
 
     protected $db;
 
-    // The names offered for the four signatures on the LDDAP-ADA printout
-    // (name => position). The position is filled in on picking a name and can
-    // still be edited on the entry.
-    public const SIGNATORIES = [
-        'JOVY S. MEDINA'               => 'Administrative Officer V',
-        'JESTER C. VIRIÑA, CPA'        => 'Supervising Administrative Officer',
-        'ALEXIS M. ORTIZ'              => 'Chief Administrative Officer',
-        'SALVADOR C. SERRANO'          => 'Chief SRS & Officer-in-Charge',
-        'BONJOBIE F. CAJANO, CPA, CTT' => 'Accountant III',
-        'ATTY. LUCIEDEN G. RAZ'        => 'Director III',
-        'JACUS S. NACIS'               => 'Director IV',
-        'JAMES C. LUCENA, CPA'         => 'Accountant II',
-    ];
-
-    // Each signature on the form: request/column name => [label, default name].
+    // Each signature on the form: request/column name => [label, old default name].
+    // The names offered for each, its position and the default for a new
+    // LDDAP-ADA are in Approver Mapping (module lddapada, box = the field).
     // ada_approver (Agency Authorized Signatory 1) is the LDDAP-ADA's ADA approver,
-    // shown on LDDAP-ADA Approval; its default stays JOVY S. MEDINA.
-    // LDDAP-ADAs saved before these were picked keep blank values and print the defaults.
+    // shown on LDDAP-ADA Approval.
+    // LDDAP-ADAs saved before these were picked keep blank values and print the old defaults.
     public const SIGNATURES = [
         'certified_by'  => ['Certified Correct', 'BONJOBIE F. CAJANO, CPA, CTT'],
         'approved_by'   => ['Approved', 'ALEXIS M. ORTIZ'],
@@ -40,15 +28,15 @@ class MyLDDAPADAModel extends Model
     }
 
     // The four signatures to print for an LDDAP-ADA row: [field => [name, position]].
-    // A blank name falls back to the default; a blank position to the list's, then
-    // to the user record's (older LDDAP-ADAs only stored the ADA approver's name).
+    // A blank name falls back to the old default; a blank position to the mapped one,
+    // then to the user record's (older LDDAP-ADAs only stored the ADA approver's name).
     public function signatures_for(array $hd): array
     {
         $out = [];
         foreach (self::SIGNATURES as $field => [$label, $default]) {
             $name = trim((string) ($hd[$field] ?? '')) ?: $default;
             $pos = trim((string) ($hd[self::position_col($field)] ?? ''));
-            if ($pos === '') { $pos = self::SIGNATORIES[$name] ?? ''; }
+            if ($pos === '') { $pos = MyApproverMapModel::position_of('lddapada', $field, $name); }
             if ($pos === '') {
                 $u = $this->db->query("SELECT `position` FROM myua_user WHERE `full_name` = ? LIMIT 1", [$name])->getRowArray();
                 $pos = (string) ($u['position'] ?? '');
@@ -58,15 +46,15 @@ class MyLDDAPADAModel extends Model
         return $out;
     }
 
-    // The four signatures from the save request. A name must be one of SIGNATORIES,
-    // or the one this LDDAP-ADA already has; a blank position takes the list's.
+    // The four signatures from the save request. A name must be mapped to that
+    // signature, or be the one this LDDAP-ADA already has; a blank position takes the mapped one.
     private function signatures_from_request(array $saved = []): array
     {
         $vals = [];
         foreach (self::SIGNATURES as $field => [$label, $default]) {
             $name = trim((string) $this->request->getPostGet($field));
             $pos = mb_substr(trim((string) $this->request->getPostGet(self::position_col($field))), 0, 150);
-            if ($name === '' || (!isset(self::SIGNATORIES[$name]) && $name !== trim((string) ($saved[$field] ?? '')))) {
+            if ($name === '' || (!MyApproverMapModel::is_mapped('lddapada', $field, $name) && $name !== trim((string) ($saved[$field] ?? '')))) {
                 echo "
 				<script>
 				toastr.error('Choose the {$label} signatory.', 'Oops!', {
@@ -79,7 +67,7 @@ class MyLDDAPADAModel extends Model
                 die();
             }
             $vals[$field] = $name;
-            $vals[self::position_col($field)] = $pos !== '' ? $pos : (self::SIGNATORIES[$name] ?? '');
+            $vals[self::position_col($field)] = $pos !== '' ? $pos : MyApproverMapModel::position_of('lddapada', $field, $name);
         }
         return $vals;
     }
@@ -99,7 +87,59 @@ class MyLDDAPADAModel extends Model
         
     }
 
-	public function lddapada_save() { 
+	// Refuses the save when a DV is listed twice, or is already on another LDDAP-ADA
+	// that is not returned (see lddapada_save)
+	private function check_dvs_free($recid, array $dvs) {
+		$fail = function ($msg) {
+			echo "
+			<script>
+			toastr.error(" . json_encode($msg) . ", 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:3000,
+				});
+			</script>
+			";
+			die();
+		};
+		$dvs = array_map(fn ($d) => trim((string) $d), $dvs);
+		$seen = [];
+		foreach ($dvs as $dv) {
+			if ($dv === '') { continue; }
+			if (isset($seen[mb_strtolower($dv)])) {
+				$fail('DV ' . $dv . ' is listed twice on this LDDAP-ADA!');
+			}
+			$seen[mb_strtolower($dv)] = true;
+		}
+
+		$saved = [];
+		$returned = false;
+		if (!empty($recid)) {
+			$hd = $this->db->query("SELECT `is_disapproved` FROM tbl_lddapada_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			$returned = !empty($hd) && (string) $hd['is_disapproved'] === '1';
+			foreach ($this->db->query("SELECT `dvno` FROM tbl_lddapada_dvno WHERE `lddapada_id` = ?", [$recid])->getResultArray() as $r) {
+				$saved[mb_strtolower(trim((string) $r['dvno']))] = true;
+			}
+		}
+
+		foreach ($dvs as $dv) {
+			if ($dv === '' || (!$returned && isset($saved[mb_strtolower($dv)]))) { continue; }
+			$on = $this->db->query("
+				SELECT h.`lddapadano`, h.`recid`
+				FROM tbl_lddapada_dvno v
+				JOIN tbl_lddapada_hd h ON h.`recid` = v.`lddapada_id`
+				WHERE TRIM(v.`dvno`) = ? AND h.`recid` <> ? AND h.`is_disapproved` = 0
+				ORDER BY h.`recid` DESC
+				LIMIT 1
+			", [$dv, (int) $recid])->getRowArray();
+			if (!empty($on)) {
+				$where = trim((string) $on['lddapadano']) !== '' ? $on['lddapadano'] : '#' . $on['recid'];
+				$fail('DV ' . $dv . ' is already on LDDAP-ADA ' . $where . '. A DV can be paid on another LDDAP-ADA only after that one is returned.');
+			}
+		}
+	}
+
+	public function lddapada_save() {
 		$recid = $this->request->getPostGet('recid');
 		$serialno = $this->request->getPostGet('serialno');
 		$dvno = $this->request->getPostGet('dvno');
@@ -171,6 +211,34 @@ class MyLDDAPADAModel extends Model
 		// }
 
 		$ckno = $ckno;
+
+		// LDDAP-ADA no. is used once. Checked when it is set or changed, so records that
+		// already share a number can still be edited.
+		$__no = trim((string) $lddapadano);
+		if ($__no !== '') {
+			$__cur = empty($recid) ? null : $this->db->query("SELECT `lddapadano` AS n FROM tbl_lddapada_hd WHERE `recid` = ?", [$recid])->getRowArray();
+			if (!$__cur || trim((string) $__cur['n']) !== $__no) {
+				$__dup = $this->db->query("SELECT `recid` FROM tbl_lddapada_hd WHERE TRIM(`lddapadano`) = ? AND `recid` <> ? LIMIT 1", [$__no, (int) $recid])->getRowArray();
+				if (!empty($__dup)) {
+					echo "
+					<script>
+					toastr.error('That LDDAP-ADA no. is already used on another LDDAP-ADA!', 'Oops!', {
+							progressBar: true,
+							closeButton: true,
+							timeOut:2500,
+						});
+					</script>
+					";
+					die();
+				}
+			}
+		}
+
+		// A DV is paid on one LDDAP-ADA only: it cannot be added while another
+		// LDDAP-ADA that is not returned (disapproved) holds it. Checked for DVs added
+		// by this save, and for all of them when a returned LDDAP-ADA is resubmitted,
+		// so LDDAP-ADAs saved before this rule can still be edited.
+		$this->check_dvs_free($recid, (array) $dvno_list);
 
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::LDDAPADA_ADD, 'Saving');
@@ -424,6 +492,16 @@ class MyLDDAPADAModel extends Model
 
 		$lddapno_display = empty($recid) ? $cseqn : $lddapadano;
 
+		//HISTORY
+		if ($query) {
+			if (empty($recid)) {
+				MyHistoryModel::log('lddapada', $project_id, 'CREATED', '', null, $lddapno_display);
+			} else {
+				MyHistoryModel::log('lddapada', $recid, $is_resubmit ? 'RESUBMITTED' : 'UPDATED', '',
+					MyHistoryModel::diff($current, MyHistoryModel::row('tbl_lddapada_hd', $recid)), $lddapno_display);
+			}
+		}
+
 		if ($query) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
@@ -433,11 +511,11 @@ class MyLDDAPADAModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mylddapada?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -538,7 +616,7 @@ class MyLDDAPADAModel extends Model
 		if (empty($hd) || $hd['is_approved'] == '1' || $hd['is_disapproved'] == '1') {
 			echo "
 			<script>
-			toastr.error('This LDDAP-ADA is not waiting for approval', 'Oops!', {
+			toastr.error('This LDDAP-ADA is not pending approval', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2500,
@@ -574,16 +652,20 @@ class MyLDDAPADAModel extends Model
 		$status = $approve ? "LDDAP-ADA approved" : "LDDAP-ADA disapproved";
 		$color = $approve ? "success" : "warning";
 		if ($query) {
+			$ref = MyHistoryModel::row('tbl_lddapada_hd', $recid);
+			MyHistoryModel::log('lddapada', $recid, $approve ? 'APPROVED' : 'DISAPPROVED', $remarks, null, $ref['lddapadano'] ?? '');
+		}
+		if ($query) {
 			echo "
 			<script>
 				toastr.{$color}('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
-						window.location.href = 'mylddapadaapproval';
-					}, 2500);
+						window.location.href = 'mylddapada?meaction=MAIN';
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit;

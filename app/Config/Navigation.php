@@ -15,6 +15,10 @@ use CodeIgniter\Config\BaseConfig;
  *   query  - query string appended to the link ('' for none)
  *   access - null (everyone) or one/several AccessCodes; any one grants it
  *   badge  - optional element id for a live counter
+ *   hidden - true: not shown in the sidebar, but still known for page titles,
+ *            the access-restricted page and the permissions order (the old
+ *            approval pages: approving now happens on each entry page, which
+ *            also opens with the module's approval View code)
  */
 class Navigation extends BaseConfig
 {
@@ -22,28 +26,24 @@ class Navigation extends BaseConfig
         [
             'label' => 'Home',
             'items' => [
-                ['label' => 'Dashboard', 'icon' => 'ti-layout-dashboard', 'route' => 'mydashboard', 'query' => '', 'access' => null],
-            ],
+                ['label' => 'Dashboard', 'icon' => 'ti-layout-dashboard', 'route' => 'mydashboard', 'query' => '', 'access' => null],            ],
         ],
         [
             'label' => 'Budget',
             'items' => [
-                ['label' => 'Budget Allotment', 'icon' => 'ti-wallet', 'route' => 'mybudgetallotment', 'query' => 'meaction=MAIN', 'access' => AccessCodes::BUDGET_VIEW],
-                ['label' => 'Budget Approval', 'icon' => 'ti-checklist', 'route' => 'mybudgetapproval', 'query' => '', 'access' => AccessCodes::BUDGETAPPROVAL_VIEW],
+                ['label' => 'Budget Allotment', 'icon' => 'ti-wallet', 'route' => 'mybudgetallotment', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::BUDGET_VIEW, AccessCodes::BUDGETAPPROVAL_VIEW]],
+                ['label' => 'Budget Approval', 'icon' => 'ti-checklist', 'route' => 'mybudgetapproval', 'query' => '', 'access' => AccessCodes::BUDGETAPPROVAL_VIEW, 'hidden' => true],
             ],
         ],
         [
-            'label' => 'ORS',
+            'label' => 'Obligations',
             'items' => [
-                ['label' => 'ORS Entry', 'icon' => 'ti-file-invoice', 'route' => 'myors', 'query' => 'meaction=MAIN', 'access' => AccessCodes::ORS_VIEW],
-                ['label' => 'ORS Approval', 'icon' => 'ti-file-check', 'route' => 'myorsapproval', 'query' => '', 'access' => AccessCodes::ORSAPPROVAL_VIEW],
-            ],
-        ],
-        [
-            'label' => 'BURS',
-            'items' => [
-                ['label' => 'BURS Entry', 'icon' => 'ti-receipt', 'route' => 'myburs', 'query' => 'meaction=MAIN', 'access' => AccessCodes::BURS_VIEW],
-                ['label' => 'BURS Approval', 'icon' => 'ti-receipt-2', 'route' => 'mybursapproval', 'query' => '', 'access' => AccessCodes::BURSAPPROVAL_VIEW],
+                // One page for both forms; the ORS and BURS rights stay separate
+                ['label' => 'ORS / BURS', 'icon' => 'ti-file-invoice', 'route' => 'myobligation', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::ORS_VIEW, AccessCodes::ORSAPPROVAL_VIEW, AccessCodes::BURS_VIEW, AccessCodes::BURSAPPROVAL_VIEW]],
+                ['label' => 'ORS Entry', 'icon' => 'ti-file-invoice', 'route' => 'myors', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::ORS_VIEW, AccessCodes::ORSAPPROVAL_VIEW], 'hidden' => true],
+                ['label' => 'ORS Approval', 'icon' => 'ti-file-check', 'route' => 'myorsapproval', 'query' => '', 'access' => AccessCodes::ORSAPPROVAL_VIEW, 'hidden' => true],
+                ['label' => 'BURS Entry', 'icon' => 'ti-receipt', 'route' => 'myburs', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::BURS_VIEW, AccessCodes::BURSAPPROVAL_VIEW], 'hidden' => true],
+                ['label' => 'BURS Approval', 'icon' => 'ti-receipt-2', 'route' => 'mybursapproval', 'query' => '', 'access' => AccessCodes::BURSAPPROVAL_VIEW, 'hidden' => true],
             ],
         ],
         [
@@ -55,44 +55,41 @@ class Navigation extends BaseConfig
         [
             'label' => 'Procurement',
             'items' => [
-                ['label' => 'PPMP', 'icon' => 'ti-calendar-stats', 'route' => 'myppmp', 'query' => 'meaction=MAIN', 'access' => AccessCodes::PPMP_VIEW],
-                ['label' => 'Purchase Request', 'icon' => 'ti-shopping-cart', 'route' => 'mypr', 'query' => 'meaction=PR-MAIN', 'access' => AccessCodes::PR_VIEW],
-                ['label' => 'PR Approval', 'icon' => 'ti-clipboard-check', 'route' => 'myprapproval', 'query' => '', 'access' => AccessCodes::PRAPPROVAL_VIEW],
-                ['label' => 'Purchase Order', 'icon' => 'ti-receipt', 'route' => 'mypo', 'query' => 'meaction=MAIN', 'access' => AccessCodes::PO_VIEW],
-                ['label' => 'PO Approval', 'icon' => 'ti-file-check', 'route' => 'mypoapproval', 'query' => '', 'access' => AccessCodes::POAPPROVAL_VIEW],
+                ['label' => 'PPMP', 'icon' => 'ti-calendar-stats', 'route' => 'myppmp', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::PPMP_VIEW, AccessCodes::PPMPAPPROVAL_VIEW]],
+                ['label' => 'PPMP Approval', 'icon' => 'ti-clipboard-check', 'route' => 'myppmp', 'query' => 'meaction=MAIN', 'access' => AccessCodes::PPMPAPPROVAL_VIEW, 'hidden' => true],
+                ['label' => 'Purchase Request', 'icon' => 'ti-shopping-cart', 'route' => 'mypr', 'query' => 'meaction=PR-MAIN', 'access' => [AccessCodes::PR_VIEW, AccessCodes::PRAPPROVAL_VIEW]],
+                ['label' => 'PR Approval', 'icon' => 'ti-clipboard-check', 'route' => 'myprapproval', 'query' => '', 'access' => AccessCodes::PRAPPROVAL_VIEW, 'hidden' => true],
+                ['label' => 'Purchase Order', 'icon' => 'ti-receipt', 'route' => 'mypo', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::PO_VIEW, AccessCodes::POAPPROVAL_VIEW]],
+                ['label' => 'PO Approval', 'icon' => 'ti-file-check', 'route' => 'mypoapproval', 'query' => '', 'access' => AccessCodes::POAPPROVAL_VIEW, 'hidden' => true],
                 ['label' => 'Abstract', 'icon' => 'ti-scale', 'route' => 'myabstract', 'query' => 'meaction=MAIN', 'access' => AccessCodes::ABSTRACT_VIEW],
             ],
         ],
         [
             'label' => 'Accounting',
             'items' => [
-                ['label' => 'Disbursement', 'icon' => 'ti-file-dollar', 'route' => 'mydisbursement', 'query' => 'meaction=MAIN', 'access' => AccessCodes::DISBURSEMENT_VIEW],
-                ['label' => 'Disbursement Approval', 'icon' => 'ti-file-check', 'route' => 'mydisbursementapproval', 'query' => '', 'access' => AccessCodes::DISBURSEMENTAPPROVAL_VIEW],
+                ['label' => 'Disbursement', 'icon' => 'ti-file-dollar', 'route' => 'mydisbursement', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::DISBURSEMENT_VIEW, AccessCodes::DISBURSEMENTAPPROVAL_VIEW]],
+                ['label' => 'Disbursement Approval', 'icon' => 'ti-file-check', 'route' => 'mydisbursementapproval', 'query' => '', 'access' => AccessCodes::DISBURSEMENTAPPROVAL_VIEW, 'hidden' => true],
             ],
         ],
         [
             'label' => 'Cashier',
             'items' => [
-                ['label' => 'LDDAP-ADA', 'icon' => 'ti-building-bank', 'route' => 'mylddapada', 'query' => 'meaction=MAIN', 'access' => AccessCodes::LDDAPADA_VIEW],
-                ['label' => 'LDDAP-ADA Approval', 'icon' => 'ti-file-certificate', 'route' => 'mylddapadaapproval', 'query' => '', 'access' => AccessCodes::LDDAPADAAPPROVAL_VIEW],
-                ['label' => 'ADA', 'icon' => 'ti-credit-card', 'route' => 'myada', 'query' => 'meaction=MAIN', 'access' => AccessCodes::ADA_VIEW],
-                ['label' => 'ADA Approval', 'icon' => 'ti-checks', 'route' => 'myadaapproval', 'query' => '', 'access' => AccessCodes::ADAAPPROVAL_VIEW],
+                ['label' => 'LDDAP-ADA', 'icon' => 'ti-building-bank', 'route' => 'mylddapada', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::LDDAPADA_VIEW, AccessCodes::LDDAPADAAPPROVAL_VIEW]],
+                ['label' => 'LDDAP-ADA Approval', 'icon' => 'ti-file-certificate', 'route' => 'mylddapadaapproval', 'query' => '', 'access' => AccessCodes::LDDAPADAAPPROVAL_VIEW, 'hidden' => true],
+                ['label' => 'ADA', 'icon' => 'ti-credit-card', 'route' => 'myada', 'query' => 'meaction=MAIN', 'access' => [AccessCodes::ADA_VIEW, AccessCodes::ADAAPPROVAL_VIEW]],
+                ['label' => 'ADA Approval', 'icon' => 'ti-checks', 'route' => 'myadaapproval', 'query' => '', 'access' => AccessCodes::ADAAPPROVAL_VIEW, 'hidden' => true],
                 ['label' => 'RCI', 'icon' => 'ti-receipt-2', 'route' => 'myrci', 'query' => 'meaction=MAIN', 'access' => AccessCodes::RCI_VIEW],
             ],
         ],
         [
-            'label' => 'Maintenance',
+            'label' => 'Library',
             'items' => [
                 ['label' => 'Payee', 'icon' => 'ti-user-check', 'route' => 'mypayee', 'query' => 'meaction=MAIN', 'access' => AccessCodes::PAYEE_VIEW],
                 ['label' => 'Supplies', 'icon' => 'ti-package', 'route' => 'myproducts', 'query' => 'meaction=MAIN', 'access' => AccessCodes::SUPPLIES_VIEW],
                 ['label' => 'Projects', 'icon' => 'ti-folders', 'route' => 'myproject', 'query' => 'meaction=MAIN', 'access' => AccessCodes::PROJECT_VIEW],
                 ['label' => 'UACS', 'icon' => 'ti-list-numbers', 'route' => 'myuacs', 'query' => 'meaction=MAIN', 'access' => AccessCodes::UACS_VIEW],
-            ],
-        ],
-        [
-            'label' => 'Administration',
-            'items' => [
                 ['label' => 'User Management', 'icon' => 'ti-users', 'route' => 'myua', 'query' => 'meaction=MAIN', 'access' => AccessCodes::USERMGMT_VIEW],
+                ['label' => 'Approver Mapping', 'icon' => 'ti-signature', 'route' => 'myapprovermap', 'query' => 'meaction=MAIN', 'access' => AccessCodes::APPROVERMAP_VIEW],
             ],
         ],
     ];

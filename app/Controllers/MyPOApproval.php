@@ -46,11 +46,10 @@ class MyPOApproval extends BaseController
                 if (!$canView) { return view('errors/html/access-restricted'); }
                 return view('procurement/po/po-pdf');
 
+            // Approving now happens on the Purchase Order page; old links open the record there
             default:
-                if ($canView) {
-                    return $this->loadMainView();
-                }
-                return view('errors/html/access-restricted');
+                $recid = (string) $this->request->getGet('recid');
+                return redirect()->to('mypo?meaction=MAIN' . ($recid !== '' ? '&recid=' . urlencode($recid) : ''));
         }
     }
 

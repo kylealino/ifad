@@ -127,6 +127,8 @@ SELECT
     `position_a`,
     `certified_c`,
     `position_c`,
+    `certified_d`,
+    `position_d`,
     `is_pending`,
     `is_approved_certa`,
     `is_disapproved_certa`,
@@ -173,6 +175,9 @@ $certified_a = $data['certified_a'];
 $position_a = $data['position_a'];
 $certified_c = $data['certified_c'];
 $position_c = $data['position_c'];
+// Box D: the signatory picked on the DV
+$certified_d = $data['certified_d'] ?? '';
+$position_d = $data['position_d'] ?? '';
 
 $is_pending = $data['is_pending'];
 $is_approved_certa = $data['is_approved_certa'];
@@ -225,11 +230,11 @@ SELECT
     `payee_tin`
 FROM
     `tbl_payee`
-WHERE 
-    `payee_name` = '$payee_name'"
+WHERE
+    `payee_name` = ?", [$payee_name]
 );
 $data = $query->getRowArray();
-$payee_tin = $data['payee_tin'];
+$payee_tin = $data['payee_tin'] ?? '';
 
 
 $pdf = new FPDF('P', 'mm', 'A4');
@@ -899,11 +904,6 @@ $pdf->Cell(76, 4, $certified_c, 0, 0, 'C');
 $pdf->SetXY(101, $Y);
 $pdf->SetFont('Times', '', 8);
 $pdf->Cell(15, 4, 'Name', 'BRL', 0, 'C');
-
-// Same rule Disbursement Approval uses to pick who approves Box D
-$boxd = \App\Models\MyDisbursementModel::box_d($net);
-$certified_d = $boxd['name'];
-$position_d = $boxd['position'];
 
 $pdf->SetXY(116, $Y);
 $pdf->SetFont('Times', 'B',10);

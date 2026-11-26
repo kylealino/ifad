@@ -18,10 +18,10 @@ function __mysys_proc_pr_ent() {
 	};
 
 	const APPROVAL = {
-		pending_a: ['tone-amber', 'Box A · requesting office'],
-		pending_b: ['tone-indigo', 'Box B · approval'],
+		pending_a: ['tone-amber', 'For approval · Box A (Requesting office)'],
+		pending_b: ['tone-indigo', 'For approval · Box B (Approving officer)'],
 		approved: ['tone-green', 'Approved'],
-		disapproved: ['tone-red', 'Disapproved']
+		disapproved: ['tone-red', 'Returned']
 	};
 
 	function esc(s) {
@@ -60,10 +60,21 @@ function __mysys_proc_pr_ent() {
 		return 'pending_a';
 	}
 
-	// Box B follows the estimated cost (same rule as MyPRModel::approver_for)
+	// Box B follows the estimated cost (same tiers as MyPRModel::approver_for, from Approver Mapping)
 	function approverFor(total) {
-		var rule = lookups.approval || {};
-		return (num(total) >= num(rule.limit) ? rule.above : rule.below) || {};
+		var out = {};
+		(lookups.approval || []).forEach(function (t) { if (num(total) >= num(t.min)) { out = t; } });
+		return out;
+	}
+
+	function approvalRule() {
+		var tiers = lookups.approval || [];
+		if (!tiers.length) { return 'No approver is set yet. Ask an administrator to set one in Approver Mapping.'; }
+		return 'Follows the estimated cost: ' + tiers.map(function (t, i) {
+			var next = tiers[i + 1];
+			var range = next ? (num(t.min) ? money(t.min) + ' to below ' : 'below ') + money(next.min) : money(t.min) + ' and above';
+			return range + ' ' + (t.name || '');
+		}).join(', ') + '.';
 	}
 
 	// Filter pills and cards: approval steps, or where the PR is in procurement
@@ -91,19 +102,19 @@ function __mysys_proc_pr_ent() {
 
 	function inYear(r) { return year === 'all' || yearOf(r) === year; }
 
-	//PR - STAT CARDS: Waiting for a PR no., PR no. assigned, RFQ issued, Estimated cost
+	//PR - STAT CARDS: For approval, Returned, Approved, Estimated cost (like PO)
 	function renderCards() {
 		var $ = window.jQuery;
 		var list = rows.filter(inYear);
 		var amount = function (l) { return l.reduce(function (t, r) { return t + num(r.estimated_cost); }, 0); };
-		var card = function (key, label) {
-			var l = list.filter(function (r) { return r.status === key; });
+		var card = function (key, group, label) {
+			var l = list.filter(function (r) { return inGroup(r, group); });
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
-		card('unnumbered', 'Waiting for a PR no.');
-		card('numbered', 'PR no. assigned');
-		card('rfq', 'RFQ issued');
+		card('pending', 'in_approval', 'For approval');
+		card('returned', 'disapproved', 'Returned');
+		card('approved', 'approved', 'Approved');
 		$('[data-card-value="total"]').text(money(amount(list)));
 		$('[data-card-label="total"]').text('Estimated cost · ' + list.length.toLocaleString() + ' PR' + (list.length === 1 ? '' : 's'));
 	}
@@ -320,17 +331,120 @@ function __mysys_proc_pr_ent() {
 	}
 
 	//PR - PPMPS (the items come from the PPMPs picked, summed per description and unit)
+	// The picker: picked PPMPs as chips, then a searchable list (by fiscal year) where a
+	// click adds or removes a PPMP. Each shows its project, end-user, status and what is
+	// left after the other PRs; a fully used one cannot be picked unless this PR uses it.
+	let ownPPMP = [];           // PPMPs the saved PR already uses
+
+	const PPMP_STATUS = { final: ['tone-green', 'Final'], indicative: ['tone-amber', 'Indicative'], unmarked: ['tone-slate', 'Not marked'] };
+
+	function ppmpOf(no) { return (lookups.ppmps || []).filter(function (p) { return p.value === no; })[0] || null; }
+	function ppmpDone(p) { return Number(p.left) <= 0 && ownPPMP.indexOf(p.value) === -1; }
+
 	function renderSelectedPPMP() {
 		var editable = canSave();
+		document.getElementById('ppmpPickedCount').textContent = selectedPPMP.length;
 		document.getElementById('selected_ppmp_list').innerHTML = selectedPPMP.length
-			? selectedPPMP.map(function (p) {
-				return '<span class="fods-chip tone-teal" data-ppmp="' + esc(p) + '">' + esc(p)
-					+ (editable ? '<button type="button" class="pr-ppmp-remove" data-ppmp="' + esc(p) + '" aria-label="Remove ' + esc(p) + '">&times;</button>' : '') + '</span>';
+			? selectedPPMP.map(function (no) {
+				var p = ppmpOf(no);
+				return '<span class="fods-chip tone-teal" data-ppmp="' + esc(no) + '" title="' + esc(p ? p.project_title || '' : '') + '">' + esc(no)
+					+ (editable ? '<button type="button" class="pr-ppmp-remove" data-ppmp="' + esc(no) + '" aria-label="Remove ' + esc(no) + '">&times;</button>' : '') + '</span>';
 			}).join('')
-			: '<span class="pr-note">No PPMP picked yet.</span>';
+			: '<span class="pr-note">None yet</span>';
+		renderPPMPOptions();
 	}
 
-	function loadPPMPItems() {
+	function renderPPMPOptions() {
+		var box = document.getElementById('ppmp_options');
+		if (!box) { return; }
+		var editable = canSave();
+		var q = String(document.getElementById('ppmp_search').value || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+		var year = document.getElementById('ppmp_year').value;
+		var showUsed = document.getElementById('ppmp_show_used').checked;
+
+		var list = (lookups.ppmps || []).filter(function (p) {
+			var picked = selectedPPMP.indexOf(p.value) !== -1;
+			if (picked) { return true; }   // picked ones always stay in view
+			if (!showUsed && ppmpDone(p)) { return false; }
+			if (year && year !== 'all' && String(p.fiscal_year) !== year) { return false; }
+			var hay = [p.value, p.project_title, p.end_user, p.responsibility_code, p.fiscal_year].join(' ').toLowerCase();
+			return q.every(function (t) { return hay.indexOf(t) !== -1; });
+		});
+
+		if (!list.length) {
+			var hidden = (lookups.ppmps || []).filter(ppmpDone).length;
+			box.innerHTML = '<div class="pr-ppmp-none">No PPMP matches.'
+				+ (hidden && !showUsed ? ' ' + hidden + ' fully used PPMP' + (hidden === 1 ? ' is' : 's are') + ' hidden.' : '') + '</div>';
+			return;
+		}
+
+		box.innerHTML = list.map(function (p) {
+			var picked = selectedPPMP.indexOf(p.value) !== -1;
+			var done = ppmpDone(p);
+			var own = ownPPMP.indexOf(p.value) !== -1;
+			var total = Number(p.total) || 0, left = Number(p.left) || 0;
+			var pct = total ? Math.round(left / total * 100) : 0;
+			var st = PPMP_STATUS[p.status] || PPMP_STATUS.unmarked;
+			var meta = [p.project_title, p.end_user, p.fiscal_year ? 'FY ' + p.fiscal_year : '', p.items ? p.items + ' item' + (p.items == 1 ? '' : 's') : '']
+				.filter(Boolean).map(esc).join(' · ');
+			return '<button type="button" class="pr-ppmp-opt' + (picked ? ' is-picked' : '') + (done ? ' is-done' : '') + '" role="option" aria-selected="' + picked + '"'
+				+ ' data-ppmp="' + esc(p.value) + '"' + (!editable || (done && !picked) ? ' disabled' : '') + '>'
+				+ '<span class="pr-ppmp-check" aria-hidden="true">' + (picked ? '<i class="ti ti-check"></i>' : '') + '</span>'
+				+ '<span class="pr-ppmp-main"><span class="pr-ppmp-no">' + esc(p.value)
+				+ '<span class="fods-chip ' + st[0] + '">' + st[1] + '</span>'
+				+ (own ? '<span class="fods-chip tone-indigo">Used by this PR</span>' : '') + '</span>'
+				+ '<span class="pr-ppmp-meta" title="' + esc(p.project_title || '') + '">' + (meta || '—') + '</span></span>'
+				+ '<span class="pr-ppmp-bal">' + (done ? '<b>Fully used</b>' : '<b>' + left.toLocaleString() + ' of ' + total.toLocaleString() + ' left</b>' + money(p.left_amount))
+				+ '<span class="pr-ppmp-bar"><span style="width:' + pct + '%"></span></span></span>'
+				+ '</button>';
+		}).join('');
+	}
+
+	// Years in the list, newest first; the PR's own year is picked when there are PPMPs for it
+	function ppmpYears() {
+		var sel = document.getElementById('ppmp_year');
+		var years = {};
+		(lookups.ppmps || []).forEach(function (p) { if (p.fiscal_year) { years[p.fiscal_year] = true; } });
+		var list = Object.keys(years).sort().reverse();
+		sel.innerHTML = '<option value="all">All years</option>' + list.map(function (y) { return '<option value="' + esc(y) + '">FY ' + esc(y) + '</option>'; }).join('');
+		var mine = String(document.getElementById('pr_date').value || '').slice(0, 4);
+		sel.value = list.indexOf(mine) !== -1 ? mine : 'all';
+	}
+
+	function togglePPMP(no) {
+		if (!canSave()) { return; }
+		var at = selectedPPMP.indexOf(no);
+		if (at === -1) {
+			var p = ppmpOf(no);
+			if (p && ppmpDone(p)) { toast('warning', 'PPMP ' + no + ' is fully used by other PRs.', 'Fully used'); return; }
+			selectedPPMP.push(no);
+		} else {
+			selectedPPMP.splice(at, 1);
+		}
+		renderSelectedPPMP();
+		fillRCFromPPMP();
+		loadPPMPItems(true);
+	}
+
+	// Responsibility code = the picked PPMPs' codes in the order picked, each code once
+	// (case and spaces ignored), joined with ", ". Runs only when the picks change, so a
+	// saved PR keeps its code until someone picks or removes a PPMP.
+	function fillRCFromPPMP() {
+		var seen = {}, codes = [];
+		selectedPPMP.forEach(function (no) {
+			var p = ppmpOf(no);
+			String(p ? p.responsibility_code || '' : '').split(',').forEach(function (c) {
+				c = c.trim();
+				var k = c.toLowerCase().replace(/\s+/g, '');
+				if (c && !seen[k]) { seen[k] = true; codes.push(c); }
+			});
+		});
+		var el = document.getElementById('responsibility_code');
+		el.value = codes.join(', ');
+		if (el.value.length > 150) { toast('warning', 'The responsibility codes are longer than 150 characters. Shorten them before saving.', 'Responsibility code'); }
+	}
+
+	function loadPPMPItems(announce) {
 		var $ = window.jQuery;
 		var tbody = $('#prGrid tbody');
 		if (selectedPPMP.length === 0) {
@@ -341,11 +455,15 @@ function __mysys_proc_pr_ent() {
 		$.ajax({
 			url: mesiteurl + 'mypr?meaction=LOAD-PPMP',
 			type: 'POST',
-			data: { ppmpno: selectedPPMP },
+			data: { ppmpno: selectedPPMP, recid: record ? record.recid : '' },   // only what is left (this PR's own use counts back)
 			dataType: 'json',
 			success: function (res) {
 				tbody.html((res || []).map(rowHtml).join(''));
 				recalc();
+				if (announce === true) {
+					var n = (res || []).length;
+					toast('info', n + ' item' + (n === 1 ? '' : 's') + ' loaded from ' + selectedPPMP.length + ' PPMP' + (selectedPPMP.length === 1 ? '' : 's') + '. See the Items tab.', 'Items updated');
+				}
 			},
 			error: function (xhr) {
 				toast('error', (xhr.responseJSON && xhr.responseJSON.error) || 'Could not load the PPMP items.', 'Oops!');
@@ -356,24 +474,19 @@ function __mysys_proc_pr_ent() {
 	this.__pr_ppmp = function () {
 		var $ = window.jQuery;
 
-		$('#btn_add_ppmp').on('click', function () {
-			var ppmp = $('#ppmp_lookup').val();
-			if (!ppmp) { toast('warning', 'Select a PPMP first.', 'Oops!'); return; }
-			if (selectedPPMP.indexOf(ppmp) !== -1) { toast('warning', 'That PPMP is already added.', 'Oops!'); return; }
-			selectedPPMP.push(ppmp);
-			$('#ppmp_lookup').val('');
-			renderSelectedPPMP();
-			loadPPMPItems();
+		$('#ppmp_options').on('click', '.pr-ppmp-opt', function () { togglePPMP(this.getAttribute('data-ppmp')); });
+		$('#selected_ppmp_list').on('click', '.pr-ppmp-remove', function () { togglePPMP(this.getAttribute('data-ppmp')); });
+		$('#ppmp_search').on('input', renderPPMPOptions);
+		$('#ppmp_year, #ppmp_show_used').on('change', renderPPMPOptions);
+		// Enter in the search picks the only match
+		$('#ppmp_search').on('keydown', function (e) {
+			if (e.key !== 'Enter') { return; }
+			e.preventDefault();
+			var opts = $('#ppmp_options .pr-ppmp-opt:not(.is-picked):not(:disabled)');
+			if (opts.length === 1) { togglePPMP(opts.attr('data-ppmp')); this.select(); }
 		});
 
-		$('#selected_ppmp_list').on('click', '.pr-ppmp-remove', function () {
-			var ppmp = String($(this).data('ppmp'));
-			selectedPPMP = selectedPPMP.filter(function (p) { return p !== ppmp; });
-			renderSelectedPPMP();
-			loadPPMPItems();
-		});
-
-		$('#prModal').on('click', '.pr-reload', loadPPMPItems);
+		$('#prModal').on('click', '.pr-reload', function () { loadPPMPItems(true); });
 
 		$('#requested_by').on('change', function () {
 			setVal('requested_position', $(this).find(':selected').data('position') || '');
@@ -527,24 +640,31 @@ function __mysys_proc_pr_ent() {
 		form.reset();
 		form.classList.remove('was-validated');
 
-		['recid', 'prno', 'entity_name', 'office', 'responsibility_code', 'fund_cluster', 'end_user', 'charge_to', 'purpose'].forEach(function (f) { setVal(f, hd ? hd[f] : ''); });
+		['recid', 'prno', 'office', 'responsibility_code', 'end_user', 'charge_to', 'purpose'].forEach(function (f) { setVal(f, hd ? hd[f] : ''); });
+
+		// fund cluster: Choose... / 01 / 07, as on ORS/BURS; an older PR saved with another value keeps it as an extra option
+		var fc = document.getElementById('fund_cluster');
+		$(fc).find('option.fc-legacy').remove();
+		var fcv = hd ? String(hd.fund_cluster == null ? '' : hd.fund_cluster).trim() : '';
+		if (fcv !== '' && fcv !== '01' && fcv !== '07') { $('<option class="fc-legacy">').val(fcv).text(fcv).appendTo(fc); }
+		fc.value = fcv;
 
 		// a blank saved date stays blank so it gets filled in; a new PR starts today
 		setVal('pr_date', hd ? (String(hd.pr_date || '').indexOf('0000') === 0 ? '' : hd.pr_date) : new Date().toLocaleDateString('en-CA'));
 
-		document.getElementById('ppmp_lookup').innerHTML = '<option value="">Choose a PPMP...</option>' + (lookups.ppmps || []).map(function (p) {
-			var sub = [p.end_user, p.fiscal_year].filter(Boolean).join(', ');
-			return '<option value="' + esc(p.value) + '">' + esc(p.value) + (sub ? ' — ' + esc(sub) : '') + '</option>';
-		}).join('');
+		// a PPMP the PRs have fully used cannot be picked, unless this PR already uses it
+		ownPPMP = hd ? (hd.ppmps || []).slice() : [];
+		selectedPPMP = ownPPMP.slice();
+		setVal('ppmp_search', '');
+		document.getElementById('ppmp_show_used').checked = false;
+		ppmpYears();
 
-		selectedPPMP = hd ? (hd.ppmps || []).slice() : [];
-
-		signatoryOptions(hd ? hd.requested_by : '', hd ? hd.requested_position : '');
+		// a new PR starts with Box A's default signatory (Approver Mapping)
+		var def = (lookups.signatories || []).filter(function (o) { return String(o.is_default) === '1'; })[0] || {};
+		signatoryOptions(hd ? hd.requested_by : (def.full_name || ''), hd ? hd.requested_position : (def.position || ''));
 		setVal('approved_by', hd ? hd.approved_by : '');
 		setVal('approved_position', hd ? hd.approved_position : '');
-		var rule = lookups.approval || {};
-		document.getElementById('prApprovalRule').textContent = 'Follows the estimated cost: below ' + money(rule.limit) + ' ' + ((rule.below || {}).name || '')
-			+ ', ' + money(rule.limit) + ' and above ' + ((rule.above || {}).name || '') + '.';
+		document.getElementById('prApprovalRule').textContent = approvalRule();
 	}
 
 	// Box A: heads of the requesting offices, keeping a saved one who is no longer in the list
@@ -574,7 +694,7 @@ function __mysys_proc_pr_ent() {
 		else if (disapproved) { html = '<span class="fods-chip tone-red"><i class="ti ti-x"></i>Disapproved</span>'; }
 		else if (!hd) { html = ''; }
 		else if (box === 'b' && String(hd.is_approved_certa) !== '1') { html = '<span class="fods-chip tone-slate">After Box A</span>'; }
-		else { html = '<span class="fods-chip tone-amber"><span class="fods-dot"></span>Waiting</span>'; }
+		else { html = '<span class="fods-chip tone-amber"><span class="fods-dot"></span>For approval</span>'; }
 		if (approved || disapproved) { note = 'By ' + esc(hd['cert' + box + '_approver'] || '—') + (hd['cert' + box + '_remarks'] ? ' — ' + esc(hd['cert' + box + '_remarks']) : ''); }
 		$('#prSignStatus' + box.toUpperCase()).html(html);
 		$('#prSignNote' + box.toUpperCase()).html(note);
@@ -597,7 +717,7 @@ function __mysys_proc_pr_ent() {
 		var banner = $('#prBanner').removeClass('alert-success alert-danger alert-info d-none');
 		if (approval === 'pending_b') {
 			banner.addClass('alert-info').html('<b>Approved by the requesting office</b>' + (hd.certa_approver ? ' (' + esc(hd.certa_approver) + ')' : '')
-				+ ' and waiting for ' + esc(hd.approved_by || 'Box B') + '. It can no longer be edited' + (prnoOnly ? ' — you can still assign its PR no.' : '.'));
+				+ '; pending approval by ' + esc(hd.approved_by || 'Box B') + '. It can no longer be edited' + (prnoOnly ? ' — you can still assign its PR no.' : '.'));
 		} else if (approval === 'approved') {
 			banner.addClass('alert-success').html('<b>Approved</b> — Box A by ' + esc(hd.certa_approver || '—') + ', Box B by ' + esc(hd.certb_approver || '—') + '.'
 				+ (prnoOnly ? '<div class="small mt-1">Only the PR no. can still be changed.</div>' : ''));
@@ -606,7 +726,7 @@ function __mysys_proc_pr_ent() {
 			banner.addClass('alert-danger').html('<b>Disapproved at Box ' + box.toUpperCase() + '</b>' + (hd['cert' + box + '_approver'] ? ' by ' + esc(hd['cert' + box + '_approver']) : '')
 				+ (hd['cert' + box + '_remarks'] ? ' — ' + esc(hd['cert' + box + '_remarks']) : '')
 				+ (canSave() ? '<div class="small mt-1">Saving your corrections sends it back to Box A.</div>' : ''));
-		} else if (!canSave()) {
+		} else if (!canSave() && !(hd && hd.can_decide)) {
 			banner.addClass('alert-info').html('<b>View only</b> — you don\'t have permission to ' + (record ? 'edit' : 'add') + ' purchase requests.');
 		} else {
 			banner.addClass('d-none');
@@ -615,8 +735,49 @@ function __mysys_proc_pr_ent() {
 		signStatus('a', hd);
 		signStatus('b', hd);
 
+		// Approve / disapprove the box it is at: anyone whose role has the Approve code
+		// (can_decide comes from MyPRModel::can_decide with the record)
+		var decide = !!hd && !!hd.can_decide;
+		$('#prApproveBtn, #prDisapproveBtn').toggleClass('d-none', !decide);
+		$('#prApproveBtn').html('<i class="ti ti-check me-1"></i>Approve Box ' + (decide ? String(approval).slice(-1).toUpperCase() : ''));
+
 		$('#submitBtn').toggleClass('d-none', !canSave() && !prnoOnly).text(prnoOnly ? 'Save PR no.' : (hd ? 'Save changes' : 'Create PR'));
 	}
+
+	//PR - APPROVE / DISAPPROVE THE CURRENT BOX (remarks required to disapprove)
+	this.__pr_decision = function () {
+		var $ = window.jQuery;
+
+		function openDecision(mode) {
+			if (!record || !record.can_decide) { return; }
+			var B = String(approvalOf(record)).slice(-1).toUpperCase();
+			var STEPS = { A: ['Box A · Requesting office', 'Box B · ' + (record.approved_by || 'Approval')], B: ['Box B · Approval', 'Approved'] };
+			var approve = mode === 'approve';
+			FodsDecision.open({
+				host: document.getElementById('prModal'),
+				mode: mode,
+				title: (approve ? 'Approve' : 'Disapprove') + ' PR · Box ' + B,
+				subtitle: (record.prno ? 'PR ' + record.prno : 'Purchase request #' + record.recid) + ' · ' + (record.end_user || record.office || ''),
+				facts: [['Estimated cost', $('#prFootCost').text(), true], ['Step', (STEPS[B] || ['Box ' + B])[0]], ['After this', approve ? (STEPS[B] || ['', ''])[1] : 'Returned to the preparer']],
+				maxlength: 100,
+				submit: function (remarks, done) {
+					$.ajax({
+						type: 'POST',
+						url: mesiteurl + 'myprapproval',
+						data: { recid: record.recid, remarks: remarks, meaction: approve ? 'MAIN-APPROVE' : 'MAIN-DISAPPROVE' },
+						global: false,
+						cache: false,
+						success: function (data) { $('.me-outp-msg').html(data); FodsDecision.close(); },
+						error: function (xhr, status, error) { toastr.error('[PR]', 'Error loading page...' + error, { closeButton: true }); },
+						complete: done
+					});
+				}
+			});
+		}
+
+		document.getElementById('prApproveBtn').addEventListener('click', function () { openDecision('approve'); });
+		document.getElementById('prDisapproveBtn').addEventListener('click', function () { openDecision('disapprove'); });
+	};
 
 	this.__open_pr = function (recid, tab) {
 		var $ = window.jQuery;
@@ -678,7 +839,6 @@ function __mysys_proc_pr_ent() {
 			var val = function (id) { return document.getElementById(id).value; };
 			var mparam = {
 				recid: val('recid'),
-				entity_name: val('entity_name'),
 				office: val('office'),
 				prno: val('prno'),
 				responsibility_code: val('responsibility_code'),
@@ -751,6 +911,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_proc_pr_ent.__pr_rfq();
 	__mysys_proc_pr_ent.__pr_saving();
 	__mysys_proc_pr_ent.__pr_print();
+	__mysys_proc_pr_ent.__pr_decision();
 
 	// Deep link: ?recid= opens that PR right away (&tab=rfq on its RFQ tab)
 	if (window.__pr_open) { __mysys_proc_pr_ent.__open_pr(window.__pr_open, window.__pr_tab); }

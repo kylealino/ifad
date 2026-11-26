@@ -44,11 +44,10 @@ class MyLDDAPADAApproval extends BaseController
                 if (!$canView) { return view('errors/html/access-restricted'); }
                 return view('cashier/lddapada-pdf');
 
+            // Approving now happens on the LDDAP-ADA page; old links open the record there
             default:
-                if ($canView) {
-                    return $this->loadMainView();
-                }
-                return view('errors/html/access-restricted');
+                $recid = (string) $this->request->getGet('recid');
+                return redirect()->to('mylddapada?meaction=MAIN' . ($recid !== '' ? '&recid=' . urlencode($recid) : ''));
         }
     }
 

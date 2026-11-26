@@ -11,9 +11,9 @@ function __mysys_ada_ent() {
 	let record = null;          // ADA open in the editor (null = new)
 
 	const STATUS = {
-		pending: ['tone-amber', 'Pending'],
+		pending: ['tone-amber', 'For approval'],
 		approved: ['tone-green', 'Approved'],
-		disapproved: ['tone-red', 'Disapproved']
+		disapproved: ['tone-red', 'Returned']
 	};
 
 	function esc(s) {
@@ -69,7 +69,7 @@ function __mysys_ada_ent() {
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
-		card('pending', 'pending', 'Pending');
+		card('pending', 'pending', 'For approval');
 		card('returned', 'disapproved', 'Returned');
 		card('approved', 'approved', 'Approved');
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -197,6 +197,13 @@ function __mysys_ada_ent() {
 		sel.value = current || '';
 	}
 
+	// A box's signatories with the saved one; a new ADA starts with the box's default (Approver Mapping)
+	function signatory(id, posId, list, hd) {
+		var def = (list || []).filter(function (o) { return String(o.is_default) === '1'; })[0];
+		options(id, list || [], hd ? hd[id] : (def ? def.full_name : ''), hd ? hd[posId] : '');
+		if (!hd) { setVal(posId, def ? def.position : ''); }
+	}
+
 	function canSave() {
 		if (!record) { return !!perms.add; }
 		var status = statusOf(record);
@@ -249,8 +256,8 @@ function __mysys_ada_ent() {
 		['recid', 'dvno', 'adano', 'particulars', 'payee_name', 'payee_accountno', 'position_a', 'position_b'].forEach(function (f) { setVal(f, hd ? hd[f] : ''); });
 		setVal('ada_date', hd ? (String(hd.ada_date || '').indexOf('0000') === 0 ? '' : hd.ada_date) : new Date().toISOString().slice(0, 10));
 		setNet(hd ? hd.net_amount : 0);
-		options('certified_a', lookups.certifya || [], hd ? hd.certified_a : '', hd ? hd.position_a : '');
-		options('certified_b', lookups.certifyb || [], hd ? hd.certified_b : '', hd ? hd.position_b : '');
+		signatory('certified_a', 'position_a', lookups.certifya, hd);
+		signatory('certified_b', 'position_b', lookups.certifyb, hd);
 	}
 
 	function setHeader(hd) {
@@ -269,8 +276,45 @@ function __mysys_ada_ent() {
 		} else {
 			banner.addClass('d-none');
 		}
+		$('#adaApproveBtn, #adaDisapproveBtn').toggleClass('d-none', !canDecide(hd));
 		$('#submitBtn').toggleClass('d-none', !canSave()).text(!hd ? 'Create ADA' : (status === 'disapproved' ? 'Save & resubmit' : 'Save changes'));
 	}
+
+	// One approval step: anyone with ADA Approval - Approve decides a pending one
+	function canDecide(hd) { return !!hd && !!perms.approve && statusOf(hd) === 'pending'; }
+
+	//ADA - APPROVE / DISAPPROVE (remarks required to disapprove)
+	this.__ada_decision = function () {
+		var $ = window.jQuery;
+
+		function openDecision(mode) {
+			if (!canDecide(record)) { return; }
+			var approve = mode === 'approve';
+			FodsDecision.open({
+				host: document.getElementById('adaModal'),
+				mode: mode,
+				title: (approve ? 'Approve' : 'Disapprove') + ' ADA',
+				subtitle: (record.adano ? 'ADA ' + record.adano : 'ADA #' + record.recid) + ' · ' + (record.payee_name || ''),
+				facts: [['Net amount', $('#adaNet').text(), true], ['DV no.', record.dvno || ''], ['Step', 'ADA approval'], ['After this', approve ? 'Approved' : 'Returned to the preparer']],
+				maxlength: 100,
+				submit: function (remarks, done) {
+					$.ajax({
+						type: 'POST',
+						url: mesiteurl + 'myadaapproval',
+						data: { recid: record.recid, remarks: remarks, meaction: approve ? 'MAIN-APPROVE' : 'MAIN-DISAPPROVE' },
+						global: false,
+						cache: false,
+						success: function (data) { $('.me-outp-msg').html(data); FodsDecision.close(); },
+						error: function (xhr, status, error) { toastr.error('[ADA]', 'Error loading page...' + error, { closeButton: true }); },
+						complete: done
+					});
+				}
+			});
+		}
+
+		document.getElementById('adaApproveBtn').addEventListener('click', function () { openDecision('approve'); });
+		document.getElementById('adaDisapproveBtn').addEventListener('click', function () { openDecision('disapprove'); });
+	};
 
 	this.__open_ada = function (recid) {
 		var $ = window.jQuery;
@@ -353,7 +397,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_ada_ent.__ada_details();
 	__mysys_ada_ent.__ada_saving();
 	__mysys_ada_ent.__ada_print();
+	__mysys_ada_ent.__ada_decision();
 
-	// Deep link (e.g. from ADA Approval): open that ADA right away
+	// Deep link (e.g. an old ADA Approval link): open that ADA right away
 	if (window.__ada_open) { __mysys_ada_ent.__open_ada(window.__ada_open); }
 });

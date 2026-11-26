@@ -122,11 +122,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="rcModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="rcModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down rc-dialog">
         <div class="modal-content">
             <form id="rcForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-report"></i></div>
                         <div style="min-width:0">
@@ -136,58 +136,64 @@ echo view('templates/myheader.php');
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="rcPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="rci" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
 
-                    <div class="fods-card mb-3"><div class="fods-card-body pt-3">
-                        <div class="fods-section mt-0">Report</div>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Report</h6>
+                        </div>
                         <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label" for="reportno">Report no.</label>
+                            <div class="col-md-5">
+                                <label class="form-label" for="reportno">RCI report no.</label>
                                 <input type="text" class="form-control" id="reportno" name="reportno">
                             </div>
-                            <div class="col-md-2 col-6">
-                                <label class="form-label" for="fund_cluster_code">Fund cluster</label>
+                            <div class="col-md-3 col-6">
+                                <label class="form-label req" for="fund_cluster_code">Fund cluster</label>
                                 <select class="form-select" id="fund_cluster_code" name="fund_cluster_code" required></select>
-                                <div class="invalid-feedback">Required.</div>
+                                <div class="invalid-feedback">Pick the fund cluster.</div>
                             </div>
-                            <div class="col-md-4 col-6">
-                                <label class="form-label" for="mds_branch">MDS-GSB branch</label>
+                            <div class="w-100 d-none d-md-block m-0"></div>
+                            <div class="col-md-5">
+                                <label class="form-label req" for="mds_branch">MDS-GSB branch</label>
                                 <input type="text" class="form-control" id="mds_branch" name="mds_branch" required>
-                                <div class="invalid-feedback">Required.</div>
+                                <div class="invalid-feedback">MDS-GSB branch is required.</div>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label" for="mds_accountno">MDS sub-account no.</label>
                                 <input type="text" class="form-control" id="mds_accountno" name="mds_accountno">
                             </div>
                         </div>
-                    </div></div>
+                    </section>
 
-                    <div class="rc-grid-card">
-                        <div class="rc-grid-head">
-                            <div>
-                                <div class="rc-grid-title">Checks / ADAs issued <span class="rc-grid-sub" id="rcCount"></span></div>
-                                <div class="rc-grid-sub">Picking an LDDAP-ADA adds one line per DV on it</div>
+                    <section class="fods-fsec is-wide">
+                        <div class="rc-grid-card mb-0">
+                            <div class="rc-grid-head">
+                                <div>
+                                    <div class="rc-grid-title">Checks / ADAs issued <span class="rc-grid-sub" id="rcCount"></span></div>
+                                    <div class="rc-grid-sub">Picking an LDDAP-ADA adds one line per DV on it</div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 align-items-center" id="rcAddRow">
+                                    <input type="text" class="form-control form-control-sm" id="ld_lookup" placeholder="Add an LDDAP-ADA…" autocomplete="off" style="min-width:260px;" aria-label="Add an LDDAP-ADA">
+                                    <button type="button" class="btn btn-sm btn-fods-ghost" id="rcAddBlank"><i class="ti ti-plus me-1"></i>Blank line</button>
+                                </div>
                             </div>
-                            <div class="d-flex flex-wrap gap-2 align-items-center" id="rcAddRow">
-                                <input type="text" class="form-control form-control-sm" id="ld_lookup" placeholder="Add an LDDAP-ADA…" autocomplete="off" style="min-width:260px;">
-                                <button type="button" class="btn btn-sm btn-fods-ghost" id="rcAddBlank"><i class="ti ti-plus me-1"></i>Blank line</button>
+                            <div class="rc-grid-wrap">
+                                <table class="rc-grid" id="rcGrid">
+                                    <colgroup><col class="c-no"><col class="c-ld"><col class="c-date"><col class="c-ck"><col class="c-dv"><col class="c-serial"><col class="c-rc"><col class="c-payee"><col class="c-part"><col class="c-amt"><col class="c-amt"><col class="c-amt"><col class="c-amt"><col class="c-act"></colgroup>
+                                    <thead><tr><th class="sticky-l">#</th><th>LDDAP-ADA no.</th><th>Check date</th><th>Check no.</th><th>DV no.</th><th>ORS / BURS no.</th><th>Responsibility center</th><th>Payee</th><th>Nature of payment</th><th class="num">Gross</th><th class="num">PhilHealth</th><th class="num">Tax</th><th class="num">Net amount</th><th class="sticky-r"></th></tr></thead>
+                                    <tbody></tbody>
+                                    <tfoot><tr><td class="sticky-l"></td><td colspan="8">Total</td><td class="num" data-sum="gross"></td><td class="num" data-sum="philhealth"></td><td class="num" data-sum="tax"></td><td class="num" data-sum="net"></td><td class="sticky-r"></td></tr></tfoot>
+                                </table>
                             </div>
+                            <div class="rc-empty d-none" id="rcEmpty">No lines yet. Add an LDDAP-ADA above.</div>
                         </div>
-                        <div class="rc-grid-wrap">
-                            <table class="rc-grid" id="rcGrid">
-                                <colgroup><col class="c-no"><col class="c-ld"><col class="c-date"><col class="c-ck"><col class="c-dv"><col class="c-serial"><col class="c-rc"><col class="c-payee"><col class="c-part"><col class="c-amt"><col class="c-amt"><col class="c-amt"><col class="c-amt"><col class="c-act"></colgroup>
-                                <thead><tr><th class="sticky-l">#</th><th>LDDAP-ADA no.</th><th>Check date</th><th>Check no.</th><th>DV no.</th><th>ORS / BURS no.</th><th>Responsibility center</th><th>Payee</th><th>Nature of payment</th><th class="num">Gross</th><th class="num">PhilHealth</th><th class="num">Tax</th><th class="num">Net amount</th><th class="sticky-r"></th></tr></thead>
-                                <tbody></tbody>
-                                <tfoot><tr><td class="sticky-l"></td><td colspan="8">Total</td><td class="num" data-sum="gross"></td><td class="num" data-sum="philhealth"></td><td class="num" data-sum="tax"></td><td class="num" data-sum="net"></td><td class="sticky-r"></td></tr></tfoot>
-                            </table>
-                        </div>
-                        <div class="rc-empty d-none" id="rcEmpty">No lines yet — add an LDDAP-ADA above.</div>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="modal-footer justify-content-between">
@@ -227,5 +233,5 @@ echo view('templates/myheader.php');
     var __rc_perms = <?= json_encode($perms) ?>;
     var __rc_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/cashier/myrci.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/cashier/myrci.js?v=4');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

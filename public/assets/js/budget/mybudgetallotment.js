@@ -25,9 +25,9 @@ function __mysys_budget_allotment_ent() {
 
 	const STATUS = {
 		draft: ['tone-slate', 'Draft'],
-		pending: ['tone-amber', 'Awaiting approval'],
+		pending: ['tone-amber', 'For approval'],
 		approved: ['tone-green', 'Approved'],
-		disapproved: ['tone-red', 'Disapproved']
+		disapproved: ['tone-red', 'Returned']
 	};
 
 	function esc(s) {
@@ -71,7 +71,7 @@ function __mysys_budget_allotment_ent() {
 	const GROUPS = {};
 	function inGroup(r, key) { return key === 'all' || (GROUPS[key] || [key]).indexOf(r.status) !== -1; }
 
-	//BUDGET - STAT CARDS: Pending, Returned, Approved, Total amount
+	//BUDGET - STAT CARDS: For approval, Returned, Approved, Total amount
 	function renderCards() {
 		var $ = window.jQuery;
 		var list = rows.filter(inYear);
@@ -82,7 +82,7 @@ function __mysys_budget_allotment_ent() {
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label() + ' · ' + money(amount(l)));
 		};
-		card('pending', 'pending', function () { return 'Pending'; });
+		card('pending', 'pending', function () { return 'For approval'; });
 		card('returned', 'disapproved', function () { return 'Returned'; });
 		card('approved', 'approved', function () { return 'Approved'; });
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -626,36 +626,35 @@ function __mysys_budget_allotment_ent() {
 
 	//BUDGET - APPROVE / DISAPPROVE
 	this.__budget_decision = function () {
-		var mode = 'approve';
-		var decisionEl = document.getElementById('budgetDecisionModal');
+		var $ = window.jQuery;
 
-		function openDecision(m) {
-			mode = m;
-			var approve = m === 'approve';
-			document.getElementById('budDecisionTitle').textContent = approve ? 'Approve allotment' : 'Disapprove allotment';
-			document.getElementById('budDecisionSub').textContent = record ? record.trxno + ' · ' + record.project_title : '';
-			document.getElementById('budDecisionIcon').className = 'fods-modal-icon ' + (approve ? 'tone-green' : 'tone-red');
-			document.getElementById('budDecisionIcon').innerHTML = '<i class="ti ' + (approve ? 'ti-check' : 'ti-x') + '"></i>';
-			var btn = document.getElementById('budDecisionConfirm');
-			btn.className = 'btn btn-sm px-4 ' + (approve ? 'btn-success' : 'btn-danger');
-			btn.textContent = approve ? 'Approve' : 'Disapprove';
-			document.getElementById('budDecisionRemarks').value = '';
-			bootstrap.Modal.getOrCreateInstance(decisionEl).show();
+		function openDecision(mode) {
+			if (!record) { return; }
+			var approve = mode === 'approve';
+			FodsDecision.open({
+				host: document.getElementById('budgetModal'),
+				mode: mode,
+				title: (approve ? 'Approve' : 'Disapprove') + ' allotment',
+				subtitle: (record.trxno || 'Allotment #' + record.recid) + ' · ' + (record.project_title || ''),
+				facts: [['Approved budget', $('#budTotalApproved').text(), true], ['Step', 'Budget approval'], ['After this', approve ? 'Approved' : 'Returned to the preparer']],
+				maxlength: 100,
+				submit: function (remarks, done) {
+					$.ajax({
+						type: 'POST',
+						url: mesiteurl + 'mybudgetallotment',
+						data: { recid: record.recid, remarks: remarks, meaction: approve ? 'MAIN-APPROVE' : 'MAIN-DISAPPROVE' },
+						global: false,
+						cache: false,
+						success: function (data) { $('.me-outp-msg').html(data); FodsDecision.close(); },
+						error: function (xhr, status, error) { toastr.error('[BUDGET]', 'Error loading page...' + error, { closeButton: true }); },
+						complete: done
+					});
+				}
+			});
 		}
 
 		document.getElementById('budgetApproveBtn').addEventListener('click', function () { openDecision('approve'); });
 		document.getElementById('budgetDisapproveBtn').addEventListener('click', function () { openDecision('disapprove'); });
-
-		document.getElementById('budDecisionConfirm').addEventListener('click', function () {
-			if (!record) { return; }
-			post({
-				recid: record.recid,
-				approver: document.getElementById('budDecisionBy').value,
-				remarks: document.getElementById('budDecisionRemarks').value,
-				meaction: mode === 'approve' ? 'MAIN-APPROVE' : 'MAIN-DISAPPROVE'
-			}, this);
-			bootstrap.Modal.getOrCreateInstance(decisionEl).hide();
-		});
 	};
 
 	//BUDGET - ATTACHMENTS

@@ -21,7 +21,7 @@ class MyLDDAPADA extends BaseController
 
         switch ($meaction) {
             case 'MAIN':
-                if (fods_has_access(\Config\AccessCodes::LDDAPADA_VIEW)) {
+                if (fods_has_any_access([\Config\AccessCodes::LDDAPADA_VIEW, \Config\AccessCodes::LDDAPADAAPPROVAL_VIEW])) {
                     return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -29,7 +29,7 @@ class MyLDDAPADA extends BaseController
 
             // One LDDAP-ADA with its DV lines, for the editor modal
             case 'MAIN-LOAD':
-                if (!fods_has_access(\Config\AccessCodes::LDDAPADA_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::LDDAPADA_VIEW, \Config\AccessCodes::LDDAPADAAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $record = $this->mylddapada->lddapada_load($this->request->getGet('recid'));
@@ -44,13 +44,13 @@ class MyLDDAPADA extends BaseController
                 break;
 
             case 'PRINT-LDDAPADA':
-                if (!fods_has_access(\Config\AccessCodes::LDDAPADA_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::LDDAPADA_VIEW, \Config\AccessCodes::LDDAPADAAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('cashier/lddapada-pdf');
                 break;
 
             // A line for each picked DV (payee, account no., amounts, allotment class)
             case 'LOAD-DV':
-                if (!fods_has_access(\Config\AccessCodes::LDDAPADA_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::LDDAPADA_VIEW, \Config\AccessCodes::LDDAPADAAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $dvno = $this->request->getPostGet('dvno');
@@ -96,7 +96,8 @@ class MyLDDAPADA extends BaseController
         }
         unset($row);
 
-        // DVs to pick from (newest first), with the LDDAP-ADA each is already on
+        // DVs to pick from (newest first), with the LDDAP-ADA each is already on (returned
+        // ones left out: their DVs can be paid on another LDDAP-ADA)
         $dvdata = $this->db->query("
         SELECT
             a.`dvno`,
@@ -104,27 +105,31 @@ class MyLDDAPADA extends BaseController
             a.`net_amount`,
             (SELECT GROUP_CONCAT(DISTINCT h.`lddapadano` SEPARATOR ', ')
                FROM `tbl_lddapada_dvno` v JOIN `tbl_lddapada_hd` h ON h.`recid` = v.`lddapada_id`
-              WHERE v.`dvno` = a.`dvno`) AS on_lddapada
+              WHERE v.`dvno` = a.`dvno` AND h.`is_disapproved` = 0) AS on_lddapada,
+            (SELECT GROUP_CONCAT(DISTINCT h.`recid`)
+               FROM `tbl_lddapada_dvno` v JOIN `tbl_lddapada_hd` h ON h.`recid` = v.`lddapada_id`
+              WHERE v.`dvno` = a.`dvno` AND h.`is_disapproved` = 0) AS on_ids
         FROM `tbl_disbursement_hd` a
         WHERE a.`dvno` <> ''
         ORDER BY a.`recid` DESC
         ")->getResultArray();
 
-        // The four printed signatures and the names offered for them
-        $signatories = [];
-        foreach (\App\Models\MyLDDAPADAModel::SIGNATORIES as $name => $position) {
-            $signatories[] = ['full_name' => $name, 'position' => $position];
-        }
+        // The four printed signatures, each with the names offered and its default (Approver Mapping)
         $signatures = [];
-        foreach (\App\Models\MyLDDAPADAModel::SIGNATURES as $field => [$label, $default]) {
-            $signatures[] = ['field' => $field, 'position_field' => \App\Models\MyLDDAPADAModel::position_col($field), 'label' => $label, 'default' => $default];
+        foreach (\App\Models\MyLDDAPADAModel::SIGNATURES as $field => [$label]) {
+            $signatures[] = [
+                'field' => $field,
+                'position_field' => \App\Models\MyLDDAPADAModel::position_col($field),
+                'label' => $label,
+                'default' => \App\Models\MyApproverMapModel::default_of('lddapada', $field)['name'],
+                'options' => \App\Models\MyApproverMapModel::options('lddapada', $field),
+            ];
         }
 
         return view('cashier/lddapada-main', [
             'lddapdata' => $lddapdata,
             'lookups' => [
                 'dvs' => $dvdata,
-                'signatories' => $signatories,
                 'signatures' => $signatures,
                 'fund_clusters' => ['01', '07'],
                 // MDS sub-account per fund cluster, as on the previous form
@@ -134,6 +139,7 @@ class MyLDDAPADA extends BaseController
             'perms' => [
                 'add' => fods_has_access(\Config\AccessCodes::LDDAPADA_ADD),
                 'edit' => fods_has_access(\Config\AccessCodes::LDDAPADA_UPDATE),
+                'approve' => fods_has_access(\Config\AccessCodes::LDDAPADAAPPROVAL_APPROVE),
             ],
             'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that LDDAP-ADA directly
         ]);

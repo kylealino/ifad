@@ -8,7 +8,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="<?=site_url();?>"><i class="ti ti-home"></i></a></li>
-                    <li class="breadcrumb-item"><a href="#">Maintenance</a></li>
+                    <li class="breadcrumb-item"><a href="#">Library</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Supplies</li>
                 </ol>
             </nav>
@@ -79,7 +79,7 @@
 </div>
 
 <!-- Add / edit -->
-<div class="modal fade fods-modal" id="productsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade fods-modal fods-flat" id="productsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <form id="productsForm" novalidate>
@@ -91,41 +91,57 @@
                             <div class="fods-modal-sub" id="productsModalSub">A supply item and its unit price.</div>
                         </div>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="d-flex align-items-center gap-2 ms-auto ps-3">
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="supplies" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
+                        <button type="button" class="btn-close ms-1" data-bs-dismiss="modal"></button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="recid">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label" for="product_code">Item code</label>
-                            <input type="text" class="form-control" id="product_code" name="product_code">
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Item</h6>
                         </div>
-                        <div class="col-md-8">
-                            <label class="form-label" for="product_desc">Description</label>
-                            <input type="text" class="form-control" id="product_desc" name="product_desc" required>
-                            <div class="invalid-feedback">Description is required.</div>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="product_code">Item code</label>
+                                <input type="text" class="form-control" id="product_code" name="product_code">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label req" for="product_desc">Item description</label>
+                                <input type="text" class="form-control" id="product_desc" name="product_desc" required>
+                                <div class="invalid-feedback">Item description is required.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="uom">Unit of measure</label>
+                                <input type="text" class="form-control" id="uom" name="uom" list="uomList" placeholder="e.g. piece, ream, box">
+                                <datalist id="uomList">
+                                    <?php foreach ($uoms as $u): ?><option value="<?= esc($u, 'attr') ?>"><?php endforeach; ?>
+                                </datalist>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label" for="uom">Unit of measure</label>
-                            <input type="text" class="form-control" id="uom" name="uom" list="uomList" placeholder="e.g. piece, ream, box">
-                            <datalist id="uomList">
-                                <?php foreach ($uoms as $u): ?><option value="<?= esc($u, 'attr') ?>"><?php endforeach; ?>
-                            </datalist>
+                    </section>
+                    <section class="fods-fsec">
+                        <div class="fods-fsec-head">
+                            <h6>Price and stock</h6>
                         </div>
-                        <div class="col-md-4 col-6">
-                            <label class="form-label" for="price">Unit price (₱)</label>
-                            <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" data-default="0">
+                        <div class="row g-3">
+                            <div class="col-md-4 col-6">
+                                <label class="form-label" for="price">Unit price (₱)</label>
+                                <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" data-default="0">
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label" for="quantity">Quantity on hand</label>
+                                <input type="number" class="form-control" id="quantity" name="quantity" step="1" min="0" data-default="0">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="remarks">Remarks</label>
+                                <textarea class="form-control" id="remarks" name="remarks" rows="2"></textarea>
+                            </div>
                         </div>
-                        <div class="col-md-4 col-6">
-                            <label class="form-label" for="quantity">Stock quantity</label>
-                            <input type="number" class="form-control" id="quantity" name="quantity" step="1" min="0" data-default="0">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label" for="remarks">Remarks</label>
-                            <textarea class="form-control" id="remarks" name="remarks" rows="2"></textarea>
-                        </div>
-                    </div>
+                    </section>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-fods-ghost px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-fods px-4" id="submitBtn">Create</button>
@@ -139,5 +155,5 @@
     var __products_data = <?= json_encode($productsdata, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __products_perms = <?= json_encode($perms) ?>;
 </script>
-<script src="<?=base_url('assets/js/products/myproducts.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/products/myproducts.js?v=5');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

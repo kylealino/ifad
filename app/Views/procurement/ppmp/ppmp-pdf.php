@@ -401,6 +401,25 @@ WHERE
 
 $rw = $query->getResultArray();
 $expected_delivery_period = '';
+
+// Rows end at PPMP_BOTTOM (legal landscape is 215.9 mm high; the footer starts 15 mm from the
+// bottom and FPDF breaks pages by itself at 195.9 mm). The total and the signatures need PPMP_SIGN_H.
+if (!defined('PPMP_BOTTOM')) { define('PPMP_BOTTOM', 195); define('PPMP_SIGN_H', 30); }
+
+// Splits text into lines that fit $w mm in the current font (a word too long for a line stays whole)
+if (!function_exists('ppmp_wrap')) {
+    function ppmp_wrap($pdf, string $text, float $w): array {
+        $lines = [];
+        $cur = '';
+        foreach (preg_split('/\s+/', trim($text)) as $word) {
+            if ($word === '') { continue; }
+            $try = $cur === '' ? $word : $cur . ' ' . $word;
+            if ($cur !== '' && $pdf->GetStringWidth($try) > $w) { $lines[] = $cur; $cur = $word; } else { $cur = $try; }
+        }
+        if ($cur !== '') { $lines[] = $cur; }
+        return $lines ?: [''];
+    }
+}
 foreach ($rw as $data) {
     $item_desc = $data['item_desc'];
     $item_type = $data['item_type'];
@@ -440,7 +459,9 @@ foreach ($rw as $data) {
         $funding_source = '';
     }
 
-    if ($pdf->GetY() > 155) { // adjust threshold as needed
+    // a row starts a new page only when it would cross the bottom (the footer sits below it)
+    $need = max(count(ppmp_wrap($pdf, (string) $item_desc, 58)) * 5, count(ppmp_wrap($pdf, (string) $mop, 19)) * 3 + 1, 5);
+    if ($pdf->GetY() + $need > PPMP_BOTTOM) {
         $pdf->AddPage();
     }
 
@@ -451,8 +472,10 @@ foreach ($rw as $data) {
     $pdf->SetXY(20, $startY);
     $pdf->MultiCell(60, 5, $item_desc, 0, 'L');
 
-    // Compute dynamic row height
-    $endY = $pdf->GetY();
+    // Compute dynamic row height (a long mode of procurement wraps in its column and can make the row taller)
+    $mopLines = ppmp_wrap($pdf, (string) $mop, 19);
+    $mopH = count($mopLines) * 3;
+    $endY = max($pdf->GetY(), $startY + $mopH + 1);
     $rowHeight = $endY - $startY;
 
     // DRAW CELL BORDERS
@@ -477,14 +500,15 @@ foreach ($rw as $data) {
     $pdf->SetXY(80,  $middleY); $pdf->Cell(20, 5, $item_type, 0, 0, 'C');
     $pdf->SetXY(100, $middleY); $pdf->Cell(15, 5, $quantity, 0, 0, 'C');
     $pdf->SetXY(115, $middleY); $pdf->Cell(15, 5, $size, 0, 0, 'C');
-    $pdf->SetXY(130, $middleY); $pdf->Cell(20, 5, $unit_cost, 0, 0, 'C');
-    $pdf->SetXY(150, $middleY); $pdf->Cell(20, 5, $mop, 0, 0, 'C');
+    $pdf->SetXY(130, $middleY); $pdf->Cell(20, 5, number_format((float) $unit_cost, 2), 0, 0, 'C');
+    $mopY = $startY + ($rowHeight - $mopH) / 2;
+    foreach ($mopLines as $i => $line) { $pdf->SetXY(150, $mopY + $i * 3); $pdf->Cell(20, 3, $line, 0, 0, 'C'); }
     $pdf->SetXY(170, $middleY); $pdf->Cell(20, 5, $is_preproc, 0, 0, 'C');
     $pdf->SetXY(190, $middleY); $pdf->Cell(20, 5, $proc_start, 0, 0, 'C');
     $pdf->SetXY(210, $middleY); $pdf->Cell(20, 5, $proc_end, 0, 0, 'C');
     $pdf->SetXY(230, $middleY); $pdf->Cell(30, 5, $expected_delivery_period, 0, 0, 'C');
     $pdf->SetXY(260, $middleY); $pdf->Cell(15, 5, $funding_source, 0, 0, 'C');
-    $pdf->SetXY(275, $middleY); $pdf->Cell(20, 5, $estimated_budget, 0, 0, 'C');
+    $pdf->SetXY(275, $middleY); $pdf->Cell(20, 5, number_format((float) $estimated_budget, 2), 0, 0, 'C');
     $pdf->SetXY(295, $middleY); $pdf->Cell(20, 5, $attached_document, 0, 0, 'C');
     $pdf->SetXY(315, $middleY); $pdf->Cell(20, 5, $remarks, 0, 0, 'C');
 
@@ -495,10 +519,15 @@ foreach ($rw as $data) {
 
 $currentY = $pdf->GetY();
 
-if ($pdf->PageNo() == 1) {
+// the total and the signatures go under the last row; when they do not fit, on a new page
+if ($currentY + PPMP_SIGN_H > PPMP_BOTTOM) {
+    $pdf->AddPage();
+    $currentY = $pdf->GetY();
+} elseif ($pdf->PageNo() == 1) {
 
-    // Fill empty rows until Y reaches 135 (FIRST PAGE ONLY)
-    while ($currentY < 155) {
+    // a PPMP that fits on one page: empty rows down to the total and the signatures (the last
+    // page of a longer PPMP ends right after its last item)
+    while ($currentY + 5 + PPMP_SIGN_H <= PPMP_BOTTOM) {
 
         $pdf->SetXY(20,  $currentY); $pdf->Cell(60, 5, '', 1, 0, 'C'); // AIR FRESHENER
         $pdf->SetXY(80,  $currentY); $pdf->Cell(20, 5, '', 1, 0, 'C'); // Goods

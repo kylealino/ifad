@@ -154,7 +154,32 @@ function DrawDottedLine($pdf, $x1, $y1, $x2, $y2, $dotLength = 1, $gap = 1) {
     }
 }
 
+/*
+ * Page breaks. The report draws each row by placing its label first (which may
+ * wrap), then going back to the row's starting Y for its borders and amounts.
+ * FPDF's own page break used to fire in the middle of that, so the rest of the
+ * row landed on the wrong page: a total row spread over five pages, blank
+ * pages, labels split from their amounts. This class takes over page breaking:
+ *  - before a cell or a wrapped label is drawn, it checks there is room above
+ *    the footer; if not, it starts a new page with the column header;
+ *  - positions the code then gives for that same row (still the old page's Y)
+ *    are moved to the new page, so the row stays together;
+ *  - when the code itself asks for a new page while the one just started holds
+ *    only the header, that page is reused instead of leaving a blank one.
+ */
 class PDF extends \FPDF {
+    const BOTTOM = 277;               // content stays above this (the footer is at 282)
+    public $hdrMonth = '';            // month shown in the column header
+    protected $shiftFrom = null;      // old-page Y from which positions move to the new page
+    protected $shiftBy = 0.0;
+    protected $freshPage = false;     // a page started here with nothing but the header yet
+    protected $drawingHeader = false;
+
+    function __construct($orientation = 'P', $unit = 'mm', $size = 'A4') {
+        parent::__construct($orientation, $unit, $size);
+        $this->SetAutoPageBreak(false);
+    }
+
     function Footer() {
         // Position at 15 mm from bottom
         $this->SetY(-15);
@@ -163,10 +188,108 @@ class PDF extends \FPDF {
         // Page number in center
         $this->Cell(0, 10, 'Page ' . $this->PageNo() . ' of {nb}', 0, 0, 'C');
     }
+
+    // The column header, as the report draws it after its own page breaks
+    function columnHeader() {
+        $this->drawingHeader = true;
+        $family = $this->FontFamily; $style = $this->FontStyle; $size = $this->FontSizePt;
+        $Y = $this->tMargin;
+        $this->SetFont('Arial', 'B', 7);
+        $rows = [
+            [['', 'TRL'], ['', 'TRL'], ['', 'TRL'], ['', 'TRL', 44], ['', 'TRL'], ['', 'TRL', 17]],
+            [['', 'RL'], ['', 'RL'], ['', 'RL'], ['Obligation Incurred', 'BRL', 44], ['Unobligated', 'RL'], ['', 'RL', 17]],
+            [['OBJECT OF EXPENDITURE', 'RL'], ['', 'RL'], ['Revised', 'RL'], ['This month', 'RL'], ['Obligation', 'RL'], ['Balance of', 'RL'], ['Percent', 'RL', 17]],
+            [['', 'RL'], ['UACS', 'RL'], ['Allotment', 'RL'], [$this->hdrMonth, 'RL'], ['To Date', 'RL'], ['Allotment', 'RL'], ['Of', 'RL', 17]],
+            [['', 'BRL'], ['(1)', 'BRL'], ['(4)', 'BRL'], ['(5)', 'BRL'], ['(6)', 'BRL'], ['(7)=(4)-(6)', 'BRL'], ['Utilization', 'BRL', 17]],
+        ];
+        foreach ($rows as $row) {
+            $this->x = 10; $this->y = $Y;
+            foreach ($row as $i => $c) {
+                parent::Cell($c[2] ?? ($i === 0 ? 64 : 22), 3.5, $c[0], $c[1], 0, 'C');
+            }
+            $Y += 3.5;
+        }
+        $this->x = 10; $this->y = $Y;
+        $this->SetFont($family, $style, $size);
+        $this->drawingHeader = false;
+    }
+
+    // Not enough room for $h mm: carry on on a new page, and move the rest of this row there
+    protected function ensureRoom($h) {
+        if ($this->drawingHeader || $this->InFooter || $this->page < 1 || $this->y + $h <= self::BOTTOM) {
+            return;
+        }
+        $oldY = $this->y; $oldX = $this->x;
+        parent::AddPage();
+        $this->columnHeader();
+        $this->freshPage = true;
+        $this->shiftFrom = $oldY - 3;           // the row's other cells sit a little above or below
+        $this->shiftBy = $this->y - $oldY;
+        $this->x = $oldX;
+    }
+
+    function AddPage($orientation = '', $size = '', $rotation = 0) {
+        if ($this->freshPage) {                 // the page just started holds only the header: use it
+            $this->freshPage = false;
+            $this->shiftFrom = null;
+            $this->x = $this->lMargin; $this->y = $this->tMargin;
+            return;
+        }
+        $this->shiftFrom = null;
+        parent::AddPage($orientation, $size, $rotation);
+    }
+
+    function SetY($y, $resetX = true) {
+        if ($this->shiftFrom !== null && !$this->InFooter) {
+            if ($y >= $this->shiftFrom) { $y += $this->shiftBy; }
+            else { $this->shiftFrom = null; }   // the code is using the new page's positions again
+        }
+        parent::SetY($y, $resetX);
+    }
+
+    function SetXY($x, $y) {
+        $this->SetX($x);
+        $this->SetY($y, false);
+    }
+
+    function Cell($w, $h = 0, $txt = '', $border = 0, $ln = 0, $align = '', $fill = false, $link = '') {
+        $this->ensureRoom($h);
+        if (!$this->drawingHeader && !$this->InFooter && ($txt !== '' || $border)) { $this->freshPage = false; }
+        parent::Cell($w, $h, $txt, $border, $ln, $align, $fill, $link);
+    }
+
+    function MultiCell($w, $h, $txt, $border = 0, $align = 'J', $fill = false) {
+        $this->ensureRoom($h * $this->lineCount($w, $txt));   // keep a wrapped label on one page
+        parent::MultiCell($w, $h, $txt, $border, $align, $fill);
+    }
+
+    // Lines a MultiCell of width $w will take
+    function lineCount($w, $txt) {
+        $cw = $this->CurrentFont['cw'];
+        if ($w == 0) { $w = $this->w - $this->rMargin - $this->x; }
+        $wmax = ($w - 2 * $this->cMargin) * 1000 / $this->FontSize;
+        $s = str_replace("\r", '', (string) $txt);
+        $nb = strlen($s);
+        if ($nb > 0 && $s[$nb - 1] == "\n") { $nb--; }
+        $sep = -1; $i = 0; $j = 0; $l = 0; $nl = 1;
+        while ($i < $nb) {
+            $c = $s[$i];
+            if ($c == "\n") { $i++; $sep = -1; $j = $i; $l = 0; $nl++; continue; }
+            if ($c == ' ') { $sep = $i; }
+            $l += $cw[$c] ?? 0;
+            if ($l > $wmax) {
+                if ($sep == -1) { if ($i == $j) { $i++; } }
+                else { $i = $sep + 1; }
+                $sep = -1; $j = $i; $l = 0; $nl++;
+            } else { $i++; }
+        }
+        return $nl;
+    }
 }
 
 
 $pdf = new PDF('P', 'mm', 'A4');
+$pdf->hdrMonth = (string) $month;
 $pdf->AliasNbPages(); // Enables total page number
 $pdf->AddPage();
 $pdf->SetTitle('SAOB Print');
@@ -668,20 +791,22 @@ foreach ($hd_data as $hd_row) {
     $total_unobligated = 0;
     $total_percentage_minus = 0;
     $program_title = $hd_row['program_title'];
-    $project_title = $hd_row['project_title'];
+    $project_title = trim($hd_row['project_title']);   // titles can carry stray spaces or tabs
+    // The relocation project gets a new name each year ("... Building (2026)"): match it by the start of its title
+    $project_key = stripos($project_title, 'Relocation and Construction of New DOST-FNRI') === 0 ? 'Relocation and Construction of New DOST-FNRI' : $project_title;
     $recid = $hd_row['recid'];
     $total_ps = $hd_row['total_ps'];
     $total_mooe = $hd_row['total_mooe'];
     $total_co = $hd_row['total_co'];
     $total_approved_budget = $hd_row['total_approved_budget'];
 
-    if ($project_title == 'General Administration and Support Services') {
+    if ($project_key == 'General Administration and Support Services') {
         $program_tagging = 'General Administration and Support';
         $program_like = 'General Administration';
-    }elseif ($project_title == 'Relocation and Construction of New DOST-FNRI') {
+    }elseif ($project_key == 'Relocation and Construction of New DOST-FNRI') {
         $program_tagging = 'Relocation and Construction of New DOST-FNRI';
         $program_like = 'Relocation and Construction';
-    }elseif($project_title == 'Administration of Personnel Benefits'){
+    }elseif($project_key == 'Administration of Personnel Benefits'){
         $program_tagging = 'Administration of Personnel Benefits';
         $program_like = 'Administration of Personnel';
     }
@@ -1044,7 +1169,7 @@ foreach ($hd_data as $hd_row) {
 
         $Y = $afterProgramY;
 
-    } elseif ($project_title == 'Relocation and Construction of New DOST-FNRI') {
+    } elseif ($project_key == 'Relocation and Construction of New DOST-FNRI') {
         // Measure height for this special case
         $startY = $Y;
         $pdf->SetXY(10, $Y);
@@ -1052,7 +1177,7 @@ foreach ($hd_data as $hd_row) {
         $pdf->Cell(5, 3.5, '', 'TL', 0, 'R');
         $pdf->SetXY(15, $Y);
         $pdf->SetFont('Arial', '', 8);
-        $pdf->MultiCell(59, 3.5, 'Locally-Funder Project', '0', 'L');
+        $pdf->MultiCell(59, 3.5, 'Locally-Funded Project', '0', 'L');
         $afterTextY = $pdf->GetY();
         $textHeight = $afterTextY - $startY;
 
@@ -1138,7 +1263,7 @@ foreach ($hd_data as $hd_row) {
     $afterProjectY = $pdf->GetY();
     $projectHeight = $afterProjectY - $startY;
 
-    if ($project_title == 'Administration of Personnel Benefits') {
+    if ($project_key == 'Administration of Personnel Benefits') {
         $pdf->SetXY(10, $startY);
         $pdf->Cell(5, $projectHeight, '', 'BL', 0, 'L');
         $pdf->SetXY(15, $startY);
@@ -1192,7 +1317,7 @@ foreach ($hd_data as $hd_row) {
     
     if ($program_tagging == 'Relocation and Construction of New DOST-FNRI ') {
         $Y = $pdf->GetY();
-    }elseif($project_title == 'General Administration and Support Services'){
+    }elseif($project_key == 'General Administration and Support Services'){
         $Y = $pdf->GetY()+5;
     }else{
         $Y = $pdf->GetY()+3.5;
@@ -1337,10 +1462,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -1352,20 +1478,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -1412,6 +1538,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -1422,7 +1549,7 @@ foreach ($hd_data as $hd_row) {
     $last_object_code = '';
 
     
-    if ($project_title == 'Relocation and Construction of New DOST-FNRI') {
+    if ($project_key == 'Relocation and Construction of New DOST-FNRI') {
         $Y = $pdf->GetY();
     }else{
         $Y = $pdf->GetY()+4.5;
@@ -1567,13 +1694,14 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             if ($object_code == 'Confidential, Intelligence and Extraordinary Expenses') {
                 $object_code = 'Confidential, Intelligence & Extraord. Exps.';
             }
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -1585,20 +1713,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -1645,6 +1773,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -1654,9 +1783,9 @@ foreach ($hd_data as $hd_row) {
     $last_sub_object_code = '';
     $last_object_code = '';
 
-    if ($project_title == 'Relocation and Construction of New DOST-FNRI') {
+    if ($project_key == 'Relocation and Construction of New DOST-FNRI') {
         $Y = $pdf->GetY()+5;
-    }elseif($project_title == 'General Administration and Support Services'){
+    }elseif($project_key == 'General Administration and Support Services'){
         $Y = $pdf->GetY()+5;
     }else{
         $Y = $pdf->GetY()+7;
@@ -1802,10 +1931,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -1817,20 +1947,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -1877,6 +2007,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -3109,10 +3240,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -3124,20 +3256,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -3184,6 +3316,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -3334,12 +3467,13 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
             if ($object_code == 'Research, Exploration and Development Expenses' ) {
                 $object_code = 'Research, Exploration and Dev. Exps.';
             }
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -3351,20 +3485,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -3411,6 +3545,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -3561,10 +3696,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -3576,18 +3712,18 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 1, 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 1, 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 1, 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 1, 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -3634,6 +3770,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -4554,10 +4691,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -4569,18 +4707,18 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 1, 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 1, 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 1, 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 1, 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -4619,14 +4757,15 @@ foreach ($hd_data as $hd_row) {
 
             $pdf->SetXY(74, $middleY); $pdf->Cell(22, 5, $uacs_code, 0, 0, 'C');
             $pdf->SetXY(96, $middleY); $pdf->Cell(22, 5, number_format($approved_budget,2), 0, 0, 'R');
-            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, $month_amount, 0, 0, 'R');
-            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, $year_amount, 0, 0, 'R');
+            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, number_format((float) $month_amount, 2), 0, 0, 'R');
+            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, number_format((float) $year_amount, 2), 0, 0, 'R');
 
             $subobligated_amount = $approved_budget - $year_amount;
             $pdf->SetXY(162, $middleY); $pdf->Cell(22, 5, number_format($subobligated_amount,2), 0, 0, 'R');
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -4777,10 +4916,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -4792,20 +4932,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -4852,6 +4992,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -5002,10 +5143,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -5017,18 +5159,18 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 1, 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 1, 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 1, 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 1, 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -5067,14 +5209,15 @@ foreach ($hd_data as $hd_row) {
 
             $pdf->SetXY(74, $middleY); $pdf->Cell(22, 5, $uacs_code, 0, 0, 'C');
             $pdf->SetXY(96, $middleY); $pdf->Cell(22, 5, number_format($approved_budget,2), 0, 0, 'R');
-            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, $month_amount, 0, 0, 'R');
-            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, $year_amount, 0, 0, 'R');
+            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, number_format((float) $month_amount, 2), 0, 0, 'R');
+            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, number_format((float) $year_amount, 2), 0, 0, 'R');
 
             $subobligated_amount = $approved_budget - $year_amount;
             $pdf->SetXY(162, $middleY); $pdf->Cell(22, 5, number_format($subobligated_amount,2), 0, 0, 'R');
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -6259,10 +6402,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -6274,20 +6418,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -6334,6 +6478,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -6484,10 +6629,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -6499,20 +6645,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -6551,14 +6697,15 @@ foreach ($hd_data as $hd_row) {
 
             $pdf->SetXY(74, $middleY); $pdf->Cell(22, 5, $uacs_code, 0, 0, 'C');
             $pdf->SetXY(96, $middleY); $pdf->Cell(22, 5, number_format($approved_budget,2), 0, 0, 'R');
-            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, $month_amount, 0, 0, 'R');
-            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, $year_amount, 0, 0, 'R');
+            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, number_format((float) $month_amount, 2), 0, 0, 'R');
+            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, number_format((float) $year_amount, 2), 0, 0, 'R');
 
             $subobligated_amount = $approved_budget - $year_amount;
             $pdf->SetXY(162, $middleY); $pdf->Cell(22, 5, number_format($subobligated_amount,2), 0, 0, 'R');
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -6709,10 +6856,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -6724,20 +6872,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'BLR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -6776,14 +6924,15 @@ foreach ($hd_data as $hd_row) {
 
             $pdf->SetXY(74, $middleY); $pdf->Cell(22, 5, $uacs_code, 0, 0, 'C');
             $pdf->SetXY(96, $middleY); $pdf->Cell(22, 5, number_format($approved_budget,2), 0, 0, 'R');
-            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, $month_amount, 0, 0, 'R');
-            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, $year_amount, 0, 0, 'R');
+            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, number_format((float) $month_amount, 2), 0, 0, 'R');
+            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, number_format((float) $year_amount, 2), 0, 0, 'R');
 
             $subobligated_amount = $approved_budget - $year_amount;
             $pdf->SetXY(162, $middleY); $pdf->Cell(22, 5, number_format($subobligated_amount,2), 0, 0, 'R');
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -7706,10 +7855,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -7721,18 +7871,18 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 1, 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 1, 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 1, 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 1, 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -7771,14 +7921,15 @@ foreach ($hd_data as $hd_row) {
 
             $pdf->SetXY(74, $middleY); $pdf->Cell(22, 5, $uacs_code, 0, 0, 'C');
             $pdf->SetXY(96, $middleY); $pdf->Cell(22, 5, number_format($approved_budget,2), 0, 0, 'R');
-            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, $month_amount, 0, 0, 'R');
-            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, $year_amount, 0, 0, 'R');
+            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, number_format((float) $month_amount, 2), 0, 0, 'R');
+            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, number_format((float) $year_amount, 2), 0, 0, 'R');
 
             $subobligated_amount = $approved_budget - $year_amount;
             $pdf->SetXY(162, $middleY); $pdf->Cell(22, 5, number_format($subobligated_amount,2), 0, 0, 'R');
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -7929,10 +8080,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -7944,20 +8096,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'C');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'C');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -7996,14 +8148,15 @@ foreach ($hd_data as $hd_row) {
 
             $pdf->SetXY(74, $middleY); $pdf->Cell(22, 5, $uacs_code, 0, 0, 'C');
             $pdf->SetXY(96, $middleY); $pdf->Cell(22, 5, number_format($approved_budget,2), 0, 0, 'R');
-            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, $month_amount, 0, 0, 'R');
-            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, $year_amount, 0, 0, 'R');
+            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, number_format((float) $month_amount, 2), 0, 0, 'R');
+            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, number_format((float) $year_amount, 2), 0, 0, 'R');
 
             $subobligated_amount = $approved_budget - $year_amount;
             $pdf->SetXY(162, $middleY); $pdf->Cell(22, 5, number_format($subobligated_amount,2), 0, 0, 'R');
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -8161,10 +8314,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -8176,18 +8330,18 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 1, 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 1, 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 1, 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 1, 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -8226,14 +8380,15 @@ foreach ($hd_data as $hd_row) {
 
             $pdf->SetXY(74, $middleY); $pdf->Cell(22, 5, $uacs_code, 0, 0, 'C');
             $pdf->SetXY(96, $middleY); $pdf->Cell(22, 5, number_format($approved_budget,2), 0, 0, 'R');
-            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, $month_amount, 0, 0, 'R');
-            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, $year_amount, 0, 0, 'R');
+            $pdf->SetXY(118, $middleY); $pdf->Cell(22, 5, number_format((float) $month_amount, 2), 0, 0, 'R');
+            $pdf->SetXY(140, $middleY); $pdf->Cell(22, 5, number_format((float) $year_amount, 2), 0, 0, 'R');
 
             $subobligated_amount = $approved_budget - $year_amount;
             $pdf->SetXY(162, $middleY); $pdf->Cell(22, 5, number_format($subobligated_amount,2), 0, 0, 'R');
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -9160,10 +9315,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -9175,20 +9331,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -9235,6 +9391,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -9385,10 +9542,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -9400,20 +9558,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -9460,6 +9618,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -9610,10 +9769,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -9625,18 +9785,18 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 1, 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 1, 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 1, 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 1, 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 1, 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -9683,6 +9843,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -10890,7 +11051,7 @@ $Y = $pdf->GetY() + 3.5;
 
 $pdf->SetXY(10, $Y);
 $pdf->SetFont('Arial', 'B', 8);
-$pdf->Cell(86, 3.5, 'GRAND TOTAL, CURRENT YEAR BUDGET' . $unprogrammed_approved_budget, 'BRL', 0, 'L'); // First column
+$pdf->Cell(86, 3.5, 'GRAND TOTAL, CURRENT YEAR BUDGET', 'BRL', 0, 'L'); // First column
 $pdf->SetFont('Arial', '', 8);
 $pdf->SetXY(96, $Y);
 $pdf->Cell(22, 3.5, number_format($grandtotal_total_project_budget,2), 'BRL', 0, 'R'); // Budget column
@@ -10909,10 +11070,11 @@ $pdf->Cell(17, 3.5, number_format($grandtotal_grand_percentage_minus, 2) . '%', 
 
 //----------------------------------------------------------------------- SIGNATORIES -----------------------------------------------------------------------------------------
 
-if ($year == '2026') {
+// Keep the signature block on one page: start a new page only when it doesn't fit
+if ($pdf->GetY() + 45 > PDF::BOTTOM) {
     $pdf->AddPage();
 }
-$Y = $pdf->GetY() + 3.5;  
+$Y = $pdf->GetY() + 3.5;
 $pdf->SetXY(10, $Y);
 $pdf->Cell(15, 3.5, '', 'L', 0, 'L'); // First column
 
@@ -11963,10 +12125,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -11978,20 +12141,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -12038,6 +12201,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -12191,6 +12355,7 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Totals
             $total_for_object_code = $mooe_object_code_totals[$object_code] ?? 0;
@@ -12208,7 +12373,7 @@ foreach ($hd_data as $hd_row) {
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -12216,20 +12381,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -12276,6 +12441,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -12429,10 +12595,11 @@ foreach ($hd_data as $hd_row) {
         // ================= OBJECT CODE ===================
         if ($object_code !== $last_object_code && $object_code !== null) {
             $pdf->SetFont('Arial', '', 8);
+            $objH = 4.5 * max(1, $pdf->lineCount(59, $object_code));   // a long label wraps: the row grows with it
 
             // Object Code: Start at X=15 (no blank cell before)
             $pdf->SetXY(10, $Y);
-            $pdf->Cell(5, 4.5, '', 'L', 1, 'C');
+            $pdf->Cell(5, $objH, '', 'L', 1, 'C');
             $pdf->SetXY(15, $Y);
             $pdf->MultiCell(59, 4.5, $object_code, 0, 'L');
 
@@ -12444,20 +12611,20 @@ foreach ($hd_data as $hd_row) {
 
             // Columns
             $pdf->SetXY(74, $Y);
-            $pdf->Cell(22, 4.5, '', 'LR', 1, 'R');
+            $pdf->Cell(22, $objH, '', 'LR', 1, 'R');
             $pdf->SetXY(96, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_for_object_code, 2), 'BLR', 1, 'R');
             $pdf->SetXY(118, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_month_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(140, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_year_amount, 2), 'BLR', 1, 'R');
             $pdf->SetXY(162, $Y);
-            $pdf->Cell(22, 4.5, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
+            $pdf->Cell(22, $objH, number_format($total_sub_unobligated, 2), 'BLR', 1, 'R');
             $pdf->SetXY(184, $Y);
-            $pdf->Cell(17, 4.5, '', 'R', 1, 'C');
+            $pdf->Cell(17, $objH, '', 'R', 1, 'C');
 
             // Move down
-            $Y += 4.5;
+            $Y += $objH;
             $last_object_code = $object_code;
         }
 
@@ -12504,6 +12671,7 @@ foreach ($hd_data as $hd_row) {
             $pdf->SetXY(184, $middleY); $pdf->Cell(17, 5, '', 0, 0, 'C');
 
             $Y = $endY;
+            $pdf->SetXY(10, $endY - 4.75);   // the code below adds one line height: continue under a wrapped label
             $last_sub_object_code = $sub_object_code;
         }
 
@@ -13533,6 +13701,10 @@ $pdf->Cell(22, 3.5, '', 0, 'R'); // Unobligated column
 $pdf->SetXY(184, $Y);
 $pdf->Cell(17, 3.5, '', 'R', 0, 'R'); // Percentage column
 
+// Keep the signature block on one page: start a new page only when it doesn't fit
+if ($pdf->GetY() + 45 > PDF::BOTTOM) {
+    $pdf->AddPage();
+}
 $Y = $pdf->GetY() + 3.5;  
 $pdf->SetXY(10, $Y);
 $pdf->Cell(15, 3.5, '', 'L', 0, 'L'); // First column

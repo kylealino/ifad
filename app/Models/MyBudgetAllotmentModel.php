@@ -588,6 +588,7 @@ class MyBudgetAllotmentModel extends Model
 			$color = "success";
 		}else{
 			fods_require_access(\Config\AccessCodes::BUDGET_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('tbl_budget_hd', $recid);
 			$query = $this->db->query("
 				UPDATE tbl_budget_hd
 				SET
@@ -639,6 +640,12 @@ class MyBudgetAllotmentModel extends Model
 				$lddap_refno,
 				$recid // WHERE clause
 			]);
+
+			// A returned (disapproved) allotment goes back for approval once corrected
+			$resubmitted = $query && ($before['is_disapproved'] ?? '0') == '1';
+			if ($resubmitted) {
+				$this->db->query("UPDATE tbl_budget_hd SET `is_pending` = '1', `is_approved` = '0', `is_disapproved` = '0' WHERE `recid` = ?", [$recid]);
+			}
 
 
 			//PROJECT ID FETCHING
@@ -967,6 +974,17 @@ class MyBudgetAllotmentModel extends Model
 			$color = "info";
 		}
 
+		//HISTORY (a draft sent for approval is logged as submitted)
+		if ($query) {
+			if (empty($recid)) {
+				MyHistoryModel::log('budget', $project_id, $tagging === 'For Approval' ? 'SUBMITTED' : 'CREATED', '', null, $trx);
+			} else {
+				$after = MyHistoryModel::row('tbl_budget_hd', $recid);
+				$submitted = ($before['tagging'] ?? '') !== 'For Approval' && ($after['tagging'] ?? '') === 'For Approval';
+				MyHistoryModel::log('budget', $recid, !empty($resubmitted) ? 'RESUBMITTED' : ($submitted ? 'SUBMITTED' : 'UPDATED'), '', MyHistoryModel::diff($before, $after), $after['trxno'] ?? $trx);
+			}
+		}
+
 		if ($query) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
@@ -975,11 +993,11 @@ class MyBudgetAllotmentModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mybudgetallotment?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -993,78 +1011,59 @@ class MyBudgetAllotmentModel extends Model
 		
 	}
 	
-	public function budget_approve() { 
+	public function budget_approve() { $this->budget_decide(true); }
+	public function budget_disapprove() { $this->budget_decide(false); }
+
+	// Approve / disapprove an allotment that is waiting for approval. A decision only
+	// applies while it is pending (a second approver on a stale page is refused), and
+	// disapproving needs the reason for returning it.
+	private function budget_decide($approve) {
 		$recid = $this->request->getPostGet('recid');
 		$approver = $this->cuser;
-		$remarks = $this->request->getPostGet('remarks');
+		$remarks = trim((string) $this->request->getPostGet('remarks'));
 
-		fods_require_access(\Config\AccessCodes::BUDGETAPPROVAL_APPROVE, 'Approve');
+		fods_require_access(\Config\AccessCodes::BUDGETAPPROVAL_APPROVE, $approve ? 'Approve' : 'Disapprove');
+
+		$fail = function ($msg) {
+			echo "<script>toastr.error('{$msg}', 'Oops!', { progressBar: true, closeButton: true, timeOut:2500 });</script>";
+			exit;
+		};
+		if (!$approve && $remarks === '') {
+			$fail('Remarks are required when disapproving');
+		}
 
 		$query = $this->db->query("
-			UPDATE tbl_budget_hd SET `is_pending` = '0', `is_approved` = '1', `approver` = ?, `remarks` = ? WHERE `recid` = ?
-		", [$approver, $remarks, $recid]);
-		$status = "Project budget approved";
-		$back = $this->request->getPostGet('return_to') === 'approval' ? 'mybudgetapproval' : 'mybudgetallotment?meaction=MAIN';
-		
-		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
-			echo "
-			<script>
-				toastr.success('{$status}!', 'Well Done!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2500,
-					});
-				setTimeout(function() {
-						window.location.href = '{$back}'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
-			</script>
-			";
-			exit; // Stop further PHP execution after the toast
-		} else {
-			// If there's an error, show an alert message
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
+			UPDATE tbl_budget_hd
+			SET `is_pending` = '0', `is_approved` = ?, `is_disapproved` = ?, `approver` = ?, `remarks` = ?
+			WHERE `recid` = ? AND `is_pending` = '1' AND `is_approved` = '0' AND `is_disapproved` = '0' AND `tagging` = 'For Approval'
+		", [$approve ? '1' : '0', $approve ? '0' : '1', $approver, $remarks, $recid]);
+		if (!$query) {
+			echo "<script type='text/javascript'>alert('An error occurred while executing the query.');</script>";
 			exit;
 		}
-	}
-
-	public function budget_disapprove() { 
-		$recid = $this->request->getPostGet('recid');
-		$approver = $this->cuser;
-		$remarks = $this->request->getPostGet('remarks');
-
-		fods_require_access(\Config\AccessCodes::BUDGETAPPROVAL_APPROVE, 'Disapprove');
-
-		$query = $this->db->query("
-			UPDATE tbl_budget_hd SET `is_pending` = '0', `is_approved` = '0', `is_disapproved` = '1', `approver` = ?, `remarks` = ? WHERE `recid` = ?
-		", [$approver, $remarks, $recid]);
-		$status = "Project budget disapproved";
-		$back = $this->request->getPostGet('return_to') === 'approval' ? 'mybudgetapproval' : 'mybudgetallotment?meaction=MAIN';
-		
-		if ($query) {
-			// Echo JavaScript to show the toast and then redirect
-			echo "
-			<script>
-				toastr.success('{$status}!', 'Well Done!', {
-						progressBar: true,
-						closeButton: true,
-						timeOut:2500,
-					});
-				setTimeout(function() {
-						window.location.href = '{$back}'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
-			</script>
-			";
-			exit; // Stop further PHP execution after the toast
-		} else {
-			// If there's an error, show an alert message
-			echo "<script type='text/javascript'>
-					alert('An error occurred while executing the query.');
-				  </script>";
-			exit;
+		if ($this->db->affectedRows() < 1) {
+			$fail('This budget allotment is not pending approval');
 		}
+
+		$ref = MyHistoryModel::row('tbl_budget_hd', $recid);
+		MyHistoryModel::log('budget', $recid, $approve ? 'APPROVED' : 'DISAPPROVED', $remarks, null, $ref['trxno'] ?? '');
+
+		$status = $approve ? 'Project budget approved' : 'Project budget disapproved';
+		$tone = $approve ? 'success' : 'warning';
+		$back = $this->request->getPostGet('return_to') === 'approval' ? 'mybudgetapproval' : 'mybudgetallotment?meaction=MAIN';
+		echo "
+		<script>
+			toastr.{$tone}('{$status}!', 'Well Done!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2000,
+				});
+			setTimeout(function() {
+					window.location.href = '{$back}'; // Redirect to MAIN view
+				}, 1000); // reload after 1 s; the toast still runs its 2 s (fods-flash.js carries it over)
+		</script>
+		";
+		exit; // Stop further PHP execution after the toast
 	}
 
 	/**
@@ -1163,11 +1162,11 @@ class MyBudgetAllotmentModel extends Model
 				toastr.success('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mybudgetallotment?meaction=MAIN&recid=$recid'; 
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast

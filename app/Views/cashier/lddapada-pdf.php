@@ -595,111 +595,86 @@ foreach ($data as $row) {
     $startY = $pdf->GetY();
 
     // ============================================
-    // GET PAYEE HEIGHT
+    // MEASURE HEIGHTS (no drawing — avoids faux-bold)
     // ============================================
-    $pdf->SetXY(10, $startY);
-    $pdf->MultiCell(40, 4, $payee_name, 0, 'L');
-
-    $payeeHeight = $pdf->GetY() - $startY;
-
-    // ============================================
-    // GET REMARKS HEIGHT
-    // ============================================
-    $pdf->SetXY(185, $startY);
-
-    if (!empty($remarks)) {
-        $pdf->MultiCell(15, 4, $remarks, 0, 'C');
-    } else {
-        $pdf->Cell(15, 4, '', 0, 0, 'C');
-    }
-
-    $remarksHeight = $pdf->GetY() - $startY;
+    $payeeHeight   = getMultiCellHeight($pdf, 40, $payee_name);
+    [$remarksSize, $remarksLine, $remarksHeight] = fitRemarks($pdf, 15, $remarks);
+    $accountHeight = getMultiCellHeight($pdf, 25, $account_no);
 
     // ============================================
     // FINAL ROW HEIGHT
     // ============================================
-    $rowHeight = max($payeeHeight, $remarksHeight);
+    $rowHeight = max($payeeHeight, $remarksHeight, $accountHeight);
 
     if ($rowHeight < 4) {
         $rowHeight = 4;
     }
 
     // ============================================
-    // PAYEE NAME
+    // 1. DRAW FULL-HEIGHT LEFT BORDERS FIRST
+    //    (Keeps text top-aligned while lines go full height)
     // ============================================
     $pdf->SetXY(10, $startY);
-    $pdf->MultiCell(40, 4, '', 'L', 'L');
+    $pdf->Cell(40, $rowHeight, '', 'L', 0, 'L');
 
-    $currentY = $pdf->GetY();
-
-    if ($currentY < ($startY + $rowHeight)) {
-
-        $remaining = ($startY + $rowHeight) - $currentY;
-
-        $pdf->SetXY(10, $currentY);
-        $pdf->Cell(40, $remaining, '', 'L', 0, 'L');
-    }
-
-    // ============================================
-    // ACCOUNT NO
-    // ============================================
     $pdf->SetXY(50, $startY);
-    $pdf->Cell(25, $rowHeight, $account_no, 'L', 0, 'C');
+    $pdf->Cell(25, $rowHeight, '', 'L', 0, 'L');
 
-
-    // ============================================
-    // DV NO
-    // ============================================
     $pdf->SetXY(75, $startY);
-    // same as Current Year: the obligation (ORS/BURS) serial no.
-    $pdf->Cell(30, $rowHeight, $row['serialno'], 'L', 0, 'C');
+    $pdf->Cell(30, $rowHeight, '', 'L', 0, 'L');
 
-    // ============================================
-    // UACS
-    // ============================================
     $pdf->SetXY(105, $startY);
-    $pdf->Cell(15, $rowHeight, $uacs, 'L', 0, 'C');
+    $pdf->Cell(15, $rowHeight, '', 'L', 0, 'L');
 
-    // ============================================
-    // GROSS
-    // ============================================
     $pdf->SetXY(120, $startY);
-    $pdf->Cell(25, $rowHeight, number_format($gross,2), 'L', 0, 'C');
+    $pdf->Cell(25, $rowHeight, '', 'L', 0, 'L');
 
-    // ============================================
-    // DEDUCTION
-    // ============================================
     $pdf->SetXY(145, $startY);
-    $pdf->Cell(15, $rowHeight, number_format($deduction,2), 'L', 0, 'C');
+    $pdf->Cell(15, $rowHeight, '', 'L', 0, 'L');
 
-    // ============================================
-    // NET
-    // ============================================
     $pdf->SetXY(160, $startY);
-    $pdf->Cell(25, $rowHeight, number_format($net,2), 'L', 0, 'C');
+    $pdf->Cell(25, $rowHeight, '', 'L', 0, 'L');
 
-    // ============================================
-    // REMARKS
-    // ============================================
     $pdf->SetXY(185, $startY);
+    $pdf->Cell(15, $rowHeight, '', 'LR', 0, 'L');
 
+    // ============================================
+    // 2. NOW WRITE TEXT ON TOP (TOP-ALIGNED)
+    // ============================================
+    // Payee Name
+    $pdf->SetXY(10, $startY);
+    $pdf->MultiCell(40, 4, $payee_name, 0, 'L');
+
+    // Account No
+    $pdf->SetXY(50, $startY);
+    $pdf->MultiCell(25, 4, $account_no, 0, 'C');
+
+    // Serial No (DV No)
+    $pdf->SetXY(75, $startY);
+    $pdf->Cell(30, 4, $row['serialno'], 0, 0, 'C');
+
+    // UACS
+    $pdf->SetXY(105, $startY);
+    $pdf->Cell(15, 4, $uacs, 0, 0, 'C');
+
+    // Gross
+    $pdf->SetXY(120, $startY);
+    $pdf->Cell(25, 4, number_format($gross,2), 0, 0, 'C');
+
+    // Deduction
+    $pdf->SetXY(145, $startY);
+    $pdf->Cell(15, 4, number_format($deduction,2), 0, 0, 'C');
+
+    // Net
+    $pdf->SetXY(160, $startY);
+    $pdf->Cell(25, 4, number_format($net,2), 0, 0, 'C');
+
+    // Remarks
+    $pdf->SetXY(185, $startY);
     if (!empty($remarks)) {
-
-        $pdf->MultiCell(15, 4, '', 'LR', 'C');
-
-    } else {
-
-        $pdf->Cell(15, 4, '', 'LR', 0, 'C');
-    }
-
-    $currentY = $pdf->GetY();
-
-    if ($currentY < ($startY + $rowHeight)) {
-
-        $remaining = ($startY + $rowHeight) - $currentY;
-
-        $pdf->SetXY(185, $currentY);
-        $pdf->Cell(15, $remaining, '', 'LR', 0, 'C');
+        $pdf->SetFontSize($remarksSize);
+        $pdf->MultiCell(15, $remarksLine, $remarks, 0, 'C');
+        $pdf->SetFontSize(7);
     }
 
     // ============================================

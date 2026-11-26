@@ -107,7 +107,7 @@ function __mysys_disbursement_approval_ent() {
 		return r.status === key;
 	}
 
-	//APPROVAL - STAT CARDS: Waiting for you, Returned, Approved, Total amount
+	//APPROVAL - STAT CARDS: For my action, Returned, Approved, Total amount
 	function renderCards() {
 		var $ = window.jQuery;
 		var list = rows.filter(inYear);
@@ -117,8 +117,8 @@ function __mysys_disbursement_approval_ent() {
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
-		card('pending', 'mine', perms.approve ? 'Waiting for you' : 'Pending');
-		if (!perms.approve) { $('#approvalTableFilter [data-filter="mine"]').text('Pending'); }
+		card('pending', 'mine', perms.approve ? 'For my action' : 'For approval');
+		if (!perms.approve) { $('#approvalTableFilter [data-filter="mine"]').text('For approval'); }
 		card('returned', 'disapproved', 'Returned');
 		card('approved', 'approved', 'Approved');
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -160,9 +160,9 @@ function __mysys_disbursement_approval_ent() {
 			dom: 't<"d-flex flex-wrap justify-content-between align-items-center"ip>',
 			language: {
 				info: 'Showing _START_–_END_ of _TOTAL_',
-				infoEmpty: 'Nothing to show',
+				infoEmpty: 'No records',
 				infoFiltered: '',
-				zeroRecords: '<div class="text-center text-muted py-4"><i class="ti ti-inbox fs-6 d-block mb-1"></i>Nothing here</div>',
+				zeroRecords: '<div class="text-center text-muted py-4"><i class="ti ti-inbox fs-6 d-block mb-1"></i>No records found</div>',
 				paginate: { previous: '<i class="ti ti-chevron-left"></i>', next: '<i class="ti ti-chevron-right"></i>' }
 			},
 			columns: [

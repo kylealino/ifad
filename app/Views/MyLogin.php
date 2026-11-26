@@ -259,6 +259,7 @@ $tips = [
           <?php endif; ?>
 
           <form action="<?=site_url('mylogin-auth');?>" method="post" id="loginForm" novalidate>
+            <?= csrf_field(); ?>
             <div class="fld">
               <label for="MyUsername">Username</label>
               <div class="fld-box">

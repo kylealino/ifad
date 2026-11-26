@@ -22,6 +22,9 @@
   <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
   <script src="<?=base_url('assets/js/fods-layout.js?v=1')?>"></script>
   <script src="<?=base_url('assets/js/fods-inbox.js?v=5')?>"></script>
+  <script src="<?=base_url('assets/js/fods-history.js?v=10')?>"></script>
+  <script src="<?=base_url('assets/js/fods-decision.js?v=1')?>"></script>
+  <script src="<?=base_url('assets/js/fods-flash.js?v=2')?>"></script>
   <?php foreach ($footScripts ?? [] as $script): ?>
   <script src="<?= esc($script, 'attr') ?>"></script>
   <?php endforeach; ?>

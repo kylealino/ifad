@@ -5,6 +5,9 @@ use CodeIgniter\Model;
 class MyPRModel extends Model
 {
 
+	// Every PR is for the institute: not entered on the form, saved and printed as this
+	const ENTITY_NAME = 'FOOD AND NUTRITION RESEARCH INSTITUTE';
+
     protected $db;
 
     public function __construct(){
@@ -17,12 +20,9 @@ class MyPRModel extends Model
 
     }
 
-	// Box B (approval of the PR) follows the estimated cost, same limit as the PO
+	// Box B (approval of the PR) follows the estimated cost (the tiers are in Approver Mapping)
 	public static function approver_for($total) {
-		if ((float) $total >= MyPOModel::APPROVAL_LIMIT) {
-			return ['name' => 'ATTY. LUCIEDEN G. RAZ', 'position' => 'Director III'];
-		}
-		return ['name' => 'ALEXIS M. ORTIZ', 'position' => 'Chief Administrative Officer, FAD'];
+		return MyApproverMapModel::for_amount('pr', 'b', $total);
 	}
 
 	//PR - APPROVAL STEPS: Box A (requesting office), then Box B (approval)
@@ -38,18 +38,11 @@ class MyPRModel extends Model
 		return trim((string) ($box === 'a' ? $hd['requested_by'] : $hd['approved_by']));
 	}
 
-	// Only the signatory named on the current box decides it (matched on the
-	// user's full name); an administrator can decide any step
+	// Anyone whose role has the Approve code decides the box the record is
+	// waiting at (like ORS, BURS, Budget, LDDAP-ADA and ADA). The name on the
+	// box is the printed signatory; the user who decides is kept as cert*_approver.
 	public static function can_decide(array $hd) {
-		$box = self::step_of($hd);
-		if ($box === '' || !fods_has_access(\Config\AccessCodes::PRAPPROVAL_APPROVE)) {
-			return false;
-		}
-		if (fods_is_admin()) {
-			return true;
-		}
-		$name = self::signatory($hd, $box);
-		return $name !== '' && mb_strtolower($name) === mb_strtolower(trim(fods_current_user()['full_name']));
+		return self::step_of($hd) !== '' && fods_has_access(\Config\AccessCodes::PRAPPROVAL_APPROVE);
 	}
 
 	// Locked once the requesting office approves Box A, until someone disapproves it
@@ -117,7 +110,7 @@ class MyPRModel extends Model
 	//PR - SAVE
 	public function pr_save() {
 		$recid = $this->request->getPostGet('recid');
-		$entity_name = $this->request->getPostGet('entity_name');
+		$entity_name = self::ENTITY_NAME;
 		$office = $this->request->getPostGet('office');
 		$prno = trim((string) $this->request->getPostGet('prno'));
 		$responsibility_code = $this->request->getPostGet('responsibility_code');
@@ -158,7 +151,22 @@ class MyPRModel extends Model
 			die();
 		}
 		// (a locked PR only takes its PR no., so it needs no signatory here)
-		$saved = empty($recid) ? null : $this->db->query("SELECT `is_approved_certa`, `is_disapproved_certa`, `is_approved_certb`, `is_disapproved_certb` FROM tbl_pr_hd WHERE `recid` = ?", [$recid])->getRowArray();
+		$saved = empty($recid) ? null : $this->db->query("SELECT `fund_cluster`, `is_approved_certa`, `is_disapproved_certa`, `is_approved_certb`, `is_disapproved_certb` FROM tbl_pr_hd WHERE `recid` = ?", [$recid])->getRowArray();
+
+		// fund cluster is blank, 01 or 07 (an older PR may keep the value it was saved with)
+		$fund_cluster = trim((string) $fund_cluster);
+		if (!in_array($fund_cluster, ['', '01', '07'], true) &&!(!empty($saved) && $fund_cluster === trim((string) $saved['fund_cluster']))) {
+			echo "
+			<script>
+			toastr.error('Pick the fund cluster: 01 or 07.', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2500,
+				});
+			</script>
+			";
+			die();
+		}
 		if ($requested_by === '' && !(!empty($saved) && self::is_locked($saved))) {
 			echo "
 			<script>
@@ -172,9 +180,12 @@ class MyPRModel extends Model
 			die();
 		}
 
-		// Box A: the position comes from that signatory's user record
-		$signer = $this->db->query("SELECT `position` FROM myua_user WHERE `full_name` = ? AND `is_active` = 1 LIMIT 1", [$requested_by])->getRowArray();
-		if (!empty($signer)) {
+		// Box A: the position is the one mapped for that signatory, else their user record's
+		$mapped = MyApproverMapModel::position_of('pr', 'a', $requested_by);
+		$signer = $mapped !== '' ? null : $this->db->query("SELECT `position` FROM myua_user WHERE `full_name` = ? AND `is_active` = 1 LIMIT 1", [$requested_by])->getRowArray();
+		if ($mapped !== '') {
+			$requested_position = $mapped;
+		} elseif (!empty($signer)) {
 			$requested_position = (string) $signer['position'];
 		}
 
@@ -185,8 +196,60 @@ class MyPRModel extends Model
 			$lines_total += round((float) $medata[2] * (float) $medata[3], 2);
 		}
 		$approver = self::approver_for($lines_total);
+		if ($approver['name'] === '' && !(!empty($saved) && self::is_locked($saved))) {
+			echo "
+			<script>
+			toastr.error('No Box B approver is set for this estimated cost. Ask an administrator to set one in Approver Mapping.', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:3500,
+				});
+			</script>
+			";
+			die();
+		}
 		// the estimated cost saved is the same sum, so it always matches its Box B
 		$estimated_cost = $lines_total;
+
+		// A PR takes only what is left of its PPMPs (other PRs' use counted, its own not):
+		// a fully used PPMP cannot be picked, and a line cannot ask for more than is left.
+		// A locked PR only sets its PR no., so it is not checked.
+		if (!(!empty($saved) && self::is_locked($saved))) {
+			$usage = new MyPPMPUsageModel();
+			$picked = array_values(array_filter((array) $ppmp_list, fn ($p) => is_string($p) && trim($p) !== ''));
+			$was = empty($recid) ? [] : array_map(fn ($r) => mb_strtolower(trim($r['ppmpno'])),
+				$this->db->query("SELECT `ppmpno` FROM tbl_pr_ppmp WHERE `pr_id` = ?", [$recid])->getResultArray());
+			$left = $usage->left_per_ppmp($recid ?: null);
+			$fail = function ($msg) {
+				echo "
+				<script>
+				toastr.error(" . json_encode($msg, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ", 'Oops!', {
+						progressBar: true,
+						closeButton: true,
+						timeOut:4500,
+					});
+				</script>
+				";
+				die();
+			};
+			foreach ($picked as $p) {
+				$k = mb_strtolower(trim($p));
+				if (array_key_exists($k, $left) && $left[$k] <= 0 && !in_array($k, $was, true)) {
+					$fail('PPMP ' . trim($p) . ' is fully used by other PRs. Remove it from this PR.');
+				}
+			}
+			$lines = array_map(function ($line) {
+				$m = array_pad(explode("x|x", (string) $line), 5, '');
+				return [$m[0], $m[1], (int) str_replace(',', '', $m[2])];
+			}, (array) $prdtdata);
+			$over = $usage->over_for_pr($recid ?: null, $picked, $lines);
+			if (!empty($over)) {
+				[$desc, $unit, $asked, $have] = $over[0];
+				$more = count($over) > 1 ? ' (and ' . (count($over) - 1) . ' more item' . (count($over) > 2 ? 's' : '') . ')' : '';
+				$fail($desc . ($unit !== '' ? ' (' . $unit . ')' : '') . ': this PR asks for ' . $asked . ' but only ' . $have
+					. ' is left on its PPMPs' . $more . '. Lower the quantity, or click Reload from PPMP.');
+			}
+		}
 
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::PR_ADD, 'Saving');
@@ -254,6 +317,8 @@ class MyPRModel extends Model
 				die();
 			}
 
+			$before = MyHistoryModel::row('tbl_pr_hd', $recid);
+
 			// Once the requesting office has approved Box A the PR is locked; only
 			// its PR no. can still be assigned
 			if (self::is_locked($current)) {
@@ -277,17 +342,18 @@ class MyPRModel extends Model
 				$this->db->transComplete();
 
 				if ($this->db->transStatus()) {
+					MyHistoryModel::log('pr', $recid, 'PRNO_SET', '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_pr_hd', $recid)), $prno);
 					echo "
 					<script>
 						document.getElementById('submitBtn').disabled = true;
 						toastr.info('PR no. saved!', 'Well Done!', {
 								progressBar: true,
 								closeButton: true,
-								timeOut:2500,
+								timeOut:2000,
 							});
 						setTimeout(function() {
 								window.location.href = 'mypr?meaction=PR-MAIN';
-							}, 2500);
+							}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 					</script>
 					";
 				} else {
@@ -428,6 +494,16 @@ class MyPRModel extends Model
 
 		$this->db->transComplete();
 
+		//HISTORY
+		if ($this->db->transStatus()) {
+			if (empty($recid)) {
+				MyHistoryModel::log('pr', $project_id, 'CREATED', '', null, $prno);
+			} else {
+				MyHistoryModel::log('pr', $recid, !empty($is_disapproved) ? 'RESUBMITTED' : 'UPDATED', '',
+					MyHistoryModel::diff($before, MyHistoryModel::row('tbl_pr_hd', $recid)), $prno);
+			}
+		}
+
 		if ($this->db->transStatus()) {
 			// Echo JavaScript to show the toast and then redirect
 			echo "
@@ -436,11 +512,11 @@ class MyPRModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mypr?meaction=PR-MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -550,6 +626,7 @@ class MyPRModel extends Model
 		);
 
 		if ($query) {
+			MyHistoryModel::log('pr', (int) $recid, 'RFQ_ADDED', 'Quotation ' . $quotation_no . ' from ' . $company_name, null, $prno);
 			// Echo JavaScript to show the toast, then reopen the PR on its RFQ tab
 			$back = 'mypr?meaction=PR-MAIN&recid=' . (int) $recid . '&tab=rfq';
 			echo "
@@ -557,11 +634,11 @@ class MyPRModel extends Model
 				toastr.success('RFQ added!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = '{$back}';
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -599,7 +676,7 @@ class MyPRModel extends Model
 		if ($box === '') {
 			echo "
 			<script>
-			toastr.error('This PR is not waiting for approval', 'Oops!', {
+			toastr.error('This PR is not pending approval', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2500,
@@ -611,7 +688,7 @@ class MyPRModel extends Model
 		if (!self::can_decide($hd)) {
 			echo "
 			<script>
-			toastr.error('Only the Box " . strtoupper($box) . " signatory of this PR or an administrator can decide this step', 'Oops!', {
+			toastr.error('You do not have permission to approve purchase requests', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:3000,
@@ -646,6 +723,9 @@ class MyPRModel extends Model
 		", [$approve ? 1 : 0, $approve ? 0 : 1, $approver, mb_substr($remarks, 0, 100), $recid]);
 
 		if ($query) {
+			MyHistoryModel::log('pr', $recid, ($approve ? 'APPROVED_BOX_' : 'DISAPPROVED_BOX_') . strtoupper($box), $remarks, null, $hd['prno']);
+		}
+		if ($query) {
 			if (!$approve) {
 				$status = "PR disapproved";
 			} else {
@@ -657,11 +737,11 @@ class MyPRModel extends Model
 				toastr.{$color}('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
-						window.location.href = 'myprapproval';
-					}, 2500);
+						window.location.href = 'mypr?meaction=PR-MAIN';
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit;

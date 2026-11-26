@@ -44,6 +44,28 @@ class MyADAModel extends Model
 		}
 
 		$is_resubmit = false;
+		// ADA no. is used once. Checked when it is set or changed, so records that
+		// already share a number can still be edited.
+		$__no = trim((string) $adano);
+		if ($__no !== '') {
+			$__cur = empty($recid) ? null : $this->db->query("SELECT `adano` AS n FROM tbl_ada WHERE `recid` = ?", [$recid])->getRowArray();
+			if (!$__cur || trim((string) $__cur['n']) !== $__no) {
+				$__dup = $this->db->query("SELECT `recid` FROM tbl_ada WHERE TRIM(`adano`) = ? AND `recid` <> ? LIMIT 1", [$__no, (int) $recid])->getRowArray();
+				if (!empty($__dup)) {
+					echo "
+					<script>
+					toastr.error('That ADA no. is already used on another ADA!', 'Oops!', {
+							progressBar: true,
+							closeButton: true,
+							timeOut:2500,
+						});
+					</script>
+					";
+					die();
+				}
+			}
+		}
+
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::ADA_ADD, 'Saving');
 			//INSERTING HD DATA
@@ -85,6 +107,7 @@ class MyADAModel extends Model
 			$color = "success";
 		}else{
 			fods_require_access(\Config\AccessCodes::ADA_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('tbl_ada', $recid);
 
 			// Once approved the ADA is locked; a disapproved one can be
 			// corrected and goes back for approval
@@ -153,6 +176,16 @@ class MyADAModel extends Model
 			$color = "info";
 		}
 
+		//HISTORY
+		if ($query) {
+			$after = MyHistoryModel::row('tbl_ada', $project_id);
+			if (empty($recid)) {
+				MyHistoryModel::log('ada', $project_id, 'CREATED', '', null, $after['adano'] ?? '');
+			} else {
+				MyHistoryModel::log('ada', $recid, $is_resubmit ? 'RESUBMITTED' : 'UPDATED', '', MyHistoryModel::diff($before, $after), $after['adano'] ?? '');
+			}
+		}
+
 		if ($query) {
 			echo "
 			<script>
@@ -160,11 +193,11 @@ class MyADAModel extends Model
 				toastr.{$color}('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'myada?meaction=MAIN';
-					}, 2500);
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit;
@@ -216,7 +249,7 @@ class MyADAModel extends Model
 		if (empty($hd) || $hd['is_approved'] == '1' || $hd['is_disapproved'] == '1') {
 			echo "
 			<script>
-			toastr.error('This ADA is not waiting for approval', 'Oops!', {
+			toastr.error('This ADA is not pending approval', 'Oops!', {
 					progressBar: true,
 					closeButton: true,
 					timeOut:2500,
@@ -252,16 +285,20 @@ class MyADAModel extends Model
 		$status = $approve ? "ADA approved" : "ADA disapproved";
 		$color = $approve ? "success" : "warning";
 		if ($query) {
+			$ref = MyHistoryModel::row('tbl_ada', $recid);
+			MyHistoryModel::log('ada', $recid, $approve ? 'APPROVED' : 'DISAPPROVED', $remarks, null, $ref['adano'] ?? '');
+		}
+		if ($query) {
 			echo "
 			<script>
 				toastr.{$color}('{$status}', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
-						window.location.href = 'myadaapproval';
-					}, 2500);
+						window.location.href = 'myada?meaction=MAIN';
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit;

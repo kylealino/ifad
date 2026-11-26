@@ -21,7 +21,7 @@ class MyPPMP extends BaseController
 
         switch ($meaction) {
             case 'MAIN':
-                if (fods_has_access(\Config\AccessCodes::PPMP_VIEW)) {
+                if (fods_has_any_access([\Config\AccessCodes::PPMP_VIEW, \Config\AccessCodes::PPMPAPPROVAL_VIEW])) {
                     return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -29,7 +29,7 @@ class MyPPMP extends BaseController
 
             // One PPMP with its items, for the editor modal
             case 'MAIN-LOAD':
-                if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::PPMP_VIEW, \Config\AccessCodes::PPMPAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $record = $this->myppmp->ppmp_load($this->request->getGet('recid'));
@@ -43,11 +43,54 @@ class MyPPMP extends BaseController
                 return redirect()->to('myppmp?meaction=MAIN');
                 break;
 
+            // Approval (one step), decided in the editor
+            case 'MAIN-APPROVE':
+                $this->myppmp->ppmp_approve();
+                return redirect()->to('myppmp?meaction=MAIN');
+
+            case 'MAIN-DISAPPROVE':
+                $this->myppmp->ppmp_disapprove();
+                return redirect()->to('myppmp?meaction=MAIN');
+
             case 'PPMP-PRINT':
-                if (!fods_has_access(\Config\AccessCodes::PPMP_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::PPMP_VIEW, \Config\AccessCodes::PPMPAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('procurement/ppmp/ppmp-pdf');
                 break;
+
+            // Supporting documents (Documents tab): add, remove, open
+            case 'DOC-UPLOAD':
+                return $this->json($this->myppmp->attachment_add($this->request->getPost('recid')));
+
+            case 'DOC-REMOVE':
+                return $this->json($this->myppmp->attachment_remove($this->request->getPost('id')));
+
+            case 'DOC-FILE':
+                if (!fods_has_any_access([\Config\AccessCodes::PPMP_VIEW, \Config\AccessCodes::PPMPAPPROVAL_VIEW])) {
+                    return $this->response->setStatusCode(403)->setBody('Access denied.');
+                }
+                return $this->document($this->myppmp->attachment_file($this->request->getGet('id')), $this->request->getGet('dl') === '1');
         }
+    }
+
+    // Model results carry 'error' on failure -> 422 so the JS shows it
+    private function json(array $result) {
+        return $this->response->setStatusCode(isset($result['error']) ? 422 : 200)->setJSON($result);
+    }
+
+    // PDFs and images open in the browser (the preview); other files, or ?dl=1, download
+    private function document(?array $file, bool $download) {
+        if ($file === null) {
+            return $this->response->setStatusCode(404)->setBody('Document not found.');
+        }
+        $inline = !$download && ($file['is_image'] || $file['mime_type'] === 'application/pdf');
+        // plain-ASCII name for old browsers, the real (UTF-8) name for the rest
+        $ascii = preg_replace('/[^\x20-\x7E]|["\\\\]/', '_', $file['orig_name']);
+        return $this->response
+            ->setHeader('Content-Type', $file['mime_type'])
+            ->setHeader('Content-Disposition', ($inline ? 'inline' : 'attachment') . '; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode($file['orig_name']))
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setHeader('Cache-Control', 'private, max-age=86400')
+            ->setBody(file_get_contents($file['path']));
     }
 
 
@@ -63,6 +106,9 @@ class MyPPMP extends BaseController
             a.`responsibility_code`,
             a.`is_indicative`,
             a.`is_final`,
+            a.`is_approved`,
+            a.`is_disapproved`,
+            a.`approver`,
             a.`added_at`,
             a.`added_by`,
             COALESCE(d.n,0) AS items,
@@ -72,10 +118,17 @@ class MyPPMP extends BaseController
         ORDER BY a.`recid` DESC
         ")->getResultArray();
 
-        // One status per PPMP: final, indicative, or not marked yet
+        // Per PPMP: its type (final, indicative, or not marked yet), where it is in
+        // approval, and how much the PRs used
+        $usage = (new \App\Models\MyPPMPUsageModel())->summary();
         foreach ($ppmphddata as &$row) {
             $row['status'] = self::statusOf($row);
-            unset($row['is_indicative'], $row['is_final']);
+            $row['approval'] = self::approvalOf($row);
+            unset($row['is_indicative'], $row['is_final'], $row['is_approved'], $row['is_disapproved']);
+            $u = $usage[(int) $row['recid']] ?? ['total_qty' => 0, 'used_qty' => 0, 'used_amount' => 0];
+            $row['total_qty'] = (int) $u['total_qty'];
+            $row['used_qty'] = (int) $u['used_qty'];
+            $row['used_amount'] = round((float) $u['used_amount'], 2);
         }
         unset($row);
 
@@ -115,14 +168,31 @@ class MyPPMP extends BaseController
                 'fiscal_years' => range((int) date('Y') + 1, 2024),
                 'item_types' => ['Goods', 'Infrastructure', 'Consulting Services'],
                 'units' => ['pc', 'btl', 'pack', 'box', 'cyl', 'crtg'],
-                'modes' => ['SVP', 'Direct Acquisition', 'Direct Contracting', 'Public Bidding'],
+                // suggestions only: older items keep the mode they were saved with (SVP, Public Bidding)
+                'modes' => [
+                    'Competitive Bidding',
+                    'Limited Source Bidding',
+                    'Competitive Dialogue',
+                    'Unsolicited Offer with Bid Matching',
+                    'Direct Contracting',
+                    'Direct Acquisition',
+                    'Repeat Order',
+                    'Small Value Procurement',
+                    'Negotiated Procurement',
+                    'Direct Sales',
+                    'Direct Procurement for Science, Technology and Innovation',
+                ],
                 'preproc' => ['Yes', 'No'],
                 'funding_sources' => ['General Fund', 'Trust Fund', 'Project Fund (Externally Funded)'],
             ],
             'perms' => [
                 'add' => fods_has_access(\Config\AccessCodes::PPMP_ADD),
                 'edit' => fods_has_access(\Config\AccessCodes::PPMP_UPDATE),
+                'approve' => fods_has_access(\Config\AccessCodes::PPMPAPPROVAL_APPROVE),
+                'attach' => \App\Models\MyPPMPModel::can_attach(),   // add / remove supporting documents
             ],
+            'doc_max_mb' => \App\Models\MyPPMPModel::DOC_MAX_BYTES / 1048576,
+            'doc_max_files' => \App\Models\MyPPMPModel::DOC_MAX_FILES,
             'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that PPMP directly
         ]);
     }
@@ -138,6 +208,14 @@ class MyPPMP extends BaseController
             return 'indicative';
         }
         return 'unmarked';
+    }
+
+    // Approval, one step like LDDAP-ADA / ADA: pending, approved, or disapproved (returned)
+    public static function approvalOf(array $hd) {
+        if (($hd['is_disapproved'] ?? '0') == '1') {
+            return 'disapproved';
+        }
+        return ($hd['is_approved'] ?? '0') == '1' ? 'approved' : 'pending';
     }
 
 

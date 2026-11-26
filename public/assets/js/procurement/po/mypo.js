@@ -12,10 +12,10 @@ function __mysys_po_ent() {
 	let rfqs = [];              // RFQs of the PR the PO is prepared from
 
 	const STATUS = {
-		pending_a: ['tone-amber', 'Box A · accounting'],
-		pending_b: ['tone-indigo', 'Box B · approval'],
+		pending_a: ['tone-amber', 'For approval · Box A (Accounting)'],
+		pending_b: ['tone-indigo', 'For approval · Box B (Approving officer)'],
 		approved: ['tone-green', 'Approved'],
-		disapproved: ['tone-red', 'Disapproved']
+		disapproved: ['tone-red', 'Returned']
 	};
 
 	// Statuses behind each pill / card (any other key is a single status)
@@ -65,10 +65,21 @@ function __mysys_po_ent() {
 		return 'pending_a';
 	}
 
-	// Box B follows the PO total (same rule as MyPOModel::approver_for)
+	// Box B follows the PO total (same tiers as MyPOModel::approver_for, from Approver Mapping)
 	function approverFor(total) {
-		var rule = lookups.approval || {};
-		return num(total) >= num(rule.limit) ? (rule.above || {}) : (rule.below || {});
+		var out = {};
+		(lookups.approval || []).forEach(function (t) { if (num(total) >= num(t.min)) { out = t; } });
+		return out;
+	}
+
+	function approvalRule() {
+		var tiers = lookups.approval || [];
+		if (!tiers.length) { return 'No approver is set yet. Ask an administrator to set one in Approver Mapping.'; }
+		return 'Follows the PO total: ' + tiers.map(function (t, i) {
+			var next = tiers[i + 1];
+			var range = next ? (num(t.min) ? money(t.min) + ' to below ' : 'below ') + money(next.min) : money(t.min) + ' and above';
+			return range + ' ' + (t.name || '');
+		}).join(', ') + '.';
 	}
 
 	//PO - YEAR (the cards and the list follow the year picked in the page head)
@@ -84,7 +95,7 @@ function __mysys_po_ent() {
 
 	function inYear(r) { return year === 'all' || yearOf(r) === year; }
 
-	//PO - STAT CARDS: Pending, Returned, Approved, Total amount
+	//PO - STAT CARDS: For approval, Returned, Approved, Total amount
 	function renderCards() {
 		var $ = window.jQuery;
 		var list = rows.filter(inYear);
@@ -94,7 +105,7 @@ function __mysys_po_ent() {
 			$('[data-card-value="' + key + '"]').text(l.length.toLocaleString());
 			$('[data-card-label="' + key + '"]').text(label + ' · ' + money(amount(l)));
 		};
-		card('pending', 'pending', 'Pending');
+		card('pending', 'pending', 'For approval');
 		card('returned', 'disapproved', 'Returned');
 		card('approved', 'approved', 'Approved');
 		$('[data-card-value="total"]').text(money(amount(list)));
@@ -526,7 +537,7 @@ function __mysys_po_ent() {
 		else if (disapproved) { html = '<span class="fods-chip tone-red"><i class="ti ti-x"></i>Disapproved</span>'; }
 		else if (!hd) { html = ''; }
 		else if (box === 'b' && String(hd.is_approved_certa) !== '1') { html = '<span class="fods-chip tone-slate">After Box A</span>'; }
-		else { html = '<span class="fods-chip tone-amber"><span class="fods-dot"></span>Waiting</span>'; }
+		else { html = '<span class="fods-chip tone-amber"><span class="fods-dot"></span>For approval</span>'; }
 		if (approved || disapproved) { note = 'By ' + esc(hd['cert' + box + '_approver'] || '—') + (hd['cert' + box + '_remarks'] ? ' — ' + esc(hd['cert' + box + '_remarks']) : ''); }
 		$('#poSignStatus' + box.toUpperCase()).html(html);
 		$('#poSignNote' + box.toUpperCase()).html(note);
@@ -552,9 +563,7 @@ function __mysys_po_ent() {
 		}
 
 		accountantOptions(hd ? hd.accountant : defaults.accountant, hd ? hd.accountant_position : defaults.accountant_position);
-		var rule = lookups.approval || {};
-		document.getElementById('poApprovalRule').textContent = 'Follows the PO total: below ' + money(rule.limit) + ' ' + ((rule.below || {}).name || '')
-			+ ', ' + money(rule.limit) + ' and above ' + ((rule.above || {}).name || '') + '.';
+		document.getElementById('poApprovalRule').textContent = approvalRule();
 
 		document.getElementById('poSourceHint').textContent = hd && hd.prno
 			? 'Prepared from PR ' + hd.prno + '. Picking another PR replaces the items.'
@@ -575,7 +584,7 @@ function __mysys_po_ent() {
 		var banner = $('#poBanner').removeClass('alert-success alert-danger alert-info d-none');
 		if (status === 'pending_b') {
 			banner.addClass('alert-info').html('<b>Approved by accounting</b>' + (hd.certa_approver ? ' (' + esc(hd.certa_approver) + ')' : '')
-				+ ' and waiting for ' + esc(hd.approved_by || 'Box B') + '. It can no longer be edited.');
+				+ '; pending approval by ' + esc(hd.approved_by || 'Box B') + '. It can no longer be edited.');
 		} else if (status === 'approved') {
 			banner.addClass('alert-success').html('<b>Approved</b> — Box A by ' + esc(hd.certa_approver || '—') + ', Box B by ' + esc(hd.certb_approver || '—') + '.');
 		} else if (status === 'disapproved') {
@@ -583,7 +592,7 @@ function __mysys_po_ent() {
 			banner.addClass('alert-danger').html('<b>Disapproved at Box ' + box.toUpperCase() + '</b>' + (hd['cert' + box + '_approver'] ? ' by ' + esc(hd['cert' + box + '_approver']) : '')
 				+ (hd['cert' + box + '_remarks'] ? ' — ' + esc(hd['cert' + box + '_remarks']) : '')
 				+ (canSave() ? '<div class="small mt-1">Saving your corrections sends it back to Box A.</div>' : ''));
-		} else if (!canSave()) {
+		} else if (!canSave() && !(hd && hd.can_decide)) {
 			banner.addClass('alert-info').html('<b>View only</b> — you don\'t have permission to ' + (record ? 'edit' : 'add') + ' purchase orders.');
 		} else {
 			banner.addClass('d-none');
@@ -592,8 +601,49 @@ function __mysys_po_ent() {
 		signStatus('a', hd);
 		signStatus('b', hd);
 
+		// Approve / disapprove the box it is at: anyone whose role has the Approve code
+		// (can_decide comes from MyPOModel::can_decide with the record)
+		var decide = !!hd && !!hd.can_decide;
+		$('#poApproveBtn, #poDisapproveBtn').toggleClass('d-none', !decide);
+		$('#poApproveBtn').html('<i class="ti ti-check me-1"></i>Approve Box ' + (decide ? String(status).slice(-1).toUpperCase() : ''));
+
 		$('#submitBtn').toggleClass('d-none', !canSave()).text(!hd ? 'Create PO' : (status === 'disapproved' ? 'Save & resubmit' : 'Save changes'));
 	}
+
+	//PO - APPROVE / DISAPPROVE THE CURRENT BOX (remarks required to disapprove)
+	this.__po_decision = function () {
+		var $ = window.jQuery;
+
+		function openDecision(mode) {
+			if (!record || !record.can_decide) { return; }
+			var B = String(statusOf(record)).slice(-1).toUpperCase();
+			var STEPS = { A: ['Box A · Accounting', 'Box B · ' + (record.approved_by || 'Approval')], B: ['Box B · Approval', 'Approved'] };
+			var approve = mode === 'approve';
+			FodsDecision.open({
+				host: document.getElementById('poModal'),
+				mode: mode,
+				title: (approve ? 'Approve' : 'Disapprove') + ' PO · Box ' + B,
+				subtitle: (record.pono ? 'PO ' + record.pono : 'Purchase order #' + record.recid) + ' · ' + (record.supplier_name || ''),
+				facts: [['Total amount', $('#poFootTotal').text(), true], ['Step', (STEPS[B] || ['Box ' + B])[0]], ['After this', approve ? (STEPS[B] || ['', ''])[1] : 'Returned to the preparer']],
+				maxlength: 100,
+				submit: function (remarks, done) {
+					$.ajax({
+						type: 'POST',
+						url: mesiteurl + 'mypoapproval',
+						data: { recid: record.recid, remarks: remarks, meaction: approve ? 'MAIN-APPROVE' : 'MAIN-DISAPPROVE' },
+						global: false,
+						cache: false,
+						success: function (data) { $('.me-outp-msg').html(data); FodsDecision.close(); },
+						error: function (xhr, status, error) { toastr.error('[PO]', 'Error loading page...' + error, { closeButton: true }); },
+						complete: done
+					});
+				}
+			});
+		}
+
+		document.getElementById('poApproveBtn').addEventListener('click', function () { openDecision('approve'); });
+		document.getElementById('poDisapproveBtn').addEventListener('click', function () { openDecision('disapprove'); });
+	};
 
 	this.__open_po = function (recid) {
 		var $ = window.jQuery;
@@ -700,6 +750,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	__mysys_po_ent.__po_details();
 	__mysys_po_ent.__po_saving();
 	__mysys_po_ent.__po_print();
+	__mysys_po_ent.__po_decision();
 
 	// Deep link: ?recid= opens that PO right away
 	if (window.__po_open) { __mysys_po_ent.__open_po(window.__po_open); }

@@ -637,7 +637,7 @@ function __mysys_saob_rpt_ent() {
 		});
 	};
 
-	//SAOB - REPORTS (SAOB PDF / CSV, ORS extraction, monthly report)
+	//SAOB - REPORTS (SAOB PDF / Excel, ORS extraction, monthly report)
 	function showPdf(title, url) {
 		document.getElementById('saobPrintTitle').textContent = title;
 		document.getElementById('saobPrintFrame').src = url;
@@ -662,55 +662,348 @@ function __mysys_saob_rpt_ent() {
 		var query = function (params) {
 			return Object.keys(params).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
 		};
+		var PROGRAM_KEY = 'fods.saob.rptProgram';
+		var monthLabel = function (ym) { var p = String(ym).split('-'); return MONTHS[+p[1] - 1].name + ' ' + p[0]; };
 
-		document.getElementById('rptMonth').innerHTML = MONTHS.map(function (m) { return '<option value="' + m.name + '">' + m.name + '</option>'; }).join('');
-		document.getElementById('rptMonth').value = MONTHS[today.getMonth()].name;
-		document.getElementById('rptYear').innerHTML = (lookups.report_years || []).map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
-		['rptFrom', 'rptTo', 'rptProgramMonth'].forEach(function (id) { document.getElementById(id).value = thisMonth; });
-
-		$('#rptProgram').autocomplete({ source: lookups.programs || [], minLength: 0 })
-			.on('focus', function () { $(this).autocomplete('search', this.value); });
-
-		//SAOB REPORT
-		$('#rptSaobPdf').on('click', function () {
-			var month = $('#rptMonth').val(), yr = $('#rptYear').val();
-			if (!month || !yr) { warn('Please select both month and year.'); return; }
-			showPdf('SAOB — ' + month + ' ' + yr, mesiteurl + 'mysaobrpt?' + query({ meaction: 'SAOB-PDF', month: month, year: yr }));
-		});
-
-		$('#rptSaobCsv').on('click', function () {
-			var month = $('#rptMonth').val(), yr = $('#rptYear').val();
-			if (!month || !yr) { warn('Please select both month and year.'); return; }
-			window.location.href = mesiteurl + 'saob-export-csv?' + query({ month: month, year: yr });
-		});
-
-		//ORS EXTRACTION
-		$('#rptOrsCsv').on('click', function () {
-			var from = $('#rptFrom').val(), to = $('#rptTo').val();
-			if (!from || !to) { warn('Please select the months to cover.'); return; }
-			if (from > to) { warn('The first month comes after the last one.'); return; }
-			window.location.href = mesiteurl + 'export-csv?' + query({ date_from: monthRange(from).start, date_to: monthRange(to).end });
-		});
-
-		//MONTHLY REPORT
-		function monthly() {
-			var program = $('#rptProgram').val().trim(), month = $('#rptProgramMonth').val();
-			if (!program) { warn('Please select a program title first.'); return null; }
-			if (!month) { warn('Please select a month.'); return null; }
-			return { program: program, month: month };
+		// Programs with at least one project whose duration covers the year, with that count
+		function programsFor(year) {
+			var seen = {};
+			(lookups.program_years || []).forEach(function (r) {
+				var y1 = +r.y1 || 0, y2 = +r.y2 || 0;
+				if (y1 && y2 && (y1 > year || y2 < year)) { return; }
+				seen[r.p] = (seen[r.p] || 0) + (+r.n || 0);
+			});
+			return Object.keys(seen).sort(function (x, y) { return x.localeCompare(y); }).map(function (k) { return { title: k, n: seen[k] }; });
+		}
+		function fillPrograms(sel, year, keep) {
+			var list = programsFor(year);
+			var html = '<option value="">' + (list.length ? 'Choose a program…' : 'No programs with projects in ' + year) + '</option>'
+				+ list.map(function (x) { return '<option value="' + esc(x.title) + '">' + esc(x.title) + ' (' + x.n + ')</option>'; }).join('');
+			$(sel).html(html);
+			if (keep && list.some(function (x) { return x.title === keep; })) { $(sel).val(keep); }
+			return list;
 		}
 
-		$('#rptMonthlyCsv').on('click', function () {
-			var p = monthly();
-			if (!p) { return; }
-			var range = monthRange(p.month);
-			window.location.href = mesiteurl + 'monthly-export-csv?' + query({ date_from: range.start, date_to: range.end, monthly_program_title: p.program });
+		//"AS OF" MONTH - one period for the whole Reports tab (page head)
+		var $asOf = $('#rptAsOf');
+		$asOf.attr({ min: (lookups.report_years || [2022]).slice(-1)[0] + '-01', max: today.getFullYear() + '-12' }).val(thisMonth);
+		$('#rptFrom').val(today.getFullYear() + '-01');
+		var asOf = function () { return $asOf.val(); };
+
+		// The year picker and New allotment belong to the Allotments tab; "As of" to Reports
+		function headFor(target) {
+			var reports = target === '#saobPaneReports';
+			$('#saobYear, #saobTableAdd').toggleClass('d-none', reports);
+			$('#rptAsOfWrap').toggleClass('d-none', !reports);
+		}
+		$('#saobTabs [data-bs-toggle="tab"]').on('shown.bs.tab', function () { headFor(this.getAttribute('data-bs-target')); });
+		headFor('#' + ($('#saobTabs .nav-link.active').attr('data-bs-target') || '').replace('#', ''));
+
+		function applyAsOf() {
+			var m = asOf();
+			if (!m) { return; }
+			var year = +m.split('-')[0];
+			$('#rptSaobPeriod').text('Up to ' + monthLabel(m));
+			$('#rptOrsTo').text(monthLabel(m));
+			// the extraction starts in January of that year unless a month in it was picked
+			var from = $('#rptFrom').val();
+			if (!from || +from.split('-')[0] !== year || from > m) { $('#rptFrom').val(year + '-01'); }
+			$('#rptFrom').attr('max', m);
+			var keep = $('#rptProgram').val();
+			if (!keep) { try { keep = localStorage.getItem(PROGRAM_KEY) || ''; } catch (e) { keep = ''; } }
+			fillPrograms('#rptProgram', year, keep);
+			programChanged();
+		}
+		$asOf.on('change', applyAsOf);
+
+		//PROGRAM STATUS - quick figures under the picker (the same JSON as the dashboard)
+		var previewReq = 0;
+		function programChanged() {
+			var program = $('#rptProgram').val(), m = asOf();
+			var count = $('#rptProgram option:selected').text().match(/\((\d+)\)$/);
+			$('#rptProgramHint').text(program && count ? count[1] + ' project' + (count[1] === '1' ? '' : 's') + ' in ' + m.split('-')[0] : '');
+			try { if (program) { localStorage.setItem(PROGRAM_KEY, program); } } catch (e) { /* storage blocked */ }
+			var $pv = $('#rptPreview');
+			if (!program || !m) { $pv.prop('hidden', true); return; }
+			var req = ++previewReq;
+			$pv.prop('hidden', false).addClass('is-loading');
+			$('[data-rp-label="this_month"]').text('Obligated in ' + MONTHS[+m.split('-')[1] - 1].name);
+			$.getJSON(mesiteurl + 'mysaobrpt', { meaction: 'MONTHLY-STATUS', program_title: program, month: m })
+				.done(function (d) {
+					if (req !== previewReq) { return; }
+					var t = d.totals;
+					['revised', 'this_month', 'todate', 'balance'].forEach(function (k) { $('[data-rp="' + k + '"]').text(money(t[k])); });
+					$('[data-rp="percent"]').text(pct(t.percent));
+					$('#rptUtilBar').attr('class', 'st-bar flex-grow-1 st-' + band(t.percent)).children('span').css('width', Math.min(t.percent, 100) + '%');
+					$pv.removeClass('is-loading');
+				})
+				.fail(function () { if (req === previewReq) { $pv.prop('hidden', true); } });
+		}
+		$('#rptProgram').on('change', programChanged);
+
+		function picked() {
+			var program = $('#rptProgram').val(), m = asOf();
+			if (!m) { warn('Please select the "As of" month.'); return null; }
+			if (!program) { warn('Please select a program title first.'); $('#rptProgram').trigger('focus'); return null; }
+			return { program: program, month: m };
+		}
+
+		$('#rptMonthlyDash').on('click', function () {
+			var p = picked();
+			if (p) { openStatus(p.program, p.month); }
 		});
 
 		$('#rptMonthlyPrint').on('click', function () {
-			var p = monthly();
-			if (!p) { return; }
-			showPdf('Monthly status — ' + p.program, mesiteurl + 'mysaobrpt?' + query({ meaction: 'SAVINGS-PRINT', program_title: p.program, current_year: p.month.split('-')[0], month: p.month }));
+			var p = picked();
+			if (p) { showPdf('Monthly status — ' + p.program, mesiteurl + 'mysaobrpt?' + query({ meaction: 'SAVINGS-PRINT', program_title: p.program, current_year: p.month.split('-')[0], month: p.month })); }
+		});
+
+		// Same figures as the dashboard and the PDF
+		$('#rptMonthlyXlsx').on('click', function () {
+			var p = picked();
+			if (p) { window.location.href = mesiteurl + 'mysaobrpt?' + query({ meaction: 'MONTHLY-STATUS-XLSX', program_title: p.program, month: p.month }); }
+		});
+
+		//SAOB STATEMENT (up to the "As of" month)
+		function saobPeriod() {
+			var m = asOf();
+			if (!m) { warn('Please select the "As of" month.'); return null; }
+			return { month: MONTHS[+m.split('-')[1] - 1].name, year: m.split('-')[0] };
+		}
+		$('#rptSaobPdf').on('click', function () {
+			var s = saobPeriod();
+			if (s) { showPdf('SAOB — ' + s.month + ' ' + s.year, mesiteurl + 'mysaobrpt?' + query({ meaction: 'SAOB-PDF', month: s.month, year: s.year })); }
+		});
+		$('#rptSaobXlsx').on('click', function () {
+			var s = saobPeriod();
+			if (s) { window.location.href = mesiteurl + 'saob-export-csv?' + query({ month: s.month, year: s.year }); }
+		});
+
+		//ORS EXTRACTION (From month .. the "As of" month)
+		$('#rptOrsXlsx').on('click', function () {
+			var from = $('#rptFrom').val(), to = asOf();
+			if (!from || !to) { warn('Please select the months to cover.'); return; }
+			if (from > to) { warn('"From" comes after the "As of" month.'); return; }
+			window.location.href = mesiteurl + 'export-csv?' + query({ date_from: monthRange(from).start, date_to: monthRange(to).end });
+		});
+
+		//MONTHLY STATUS DASHBOARD - same figures as Print status (MONTHLY-STATUS)
+		var BAND_COLOR = { low: '#d97706', mid: '#0f6f6f', high: '#15803d', over: '#b91c1c' };
+		var st = { data: null, sort: '', dir: 1, charts: {}, req: 0 };
+		var stModal = document.getElementById('saobStatusModal');
+
+		function band(p) { return p > 100 ? 'over' : p >= 90 ? 'high' : p >= 50 ? 'mid' : 'low'; }
+		function pct(p) { return Number(p || 0).toFixed(2) + '%'; }
+		function moneyShort(n) {
+			n = Number(n || 0);
+			var a = Math.abs(n);
+			if (a >= 1e9) { return '₱' + (n / 1e9).toFixed(2) + 'B'; }
+			if (a >= 1e6) { return '₱' + (n / 1e6).toFixed(1) + 'M'; }
+			if (a >= 1e3) { return '₱' + (n / 1e3).toFixed(0) + 'K'; }
+			return '₱' + n.toFixed(0);
+		}
+		function bar(p) {
+			return '<div class="st-bar st-' + band(p) + '"><span style="width:' + Math.min(Math.max(p, 0), 100) + '%"></span></div>';
+		}
+
+		// ApexCharts is only needed here, so it loads the first time the dashboard opens
+		var apexWaiting = null;
+		function withApex(cb) {
+			if (window.ApexCharts) { cb(); return; }
+			if (apexWaiting) { apexWaiting.push(cb); return; }
+			apexWaiting = [cb];
+			var s = document.createElement('script');
+			s.src = window.__saob_apex;
+			s.onload = function () { var q = apexWaiting; apexWaiting = null; q.forEach(function (f) { f(); }); };
+			s.onerror = function () { apexWaiting = null; warn('The charts could not be loaded.'); };
+			document.head.appendChild(s);
+		}
+
+
+		// the dashboard's program list follows its own month's year, like the tab's
+		function stPrograms(program) {
+			fillPrograms('#stProgram', +String($('#stMonth').val()).split('-')[0], program);
+			if (program && $('#stProgram').val() !== program) {
+				$('#stProgram').append($('<option>').val(program).text(program)).val(program);
+			}
+		}
+
+		function openStatus(program, month) {
+			$('#stMonth').val(month);
+			stPrograms(program);
+			$('#stMonth').val(month);
+			bootstrap.Modal.getOrCreateInstance(stModal).show();
+			loadStatus();
+		}
+
+		function loadStatus() {
+			var program = $('#stProgram').val(), month = $('#stMonth').val();
+			if (!program || !month) { return; }
+			var req = ++st.req;
+			$('#stSub').text('Loading…');
+			$('#stTable tbody').html('<tr><td colspan="8" class="st-empty"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>');
+			$('#stTable tfoot').empty();
+			$.getJSON(mesiteurl + 'mysaobrpt', { meaction: 'MONTHLY-STATUS', program_title: program, month: month })
+				.done(function (data) {
+					if (req !== st.req) { return; }   // a newer pick is on its way
+					st.data = data;
+					renderStatus();
+				})
+				.fail(function (xhr) {
+					if (req !== st.req) { return; }
+					$('#stSub').text('');
+					$('#stTable tbody').html('<tr><td colspan="8" class="st-empty">' + esc((xhr.responseJSON && xhr.responseJSON.error) || 'The status could not be loaded.') + '</td></tr>');
+				});
+		}
+
+		function renderStatus() {
+			var d = st.data, t = d.totals;
+			var monthName = MONTHS[(+d.month.split('-')[1]) - 1].name;
+			$('#stTitle').text('Monthly status — ' + d.program);
+			$('#stSub').text('As of ' + d.as_of + ' · ' + d.rows.length + ' project' + (d.rows.length === 1 ? '' : 's'));
+			$('#stThisMonthLabel').text('Obligated in ' + monthName);
+			['revised', 'this_month', 'todate', 'balance'].forEach(function (k) {
+				$('[data-st="' + k + '"]').text(money(t[k])).attr('title', money(t[k]));
+			});
+			$('[data-st="percent"]').text(pct(t.percent));
+			$('#stUtilBar').attr('class', 'st-bar mt-2 st-' + band(t.percent)).children('span').css('width', Math.min(t.percent, 100) + '%');
+			renderTable();
+			withApex(renderCharts);
+		}
+
+		function renderTable() {
+			var d = st.data, q = ($('#stSearch').val() || '').trim().toLowerCase();
+			var rows = d.rows.filter(function (r) {
+				return !q || [r.project_title, r.responsibility_code, r.unit_division, r.project_leader].join(' ').toLowerCase().indexOf(q) !== -1;
+			});
+			if (st.sort) {
+				rows = rows.slice().sort(function (a, b) {
+					var x = a[st.sort], y = b[st.sort];
+					return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y))) * st.dir;
+				});
+			}
+			$('#stCount').text(rows.length === d.rows.length ? '(' + d.rows.length + ')' : '(' + rows.length + ' of ' + d.rows.length + ')');
+			$('#stTable thead th').removeClass('is-asc is-desc');
+			if (st.sort) { $('#stTable thead th[data-sort="' + st.sort + '"]').addClass(st.dir > 0 ? 'is-asc' : 'is-desc'); }
+
+			$('#stTable tbody').html(rows.length ? rows.map(function (r) {
+				var code = r.project_title === 'Unprogrammed' ? '' : r.responsibility_code;
+				return '<tr>'
+					+ '<td class="st-proj"><b>' + esc(r.project_title) + '</b>' + (code ? '<small>' + esc(code) + '</small>' : '') + '</td>'
+					+ '<td>' + esc(r.unit_division) + '</td>'
+					+ '<td class="st-who">' + esc(r.project_leader) + '</td>'
+					+ '<td class="num">' + money(r.revised) + (r.admin_cost ? '<br><small class="text-muted" title="Admin. cost">' + (r.admin_cost < 0 ? '−' : '+') + money(Math.abs(r.admin_cost)) + ' admin.</small>' : '') + '</td>'
+					+ '<td class="num">' + money(r.this_month) + '</td>'
+					+ '<td class="num">' + money(r.todate) + '</td>'
+					+ '<td class="num' + (r.balance < 0 ? ' text-danger' : '') + '">' + money(r.balance) + '</td>'
+					+ '<td><div class="st-pct">' + bar(r.percent) + '<b>' + pct(r.percent) + '</b></div></td>'
+					+ '</tr>';
+			}).join('') : '<tr><td colspan="8" class="st-empty">' + (d.rows.length ? 'No projects match' : 'No projects found for this program and year') + '</td></tr>');
+
+			var t = d.totals;
+			$('#stTable tfoot').html(d.rows.length ? '<tr><td colspan="3">Program total</td>'
+				+ '<td class="num">' + money(t.revised) + '</td><td class="num">' + money(t.this_month) + '</td>'
+				+ '<td class="num">' + money(t.todate) + '</td><td class="num">' + money(t.balance) + '</td>'
+				+ '<td><div class="st-pct">' + bar(t.percent) + '<b>' + pct(t.percent) + '</b></div></td></tr>' : '');
+		}
+
+		function renderCharts() {
+			var d = st.data;
+			Object.keys(st.charts).forEach(function (k) { st.charts[k].destroy(); });
+			st.charts = {};
+			if (!$(stModal).hasClass('show')) { return; }
+
+			// Utilization per project, highest first
+			var rows = d.rows.slice().sort(function (a, b) { return b.percent - a.percent; });
+			var el = document.getElementById('stProjectChart');
+			if (!rows.length) {
+				el.innerHTML = '<div class="st-empty">No projects to chart</div>';
+			} else {
+				el.innerHTML = '';
+				var short = function (s) { s = String(s); return s.length > 38 ? s.slice(0, 36) + '…' : s; };
+				st.charts.project = new ApexCharts(el, {
+					chart: { type: 'bar', height: Math.max(220, rows.length * 30 + 60), toolbar: { show: false }, fontFamily: 'inherit', animations: { speed: 300 } },
+					series: [{ name: 'Utilization', data: rows.map(function (r) { return { x: short(r.project_title), y: r.percent, fillColor: BAND_COLOR[band(r.percent)] }; }) }],
+					plotOptions: { bar: { horizontal: true, barHeight: '62%', borderRadius: 3, dataLabels: { position: 'top', hideOverflowingLabels: false } } },
+					dataLabels: { enabled: true, textAnchor: 'start', offsetX: 20, formatter: function (v) { return v.toFixed(1) + '%'; }, style: { fontSize: '10px', fontWeight: 600, colors: ['#334155'] } },
+					xaxis: { min: 0, max: Math.max(100, Math.ceil(Math.max.apply(null, rows.map(function (r) { return r.percent; })) / 10) * 10 + 10), tickAmount: 5, labels: { formatter: function (v) { return Math.round(v) + '%'; }, style: { colors: '#64748b', fontSize: '11px' } } },
+					yaxis: { labels: { maxWidth: 240, align: 'left', style: { colors: '#334155', fontSize: '11px' } } },
+					annotations: { xaxis: [{ x: 100, borderColor: '#94a3b8', strokeDashArray: 4 }] },
+					grid: { borderColor: '#eef1f5', strokeDashArray: 4, xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
+					tooltip: {
+						custom: function (o) {
+							var r = rows[o.dataPointIndex];
+							return '<div class="px-2 py-1 small" style="max-width:320px;white-space:normal"><b>' + esc(r.project_title) + '</b><br>'
+								+ 'Utilization: <b>' + pct(r.percent) + '</b><br>To date: ' + money(r.todate) + ' of ' + money(r.revised) + '<br>Balance: ' + money(r.balance) + '</div>';
+						}
+					}
+				});
+				st.charts.project.render();
+			}
+
+			// Obligations per month (columns) and how much of the allotment is used up by then (line)
+			var revised = d.totals.revised, run = 0;
+			var used = d.monthly.map(function (m) { run += m.amount; return revised > 0 ? Math.round(run / revised * 10000) / 100 : 0; });
+			st.charts.month = new ApexCharts(document.getElementById('stMonthChart'), {
+				chart: { type: 'line', height: 380, toolbar: { show: false }, fontFamily: 'inherit', zoom: { enabled: false }, animations: { speed: 300 } },
+				series: [
+					{ name: 'Obligated', type: 'column', data: d.monthly.map(function (m) { return m.amount; }) },
+					{ name: 'Utilization to date', type: 'line', data: used }
+				],
+				colors: ['#0f6f6f', '#d97706'],
+				stroke: { width: [0, 3], curve: 'smooth' },
+				plotOptions: { bar: { columnWidth: '50%', borderRadius: 4 } },
+				markers: { size: [0, 4], strokeWidth: 0 },
+				dataLabels: { enabled: false },
+				labels: d.monthly.map(function (m) { return m.label; }),
+				xaxis: { axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#64748b', fontSize: '11px' } } },
+				yaxis: [
+					{ seriesName: 'Obligated', labels: { formatter: moneyShort, style: { colors: '#64748b' } } },
+					{ seriesName: 'Utilization to date', opposite: true, min: 0, max: Math.max(100, Math.ceil(Math.max.apply(null, used.concat([0])) / 10) * 10), labels: { formatter: function (v) { return Math.round(v) + '%'; }, style: { colors: '#64748b' } } }
+				],
+				grid: { borderColor: '#eef1f5', strokeDashArray: 4 },
+				legend: { position: 'top', horizontalAlign: 'left', markers: { radius: 12 } },
+				tooltip: { shared: true, intersect: false, y: [{ formatter: money }, { formatter: pct }] }
+			});
+			st.charts.month.render();
+		}
+
+		$('#stProgram').on('change', loadStatus);
+		$('#stMonth').on('change', function () { stPrograms($('#stProgram').val()); loadStatus(); });
+		$('#stSearch').on('input', function () { if (st.data) { renderTable(); } });
+		$('#stTable thead').on('click', 'th[data-sort]', function () {
+			var key = this.getAttribute('data-sort');
+			if (!st.data) { return; }
+			// first click: names A-Z, amounts largest first; then flip; third click back to the report order
+			var first = /^(project_title|unit_division|project_leader)$/.test(key) ? 1 : -1;
+			if (st.sort !== key) { st.sort = key; st.dir = first; }
+			else if (st.dir === first) { st.dir = -first; }
+			else { st.sort = ''; }
+			renderTable();
+		});
+		// charts are drawn once the window is open, so they get its full width
+		stModal.addEventListener('shown.bs.modal', function () { if (st.data) { withApex(renderCharts); } });
+		stModal.addEventListener('hidden.bs.modal', function () {
+			Object.keys(st.charts).forEach(function (k) { st.charts[k].destroy(); });
+			st.charts = {};
+		});
+
+		applyAsOf();
+
+		$('#stXlsx').on('click', function () {
+			var program = $('#stProgram').val(), month = $('#stMonth').val();
+			if (!program || !month) { warn('Please select a program title and a month.'); return; }
+			// same figures as the dashboard (the monthly report Excel counts PS and CO too)
+			window.location.href = mesiteurl + 'mysaobrpt?' + query({ meaction: 'MONTHLY-STATUS-XLSX', program_title: program, month: month });
+		});
+
+		$('#stPrint').on('click', function () {
+			var program = $('#stProgram').val(), month = $('#stMonth').val();
+			if (!program || !month) { warn('Please select a program title and a month.'); return; }
+			$(stModal).one('hidden.bs.modal', function () {
+				showPdf('Monthly status — ' + program, mesiteurl + 'mysaobrpt?' + query({ meaction: 'SAVINGS-PRINT', program_title: program, current_year: month.split('-')[0], month: month }));
+			});
+			bootstrap.Modal.getInstance(stModal).hide();
 		});
 	};
 }

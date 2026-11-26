@@ -100,11 +100,15 @@ echo view('templates/myheader.php');
                             </h6>
                         </div>
                         <div class="col-sm-6 text-end">
+                            <?php if (!empty($recid)): ?>
+                                <button type="button" class="btn btn-sm btn-light" data-history-module="abstract" data-history-recid="<?= esc($recid, 'attr') ?>" data-history-title="Abstract"><i class="ti ti-history me-1"></i>History</button>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>						
                 <div class="card-body p-0 px-4 py-2 my-2">
                     <form action="<?=site_url();?>myabstract?meaction=ABSTRACT-SAVE" method="post" class="myabstract-validation">
+                        <?= csrf_field(); ?>
                         <div class="row mb-2">
                             <div class="col-sm-6">
                                 <div class="row mb-2">

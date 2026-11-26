@@ -46,11 +46,10 @@ class MyPRApproval extends BaseController
                 if (!$canView) { return view('errors/html/access-restricted'); }
                 return view('procurement/pr/pr-pdf');
 
+            // Approving now happens on the Purchase Request page; old links open the record there
             default:
-                if ($canView) {
-                    return $this->loadMainView();
-                }
-                return view('errors/html/access-restricted');
+                $recid = (string) $this->request->getGet('recid');
+                return redirect()->to('mypr?meaction=PR-MAIN' . ($recid !== '' ? '&recid=' . urlencode($recid) : ''));
         }
     }
 

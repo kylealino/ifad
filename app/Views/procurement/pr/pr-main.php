@@ -45,6 +45,40 @@ echo view('templates/myheader.php');
 .pr-ppmp-list .fods-chip { font-size:.8rem; padding:.25rem .35rem .25rem .7rem; }
 .pr-ppmp-list .fods-chip button { border:0; background:transparent; color:inherit; line-height:1; padding:0 .2rem; font-size:1rem; opacity:.7; }
 .pr-ppmp-list .fods-chip button:hover { opacity:1; }
+
+/* PPMP picker: picked chips, search + year + fully used, then a list to click */
+.pr-ppmp-picker { display:flex; flex-direction:column; gap:.6rem; max-width:760px; }
+.pr-ppmp-picked { display:flex; align-items:flex-start; gap:.6rem; padding:.55rem .7rem; border:1px dashed var(--fods-border); border-radius:10px; background:#fafbfc; }
+.pr-ppmp-picked-label { font-size:.74rem; color:var(--fods-muted); white-space:nowrap; padding-top:.3rem; }
+.pr-ppmp-picked-label b { color:var(--fods-text); }
+.pr-ppmp-tools { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .75rem; }
+.pr-ppmp-search { flex:1 1 240px; min-width:0; }
+.pr-ppmp-year { width:auto; min-width:120px; }
+.pr-ppmp-options { border:1px solid var(--fods-border); border-radius:12px; max-height:340px; overflow-y:auto; background:#fff; scrollbar-width:thin; }
+.pr-ppmp-opt { display:flex; width:100%; align-items:center; gap:.75rem; padding:.6rem .8rem; border:0; border-bottom:1px solid #f1f4f8; background:#fff; text-align:left; cursor:pointer; color:var(--fods-text); }
+.pr-ppmp-opt:last-child { border-bottom:0; }
+.pr-ppmp-opt:hover:not(:disabled) { background:#f7fafb; }
+.pr-ppmp-opt:focus-visible { outline:2px solid var(--fods-teal); outline-offset:-2px; }
+.pr-ppmp-opt.is-picked { background:var(--fods-teal-soft); }
+.pr-ppmp-opt:disabled { cursor:not-allowed; opacity:.55; }
+.pr-ppmp-check { flex:0 0 20px; width:20px; height:20px; border-radius:6px; border:1.5px solid #b8c2d1; display:grid; place-items:center; color:#fff; font-size:.8rem; background:#fff; }
+.pr-ppmp-opt.is-picked .pr-ppmp-check { background:var(--fods-teal); border-color:var(--fods-teal); }
+.pr-ppmp-main { flex:1 1 auto; min-width:0; }
+.pr-ppmp-no { font-weight:600; font-size:.86rem; display:flex; flex-wrap:wrap; align-items:center; gap:.4rem; }
+.pr-ppmp-no .fods-chip { font-size:.66rem; padding:.05rem .45rem; }
+.pr-ppmp-main { display:block; }
+.pr-ppmp-meta { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; font-size:.74rem; line-height:1.35; color:var(--fods-muted); margin-top:.15rem; }
+.pr-ppmp-bal { display:block; flex:0 0 150px; text-align:right; font-size:.74rem; color:var(--fods-muted); padding-left:.5rem; border-left:1px solid #eef2f6; }
+.pr-ppmp-bar { display:block; }
+.pr-ppmp-bal b { display:block; font-size:.84rem; color:var(--fods-text); font-variant-numeric:tabular-nums; }
+.pr-ppmp-bar { height:4px; border-radius:2px; background:#eef2f6; overflow:hidden; margin-top:.25rem; }
+.pr-ppmp-bar > span { display:block; height:100%; background:var(--fods-teal); }
+.pr-ppmp-opt.is-done .pr-ppmp-bal b { color:#b42318; }
+.pr-ppmp-none { padding:1rem; text-align:center; font-size:.8rem; color:var(--fods-muted); }
+@media (max-width: 575.98px) {
+    .pr-ppmp-bal { flex-basis:96px; }
+    .pr-ppmp-meta { white-space:normal; }
+}
 .pr-note { font-size:.78rem; color:var(--fods-muted); }
 
 /* RFQ tab */
@@ -106,21 +140,21 @@ echo view('templates/myheader.php');
     <!-- Stat cards (filled by mypr.js for the selected year) -->
     <div class="row g-3 mb-4" id="prTableCards">
         <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="prTable" data-filter="unnumbered">
+            <button type="button" class="fods-stat" data-table="prTable" data-filter="in_approval">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="unnumbered">0</div><div class="fods-stat-label" data-card-label="unnumbered">Waiting for a PR no.</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="prTable" data-filter="numbered">
-                <div class="fods-stat-icon tone-indigo"><i class="ti ti-hash"></i></div>
-                <div><div class="fods-stat-value" data-card-value="numbered">0</div><div class="fods-stat-label" data-card-label="numbered">PR no. assigned</div></div>
+            <button type="button" class="fods-stat" data-table="prTable" data-filter="disapproved">
+                <div class="fods-stat-icon tone-red"><i class="ti ti-arrow-back-up"></i></div>
+                <div><div class="fods-stat-value" data-card-value="returned">0</div><div class="fods-stat-label" data-card-label="returned">Returned</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
-            <button type="button" class="fods-stat" data-table="prTable" data-filter="rfq">
-                <div class="fods-stat-icon tone-green"><i class="ti ti-file-invoice"></i></div>
-                <div><div class="fods-stat-value" data-card-value="rfq">0</div><div class="fods-stat-label" data-card-label="rfq">RFQ issued</div></div>
+            <button type="button" class="fods-stat" data-table="prTable" data-filter="approved">
+                <div class="fods-stat-icon tone-green"><i class="ti ti-circle-check"></i></div>
+                <div><div class="fods-stat-value" data-card-value="approved">0</div><div class="fods-stat-label" data-card-label="approved">Approved</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -134,8 +168,8 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="prTableFilter">
-                <button type="button" class="active" data-filter="all">All</button>
-                <button type="button" data-filter="in_approval">In approval</button>
+                <button type="button" class="active" data-filter="all">All records</button>
+                <button type="button" data-filter="in_approval">For approval</button>
                 <button type="button" data-filter="disapproved">Returned</button>
                 <button type="button" data-filter="approved">Approved</button>
                 <button type="button" data-filter="unnumbered">No PR no. yet</button>
@@ -167,11 +201,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="prModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="prModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down pr-dialog">
         <div class="modal-content">
             <form id="prForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-shopping-cart"></i></div>
                         <div style="min-width:0">
@@ -181,163 +215,199 @@ echo view('templates/myheader.php');
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="prPrintBtn"><i class="ti ti-printer me-1"></i>Print</button>
+                        <button type="button" class="btn btn-sm btn-danger d-none" id="prDisapproveBtn"><i class="ti ti-x me-1"></i>Disapprove</button>
+                        <button type="button" class="btn btn-sm btn-success d-none" id="prApproveBtn"><i class="ti ti-check me-1"></i>Approve</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="pr" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <ul class="nav fods-tabs" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#prPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#prPaneItems"><i class="ti ti-list-details"></i>Items<span class="pr-tab-amt" data-tab-total></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#prPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
+                    <li class="nav-item d-none" id="prRfqTab"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#prPaneRfq"><i class="ti ti-file-invoice"></i>RFQ<span class="pr-tab-amt" id="prRfqCount"></span></button></li>
+                </ul>
+
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
 
-                    <div id="prBanner" class="alert d-none mb-3"></div>
-
-                    <ul class="nav fods-segment mb-3 flex-nowrap fods-scroll-x" role="tablist" style="max-width:100%;">
-                        <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#prPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#prPaneItems"><i class="ti ti-list-details"></i>Items<span class="pr-tab-amt" data-tab-total></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#prPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
-                        <li class="nav-item d-none" id="prRfqTab"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#prPaneRfq"><i class="ti ti-file-invoice"></i>RFQ<span class="pr-tab-amt" id="prRfqCount"></span></button></li>
-                    </ul>
+                    <div id="prBanner" class="alert d-none mt-3 mb-0"></div>
 
                     <div class="tab-content">
                         <!-- Details -->
                         <div class="tab-pane fade show active" id="prPaneDetails">
-                            <div class="row g-3">
-                                <div class="col-lg-6">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Request</div>
-                                        <div class="row g-3">
-                                            <div class="col-md-7">
-                                                <label class="form-label" for="prno">PR no.</label>
-                                                <input type="text" class="form-control" id="prno" name="prno" maxlength="100" placeholder="Assigned when the PR is numbered">
-                                            </div>
-                                            <div class="col-md-5">
-                                                <label class="form-label" for="pr_date">PR date</label>
-                                                <input type="date" class="form-control" id="pr_date" name="pr_date" required>
-                                                <div class="invalid-feedback">PR date is required.</div>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="entity_name">Entity name</label>
-                                                <input type="text" class="form-control" id="entity_name" name="entity_name" maxlength="250">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="office">Office / section</label>
-                                                <input type="text" class="form-control" id="office" name="office" maxlength="200">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="fund_cluster">Fund cluster</label>
-                                                <input type="text" class="form-control" id="fund_cluster" name="fund_cluster" maxlength="50">
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="responsibility_code">Responsibility code</label>
-                                                <input type="text" class="form-control" id="responsibility_code" name="responsibility_code" maxlength="150">
-                                            </div>
-                                        </div>
-                                    </div></div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Request</h6>
                                 </div>
-
-                                <div class="col-lg-6">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Purpose</div>
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <label class="form-label" for="end_user">End-user</label>
-                                                <input type="text" class="form-control" id="end_user" name="end_user" maxlength="100">
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="purpose">Purpose</label>
-                                                <input type="text" class="form-control" id="purpose" name="purpose" maxlength="150">
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="charge_to">Charge to</label>
-                                                <textarea class="form-control" id="charge_to" name="charge_to" rows="3" maxlength="250"></textarea>
-                                            </div>
-                                        </div>
-
-                                        <div class="fods-section">PPMP</div>
-                                        <div class="input-group">
-                                            <select class="form-select" id="ppmp_lookup" aria-label="PPMP"></select>
-                                            <button type="button" class="btn btn-fods-ghost" id="btn_add_ppmp"><i class="ti ti-plus me-1"></i>Add</button>
-                                        </div>
-                                        <div class="pr-ppmp-list mt-2" id="selected_ppmp_list"></div>
-                                        <div class="pr-note mt-1">Adding or removing a PPMP replaces the items with those of the PPMPs picked.</div>
-                                    </div></div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="prno">PR no.</label>
+                                        <input type="text" class="form-control" id="prno" name="prno" maxlength="100" placeholder="Assigned when the PR is numbered">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label req" for="pr_date">PR date</label>
+                                        <input type="date" class="form-control" id="pr_date" name="pr_date" required>
+                                        <div class="invalid-feedback">PR date is required.</div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="fund_cluster">Fund cluster</label>
+                                        <select class="form-select" id="fund_cluster" name="fund_cluster">
+                                            <option value="">Choose...</option>
+                                            <option value="01">01</option>
+                                            <option value="07">07</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="office">Office / section</label>
+                                        <input type="text" class="form-control" id="office" name="office" maxlength="200">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="responsibility_code">Responsibility code</label>
+                                        <input type="text" class="form-control" id="responsibility_code" name="responsibility_code" maxlength="150">
+                                    </div>
                                 </div>
-                            </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Purpose</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="end_user">End-user</label>
+                                        <input type="text" class="form-control" id="end_user" name="end_user" maxlength="100">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="purpose">Purpose</label>
+                                        <input type="text" class="form-control" id="purpose" name="purpose" maxlength="150">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="charge_to">Charge to</label>
+                                        <textarea class="form-control" id="charge_to" name="charge_to" rows="2" maxlength="250"></textarea>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>PPMP</h6>
+                                </div>
+                                <div class="pr-ppmp-picker">
+                                    <div class="pr-ppmp-picked">
+                                        <span class="pr-ppmp-picked-label">Picked <b id="ppmpPickedCount">0</b></span>
+                                        <div class="pr-ppmp-list" id="selected_ppmp_list"></div>
+                                    </div>
+                                    <div class="pr-ppmp-tools">
+                                        <div class="fods-search pr-ppmp-search">
+                                            <i class="ti ti-search"></i>
+                                            <input type="search" class="form-control form-control-sm" id="ppmp_search" placeholder="Search PPMP no., project, end-user..." aria-label="Search PPMPs">
+                                        </div>
+                                        <select class="form-select form-select-sm pr-ppmp-year" id="ppmp_year" aria-label="Fiscal year"></select>
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" id="ppmp_show_used">
+                                            <label class="form-check-label small" for="ppmp_show_used">Show fully used</label>
+                                        </div>
+                                    </div>
+                                    <div class="pr-ppmp-options" id="ppmp_options" role="listbox" aria-multiselectable="true" aria-label="PPMPs"></div>
+                                </div>
+                            </section>
                         </div>
 
                         <!-- Items -->
                         <div class="tab-pane fade" id="prPaneItems">
-                            <div class="pr-grid-card" id="prGrid"></div>
+                            <div class="fods-pane-pad">
+                                <div class="pr-grid-card" id="prGrid"></div>
+                            </div>
                             <input type="hidden" id="estimated_cost" name="estimated_cost">
                         </div>
 
                         <!-- Certification -->
                         <div class="tab-pane fade" id="prPaneSign">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <div class="pr-sign">
-                                        <div class="pr-sign-head"><span class="pr-sign-box">Box A · Requesting office</span><span id="prSignStatusA"></span></div>
-                                        <label class="form-label" for="requested_by">Requested by</label>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Box A · Requesting office <span id="prSignStatusA"></span></h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label req" for="requested_by">Requested by</label>
                                         <select class="form-select" id="requested_by" name="requested_by" required></select>
                                         <div class="invalid-feedback">Pick the head of the requesting office.</div>
-                                        <label class="form-label mt-2" for="requested_position">Designation</label>
-                                        <input type="text" class="form-control" id="requested_position" name="requested_position" readonly>
-                                        <div class="pr-sign-note" id="prSignNoteA"></div>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="requested_position">Designation</label>
+                                        <input type="text" class="form-control" id="requested_position" name="requested_position" readonly>
+                                    </div>
+                                    <div class="col-12 pr-sign-note mt-1" id="prSignNoteA"></div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="pr-sign">
-                                        <div class="pr-sign-head"><span class="pr-sign-box">Box B · Approval</span><span id="prSignStatusB"></span></div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Box B · Approval <span id="prSignStatusB"></span></h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
                                         <label class="form-label" for="approved_by">Approved by</label>
                                         <input type="text" class="form-control" id="approved_by" name="approved_by" readonly>
-                                        <label class="form-label mt-2" for="approved_position">Designation</label>
-                                        <input type="text" class="form-control" id="approved_position" name="approved_position" readonly>
-                                        <div class="form-text" id="prApprovalRule"></div>
-                                        <div class="pr-sign-note" id="prSignNoteB"></div>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="approved_position">Designation</label>
+                                        <input type="text" class="form-control" id="approved_position" name="approved_position" readonly>
+                                    </div>
+                                    <div class="col-12 form-text mt-1" id="prApprovalRule"></div>
+                                    <div class="col-12 pr-sign-note mt-0" id="prSignNoteB"></div>
                                 </div>
-                            </div>
+                            </section>
                         </div>
 
                         <!-- RFQ -->
                         <div class="tab-pane fade" id="prPaneRfq">
-                            <div class="fods-card mb-3"><div class="fods-card-body pt-3">
-                                <div class="fods-section mt-0">Requests for quotation</div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Requests for quotation</h6>
+                                </div>
                                 <div id="prRfqList"></div>
-                            </div></div>
+                            </section>
 
-                            <div class="fods-card" id="prRfqForm"><div class="fods-card-body pt-3">
-                                <div class="fods-section mt-0">Add an RFQ</div>
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="quotation_no">Quotation no.</label>
-                                        <input type="text" class="form-control" id="quotation_no" maxlength="100">
+                            <section class="fods-fsec" id="prRfqForm">
+                                <div class="fods-fsec-head">
+                                    <h6>Add an RFQ</h6>
+                                </div>
+                                <div>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="quotation_no">Quotation no.</label>
+                                            <input type="text" class="form-control" id="quotation_no" maxlength="100">
+                                        </div>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label" for="quotation_date">Quotation date</label>
+                                            <input type="date" class="form-control" id="quotation_date">
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label" for="company_name">Company name</label>
+                                            <input type="text" class="form-control" id="company_name" maxlength="150">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label" for="company_address">Company address</label>
+                                            <textarea class="form-control" id="company_address" rows="2" maxlength="200"></textarea>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="delivery_period">Delivery period</label>
+                                            <input type="text" class="form-control" id="delivery_period" maxlength="100">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="terms">Terms of payment</label>
+                                            <input type="text" class="form-control" id="terms" maxlength="100">
+                                        </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="quotation_date">Quotation date</label>
-                                        <input type="date" class="form-control" id="quotation_date">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="company_name">Company name</label>
-                                        <input type="text" class="form-control" id="company_name" maxlength="150">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label" for="company_address">Company address</label>
-                                        <textarea class="form-control" id="company_address" rows="2" maxlength="200"></textarea>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="delivery_period">Delivery period</label>
-                                        <input type="text" class="form-control" id="delivery_period" maxlength="100">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="terms">Terms of payment</label>
-                                        <input type="text" class="form-control" id="terms" maxlength="100">
+                                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+                                        <span class="pr-note" id="prRfqNote"></span>
+                                        <button type="button" class="btn btn-sm btn-fods px-3" id="prRfqAdd"><i class="ti ti-plus me-1"></i>Add RFQ</button>
                                     </div>
                                 </div>
-                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
-                                    <span class="pr-note" id="prRfqNote"></span>
-                                    <button type="button" class="btn btn-sm btn-fods px-3" id="prRfqAdd"><i class="ti ti-plus me-1"></i>Add RFQ</button>
-                                </div>
-                            </div></div>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -356,6 +426,7 @@ echo view('templates/myheader.php');
         </div>
     </div>
 </div>
+
 
 <!-- PR / RFQ print preview -->
 <div class="modal fade fods-modal" id="prPrintModal" tabindex="-1" aria-hidden="true">
@@ -379,5 +450,5 @@ echo view('templates/myheader.php');
     var __pr_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __pr_tab = <?= json_encode($tab, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=7');?>"></script>
+<script src="<?=base_url('assets/js/procurement/pr/mypr.js?v=17');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

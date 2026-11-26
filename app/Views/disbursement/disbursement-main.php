@@ -46,17 +46,6 @@ echo view('templates/myheader.php');
 .dv-sign-box { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--fods-muted); }
 .dv-sign-note { font-size:.75rem; color:var(--fods-muted); margin-top:.5rem; }
 
-/* History timeline */
-.dv-timeline { list-style:none; margin:0; padding:0; }
-.dv-timeline li { position:relative; padding:0 0 1rem 1.6rem; }
-.dv-timeline li::before { content:""; position:absolute; left:.42rem; top:.9rem; bottom:0; width:2px; background:var(--fods-border); }
-.dv-timeline li:last-child::before { display:none; }
-.dv-timeline .dot { position:absolute; left:0; top:.2rem; width:.95rem; height:.95rem; border-radius:50%; border:3px solid #fff; box-shadow:0 0 0 1px var(--fods-border); }
-.dv-timeline .what { font-weight:600; color:var(--fods-text); }
-.dv-timeline .meta { font-size:.75rem; color:var(--fods-muted); }
-.dv-timeline .note { font-size:.8rem; color:var(--fods-text); margin-top:.2rem; overflow-wrap:anywhere; }
-.dv-timeline .changes { font-size:.75rem; color:var(--fods-muted); margin-top:.25rem; }
-.dv-timeline .changes s { color:#b91c1c; }
 
 /* Editor footer totals */
 .dv-totals { display:flex; flex-wrap:wrap; gap:1.25rem; align-items:center; font-size:.82rem; color:var(--fods-muted); }
@@ -111,7 +100,7 @@ echo view('templates/myheader.php');
         <div class="col-6 col-xl-3">
             <button type="button" class="fods-stat" data-table="dvTable" data-filter="pending">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Pending</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -137,8 +126,8 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="dvTableFilter">
-                <button type="button" class="active" data-filter="all">All</button>
-                <button type="button" data-filter="pending">Pending</button>
+                <button type="button" class="active" data-filter="all">All records</button>
+                <button type="button" data-filter="pending">For approval</button>
                 <button type="button" data-filter="disapproved">Returned</button>
                 <button type="button" data-filter="approved">Approved</button>
             </div>
@@ -166,11 +155,11 @@ echo view('templates/myheader.php');
 </div>
 
 <!-- ============================= EDITOR ============================= -->
-<div class="modal fade fods-modal" id="dvModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade fods-modal fods-flat" id="dvModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down dv-dialog">
         <div class="modal-content">
             <form id="dvForm" novalidate>
-                <div class="modal-header border-bottom">
+                <div class="modal-header">
                     <div class="d-flex align-items-center" style="min-width:0">
                         <div class="fods-modal-icon tone-teal"><i class="ti ti-file-dollar"></i></div>
                         <div style="min-width:0">
@@ -180,111 +169,125 @@ echo view('templates/myheader.php');
                     </div>
                     <div class="d-flex align-items-center gap-2 ms-auto ps-3 flex-shrink-0 text-nowrap">
                         <button type="button" class="btn btn-sm btn-fods-ghost d-none" id="dvPrintBtn"><i class="ti ti-printer me-1"></i>Print DV</button>
+                        <button type="button" class="btn btn-sm btn-danger d-none" id="dvDisapproveBtn"><i class="ti ti-x me-1"></i>Disapprove</button>
+                        <button type="button" class="btn btn-sm btn-success d-none" id="dvApproveBtn"><i class="ti ti-check me-1"></i>Approve</button>
+                        <button type="button" class="btn btn-sm btn-fods-ghost d-none" data-history-module="dv" data-history-field="recid"><i class="ti ti-history me-1"></i>History</button>
                         <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
 
-                <div class="modal-body" style="background:var(--fods-bg);">
+                <ul class="nav fods-tabs" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#dvPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#dvPanePs"><i class="ti ti-users"></i>Personnel Services<span class="dv-tab-amt" data-tab-total="ps"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#dvPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="dv-tab-amt" data-tab-total="mooe"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#dvPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="dv-tab-amt" data-tab-total="co"></span></button></li>
+                    <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#dvPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
+                </ul>
+
+                <div class="modal-body">
                     <input type="hidden" id="recid" name="recid">
 
-                    <div id="dvBanner" class="alert d-none mb-3"></div>
-
-                    <ul class="nav fods-segment mb-3 flex-nowrap fods-scroll-x" role="tablist" style="max-width:100%;">
-                        <li class="nav-item"><button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#dvPaneDetails"><i class="ti ti-file-description"></i>Details</button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#dvPanePs"><i class="ti ti-users"></i>Personnel Services<span class="dv-tab-amt" data-tab-total="ps"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#dvPaneMooe"><i class="ti ti-tools"></i>MOOE<span class="dv-tab-amt" data-tab-total="mooe"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#dvPaneCo"><i class="ti ti-building"></i>Capital Outlay<span class="dv-tab-amt" data-tab-total="co"></span></button></li>
-                        <li class="nav-item"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#dvPaneSign"><i class="ti ti-signature"></i>Certification</button></li>
-                        <li class="nav-item" id="dvHistoryTab"><button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#dvPaneHistory"><i class="ti ti-history"></i>History<span class="dv-tab-amt" id="dvHistoryCount"></span></button></li>
-                    </ul>
+                    <div id="dvBanner" class="alert d-none mt-3 mb-0"></div>
 
                     <div class="tab-content">
                         <!-- Details -->
                         <div class="tab-pane fade show active" id="dvPaneDetails">
-                            <div class="row g-3">
-                                <div class="col-lg-7">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="dv-source mb-3">
-                                            <label class="form-label" for="serialno">ORS / BURS serial no.</label>
-                                            <input type="text" class="form-control" id="serialno" name="serialno" placeholder="Type or pick the ORS / BURS this DV pays" autocomplete="off">
-                                            <div class="form-text" id="dvSourceHint">Picking one copies its payee, deductions, signatory and line items into this DV.</div>
-                                        </div>
-
-                                        <div class="fods-section mt-0">Voucher</div>
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="dvno">DV no.</label>
-                                                <input type="text" class="form-control" id="dvno" name="dvno" placeholder="Enter DV no.">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="disbursement_date">Date</label>
-                                                <input type="date" class="form-control" id="disbursement_date" name="disbursement_date">
-                                            </div>
-                                            <div class="col-6">
-                                                <label class="form-label" for="funding_source">Funding source</label>
-                                                <select class="form-select" id="funding_source" name="funding_source" required></select>
-                                                <div class="invalid-feedback">Required.</div>
-                                            </div>
-                                            <div class="col-6">
-                                                <label class="form-label" for="fund_cluster_code">Fund cluster</label>
-                                                <select class="form-select" id="fund_cluster_code" name="fund_cluster_code"></select>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="particulars">Particulars</label>
-                                                <textarea class="form-control" id="particulars" name="particulars" rows="3" maxlength="250"></textarea>
-                                            </div>
-                                        </div>
-
-                                        <div class="fods-section">Payee</div>
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <label class="form-label" for="payee_name">Payee</label>
-                                                <input type="text" class="form-control" id="payee_name" name="payee_name" placeholder="Start typing to pick a payee" autocomplete="off" required>
-                                                <div class="invalid-feedback">Payee is required.</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="payee_office">Office</label>
-                                                <input type="text" class="form-control" id="payee_office" name="payee_office" readonly>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="payee_address">Address</label>
-                                                <input type="text" class="form-control" id="payee_address" name="payee_address" readonly>
-                                            </div>
-                                        </div>
-                                    </div></div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Source obligation</h6>
                                 </div>
+                                <div class="dv-source">
+                                    <label class="form-label" for="serialno">ORS / BURS serial no.</label>
+                                    <input type="text" class="form-control" id="serialno" name="serialno" placeholder="Type or pick the ORS / BURS this DV pays" autocomplete="off">
+                                    <div class="form-text" id="dvSourceHint">Picking one copies its payee, deductions, signatory and line items into this DV.</div>
+                                </div>
+                            </section>
 
-                                <div class="col-lg-5">
-                                    <div class="fods-card h-100"><div class="fods-card-body pt-3">
-                                        <div class="fods-section mt-0">Deductions</div>
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Voucher</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label" for="dvno">DV no.</label>
+                                        <input type="text" class="form-control" id="dvno" name="dvno" placeholder="Enter DV no.">
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="disbursement_date">DV date</label>
+                                        <input type="date" class="form-control" id="disbursement_date" name="disbursement_date">
+                                    </div>
+                                    <div class="w-100 d-none d-md-block m-0"></div>
+                                    <div class="col-md-5">
+                                        <label class="form-label req" for="funding_source">Funding source</label>
+                                        <select class="form-select" id="funding_source" name="funding_source" required></select>
+                                        <div class="invalid-feedback">Pick the funding source.</div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="fund_cluster_code">Fund cluster</label>
+                                        <select class="form-select" id="fund_cluster_code" name="fund_cluster_code"></select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="particulars">Particulars</label>
+                                        <textarea class="form-control" id="particulars" name="particulars" rows="3" maxlength="250"></textarea>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Payee</h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label req" for="payee_name">Payee name</label>
+                                        <input type="text" class="form-control" id="payee_name" name="payee_name" placeholder="Start typing to pick a payee" autocomplete="off" required>
+                                        <div class="invalid-feedback">Payee is required.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="payee_office">Payee office</label>
+                                        <input type="text" class="form-control" id="payee_office" name="payee_office" readonly>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="payee_address">Payee address</label>
+                                        <input type="text" class="form-control" id="payee_address" name="payee_address" readonly>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Deductions</h6>
+                                </div>
+                                <div class="row g-4">
+                                    <div class="col-lg-7">
                                         <div class="row g-3">
                                             <div class="col-7">
-                                                <label class="form-label" for="category">Category</label>
+                                                <label class="form-label" for="category">Deduction category</label>
                                                 <select class="form-select" id="category" name="category"></select>
                                             </div>
                                             <div class="col-5 d-flex align-items-end dv-tax d-none">
                                                 <div class="form-check form-switch mb-2">
                                                     <input class="form-check-input" type="checkbox" id="is_vatable" value="1">
-                                                    <label class="form-check-label" for="is_vatable">VATable</label>
+                                                    <label class="form-check-label" for="is_vatable">Subject to VAT</label>
                                                 </div>
                                             </div>
 
                                             <div class="col-4 dv-tax dv-vat d-none">
-                                                <label class="form-label" for="vat_percent">VAT %</label>
+                                                <label class="form-label" for="vat_percent">VAT rate (%)</label>
                                                 <input type="number" step="0.01" class="form-control" id="vat_percent" placeholder="e.g. 12">
                                             </div>
                                             <div class="col-4 dv-tax dv-ewt d-none">
-                                                <label class="form-label" for="ewt_percent">EWT %</label>
+                                                <label class="form-label" for="ewt_percent">EWT rate (%)</label>
                                                 <input type="number" step="0.01" class="form-control" id="ewt_percent" placeholder="1, 2, 5">
                                             </div>
                                             <div class="col-4 dv-tax dv-pt d-none">
-                                                <label class="form-label" for="pt_percent">PT %</label>
+                                                <label class="form-label" for="pt_percent">Percentage tax (%)</label>
                                                 <input type="number" step="0.01" class="form-control" id="pt_percent" placeholder="e.g. 5">
                                             </div>
                                             <!-- Other deductions: one row each; their sum and types go in the two hidden fields the totals use -->
                                             <div class="col-12 dv-other d-none">
                                                 <div class="d-flex align-items-center justify-content-between mb-1">
-                                                    <label class="form-label mb-0">Other deductions</label>
+                                                    <label class="form-label mb-0">Other deductions (type and amount)</label>
                                                     <button type="button" class="btn btn-sm btn-fods-ghost dv-ded-add"><i class="ti ti-plus me-1"></i>Add deduction</button>
                                                 </div>
                                                 <div id="dvDeductionRows" class="dv-ded-rows"></div>
@@ -292,22 +295,23 @@ echo view('templates/myheader.php');
                                                 <input type="hidden" id="other_deductions">
                                             </div>
 
-                                            <div class="col-12 dv-income d-none">
-                                                <label class="form-label" for="income_tax">Income tax</label>
+                                            <div class="col-md-6 dv-income d-none">
+                                                <label class="form-label" for="income_tax">Income tax amount</label>
                                                 <input type="number" step="0.01" class="form-control" id="income_tax">
                                             </div>
 
-                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="sss">SSS</label><input type="number" step="0.01" class="form-control" id="sss"></div>
-                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="hdmf">HDMF</label><input type="number" step="0.01" class="form-control" id="hdmf"></div>
-                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="pagibig_mp2">Pag-IBIG MP2</label><input type="number" step="0.01" class="form-control" id="pagibig_mp2"></div>
-                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="pagibig_loan">Pag-IBIG loan</label><input type="number" step="0.01" class="form-control" id="pagibig_loan"></div>
-                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="hmo">HMO</label><input type="number" step="0.01" class="form-control" id="hmo"></div>
-                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="wtax">WTAX</label><input type="number" step="0.01" class="form-control" id="wtax"></div>
+                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="sss">SSS contribution</label><input type="number" step="0.01" class="form-control" id="sss"></div>
+                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="hdmf">HDMF (Pag-IBIG) contribution</label><input type="number" step="0.01" class="form-control" id="hdmf"></div>
+                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="pagibig_mp2">Pag-IBIG MP2 savings</label><input type="number" step="0.01" class="form-control" id="pagibig_mp2"></div>
+                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="pagibig_loan">Pag-IBIG loan payment</label><input type="number" step="0.01" class="form-control" id="pagibig_loan"></div>
+                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="hmo">HMO premium</label><input type="number" step="0.01" class="form-control" id="hmo"></div>
+                                            <div class="col-6 dv-payroll d-none"><label class="form-label" for="wtax">Withholding tax (WTAX)</label><input type="number" step="0.01" class="form-control" id="wtax"></div>
 
                                             <div class="col-12 dv-none"><div class="form-text mt-0">Pick a category to compute taxes and deductions.</div></div>
                                         </div>
-
-                                        <div class="dv-sum mt-3">
+                                    </div>
+                                    <div class="col-lg-5">
+                                        <div class="dv-sum">
                                             <div class="dv-sum-row"><span>Gross amount</span><b id="dvGross">₱0.00</b></div>
                                             <div class="dv-sum-row"><span>Total deductions</span><b class="text-danger" id="dvDeduction">₱0.00</b></div>
                                             <div class="dv-sum-row net"><span>Net amount payable</span><b id="dvNet">₱0.00</b></div>
@@ -315,67 +319,83 @@ echo view('templates/myheader.php');
                                         <input type="hidden" id="gross_amount">
                                         <input type="hidden" id="total_deduction">
                                         <input type="hidden" id="net_amount">
-                                    </div></div>
+                                    </div>
                                 </div>
-                            </div>
+                            </section>
                         </div>
 
                         <!-- Line items -->
                         <div class="tab-pane fade" id="dvPanePs">
-                            <div class="dv-grid-card" data-grid="ps_direct"></div>
-                            <div class="dv-grid-card" data-grid="ps_indirect"></div>
+                            <div class="fods-pane-pad">
+                                <div class="dv-grid-card" data-grid="ps_direct"></div>
+                                <div class="dv-grid-card" data-grid="ps_indirect"></div>
+                            </div>
                         </div>
                         <div class="tab-pane fade" id="dvPaneMooe">
-                            <div class="dv-grid-card" data-grid="mooe_direct"></div>
-                            <div class="dv-grid-card" data-grid="mooe_indirect"></div>
+                            <div class="fods-pane-pad">
+                                <div class="dv-grid-card" data-grid="mooe_direct"></div>
+                                <div class="dv-grid-card" data-grid="mooe_indirect"></div>
+                            </div>
                         </div>
                         <div class="tab-pane fade" id="dvPaneCo">
-                            <div class="dv-grid-card" data-grid="co_direct"></div>
-                            <div class="dv-grid-card" data-grid="co_indirect"></div>
-                        </div>
-
-                        <!-- Certification -->
-                        <div class="tab-pane fade" id="dvPaneSign">
-                            <div class="row g-3">
-                                <!-- Each box is approved in order by the person named on it -->
-                                <div class="col-lg-4 col-md-6">
-                                    <div class="dv-sign">
-                                        <div class="dv-sign-head"><span class="dv-sign-box">Box A · Supervisor</span><span id="dvSignStatusA"></span></div>
-                                        <label class="form-label" for="certified_a">Certified by</label>
-                                        <select class="form-select" id="certified_a" name="certified_a"></select>
-                                        <label class="form-label mt-2" for="position_a">Position</label>
-                                        <input type="text" class="form-control" id="position_a" name="position_a" readonly>
-                                        <div class="dv-sign-note" id="dvSignNoteA"></div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-4 col-md-6">
-                                    <div class="dv-sign">
-                                        <div class="dv-sign-head"><span class="dv-sign-box">Box C · Accounting</span><span id="dvSignStatusC"></span></div>
-                                        <label class="form-label" for="certified_c">Certified by</label>
-                                        <select class="form-select" id="certified_c" name="certified_c"></select>
-                                        <label class="form-label mt-2" for="position_c">Position</label>
-                                        <input type="text" class="form-control" id="position_c" name="position_c" readonly>
-                                        <div class="dv-sign-note" id="dvSignNoteC"></div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-4 col-md-12">
-                                    <div class="dv-sign">
-                                        <div class="dv-sign-head"><span class="dv-sign-box">Box D · Approved for payment</span><span id="dvSignStatusD"></span></div>
-                                        <label class="form-label" for="certified_d">Approved by</label>
-                                        <input type="text" class="form-control" id="certified_d" placeholder="Set from the net amount on save" readonly>
-                                        <label class="form-label mt-2" for="position_d">Position</label>
-                                        <input type="text" class="form-control" id="position_d" readonly>
-                                        <div class="dv-sign-note" id="dvSignNoteD"></div>
-                                    </div>
-                                </div>
+                            <div class="fods-pane-pad">
+                                <div class="dv-grid-card" data-grid="co_direct"></div>
+                                <div class="dv-grid-card" data-grid="co_indirect"></div>
                             </div>
                         </div>
 
-                        <!-- History -->
-                        <div class="tab-pane fade" id="dvPaneHistory">
-                            <div class="fods-card"><div class="fods-card-body pt-3">
-                                <div id="dvHistory"></div>
-                            </div></div>
+                        <!-- Certification: each box is approved in order by the person named on it -->
+                        <div class="tab-pane fade" id="dvPaneSign">
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Box A · Supervisor <span id="dvSignStatusA"></span></h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label req" for="certified_a">Certified by</label>
+                                        <select class="form-select" id="certified_a" name="certified_a"></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="position_a">Position</label>
+                                        <input type="text" class="form-control" id="position_a" name="position_a" readonly>
+                                    </div>
+                                    <div class="col-12 dv-sign-note mt-1" id="dvSignNoteA"></div>
+                                </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Box C · Accounting <span id="dvSignStatusC"></span></h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label req" for="certified_c">Certified by</label>
+                                        <select class="form-select" id="certified_c" name="certified_c"></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="position_c">Position</label>
+                                        <input type="text" class="form-control" id="position_c" name="position_c" readonly>
+                                    </div>
+                                    <div class="col-12 dv-sign-note mt-1" id="dvSignNoteC"></div>
+                                </div>
+                            </section>
+
+                            <section class="fods-fsec">
+                                <div class="fods-fsec-head">
+                                    <h6>Box D · Approved for payment <span id="dvSignStatusD"></span></h6>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label req" for="certified_d">Approved by</label>
+                                        <select class="form-select" id="certified_d" name="certified_d"></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="position_d">Position</label>
+                                        <input type="text" class="form-control" id="position_d" name="position_d" readonly>
+                                    </div>
+                                    <div class="col-12 dv-sign-note mt-1" id="dvSignNoteD"></div>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -395,6 +415,7 @@ echo view('templates/myheader.php');
         </div>
     </div>
 </div>
+
 
 <!-- DV print preview -->
 <div class="modal fade fods-modal" id="dvPrintModal" tabindex="-1" aria-hidden="true">
@@ -417,5 +438,5 @@ echo view('templates/myheader.php');
     var __dv_perms = <?= json_encode($perms) ?>;
     var __dv_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
-<script src="<?=base_url('assets/js/disbursement/mydisbursement.js?v=7');?>"></script>
+<script src="<?=base_url('assets/js/disbursement/mydisbursement.js?v=15');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

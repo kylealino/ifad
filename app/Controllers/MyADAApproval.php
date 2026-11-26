@@ -44,11 +44,10 @@ class MyADAApproval extends BaseController
                 if (!$canView) { return view('errors/html/access-restricted'); }
                 return view('cashier/ada-pdf');
 
+            // Approving now happens on the ADA page; old links open the record there
             default:
-                if ($canView) {
-                    return $this->loadMainView();
-                }
-                return view('errors/html/access-restricted');
+                $recid = (string) $this->request->getGet('recid');
+                return redirect()->to('myada?meaction=MAIN' . ($recid !== '' ? '&recid=' . urlencode($recid) : ''));
         }
     }
 

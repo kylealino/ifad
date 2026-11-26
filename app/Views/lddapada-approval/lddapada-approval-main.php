@@ -49,7 +49,7 @@ echo view('templates/myheader.php');
         <div class="col-6 col-xl-3">
             <button type="button" class="fods-stat" data-table="approvalTable" data-filter="pending">
                 <div class="fods-stat-icon tone-amber"><i class="ti ti-hourglass"></i></div>
-                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">Waiting for you</div></div>
+                <div><div class="fods-stat-value" data-card-value="pending">0</div><div class="fods-stat-label" data-card-label="pending">For approval</div></div>
             </button>
         </div>
         <div class="col-6 col-xl-3">
@@ -75,7 +75,7 @@ echo view('templates/myheader.php');
     <div class="fods-card">
         <div class="fods-card-head">
             <div class="fods-filter" id="approvalTableFilter">
-                <button type="button" class="active" data-filter="pending">Waiting for you</button>
+                <button type="button" class="active" data-filter="pending">For approval</button>
                 <button type="button" data-filter="disapproved">Returned</button>
                 <button type="button" data-filter="approved">Approved</button>
                 <button type="button" data-filter="all">All</button>
@@ -176,5 +176,5 @@ echo view('templates/myheader.php');
     var __approval_open = <?= json_encode($open, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     var __approval_perms = <?= json_encode($perms) ?>;
 </script>
-<script src="<?=base_url('assets/js/cashier/mylddapadaapproval.js?v=3');?>"></script>
+<script src="<?=base_url('assets/js/cashier/mylddapadaapproval.js?v=4');?>"></script>
 <?php echo view('templates/myfooter.php'); ?>

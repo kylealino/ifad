@@ -54,11 +54,10 @@ class MyBursApproval extends BaseController
                 if (!$canView) { return view('errors/html/access-restricted'); }
                 return view('burs/burs-pdf');
 
+            // Certifying now happens on the BURS page; old links open the record there
             default:
-                if ($canView) {
-                    return $this->loadMainView();
-                }
-                return view('errors/html/access-restricted');
+                $recid = (string) $this->request->getGet('recid');
+                return redirect()->to(MyObligation::link('burs', $recid));
         }
     }
 

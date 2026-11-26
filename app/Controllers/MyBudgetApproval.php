@@ -43,11 +43,10 @@ class MyBudgetApproval extends BaseController
                 if (!fods_has_access(\Config\AccessCodes::BUDGETAPPROVAL_VIEW)) { return view('errors/html/access-restricted'); }
                 return view('budget/budget-lib-print');
 
+            // Approving now happens on the Budget Allotment page; old links open the record there
             default:
-                if (fods_has_access(\Config\AccessCodes::BUDGETAPPROVAL_VIEW)) {
-                    return $this->loadMainView();
-                }
-                return view('errors/html/access-restricted');
+                $recid = (string) $this->request->getGet('recid');
+                return redirect()->to('mybudgetallotment?meaction=MAIN' . ($recid !== '' ? '&recid=' . urlencode($recid) : ''));
         }
     }
 

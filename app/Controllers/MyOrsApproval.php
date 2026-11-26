@@ -54,11 +54,10 @@ class MyOrsApproval extends BaseController
                 if (!$canView) { return view('errors/html/access-restricted'); }
                 return view('ors/ors-pdf');
 
+            // Certifying now happens on the ORS page; old links open the record there
             default:
-                if ($canView) {
-                    return $this->loadMainView();
-                }
-                return view('errors/html/access-restricted');
+                $recid = (string) $this->request->getGet('recid');
+                return redirect()->to(MyObligation::link('ors', $recid));
         }
     }
 

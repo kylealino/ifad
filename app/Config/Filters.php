@@ -14,6 +14,7 @@ use CodeIgniter\Filters\PerformanceMetrics;
 use CodeIgniter\Filters\SecureHeaders;
 use App\Filters\Myauthuser;
 use App\Filters\SorfAccess;
+use App\Filters\FodsCsp;
 
 class Filters extends BaseFilters
 {
@@ -32,6 +33,7 @@ class Filters extends BaseFilters
         'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
         'secureheaders' => SecureHeaders::class,
+        'fodscsp'       => FodsCsp::class,
         'cors'          => Cors::class,
         'forcehttps'    => ForceHTTPS::class,
         'pagecache'     => PageCache::class,
@@ -74,12 +76,13 @@ class Filters extends BaseFilters
     public array $globals = [
         'before' => [
             // 'honeypot',
-            // 'csrf',
+            'csrf',
             // 'invalidchars',
+            'fodscsp',     // security headers + CSP, sent up front so PDFs/exports get them too
         ],
         'after' => [
             // 'honeypot',
-            // 'secureheaders',
+            // 'secureheaders', (its headers are sent by fodscsp)
         ],
     ];
 
@@ -107,10 +110,7 @@ class Filters extends BaseFilters
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [
-        // SORF pages (IFAD Portal system 2) are CSRF-protected: their scripts
-        // send the token from the page (X-CSRF-TOKEN), Config\Security keeps it
-        // for the session. The FODS pages are not covered yet.
-        'csrf' => ['before' => ['sorf', 'sorf/*']],
-    ];
+    // CSRF runs on every page ($globals). SORF scripts send the token from
+    // their drf-csrf meta, FODS pages through fods-csrf.js (X-CSRF-TOKEN).
+    public array $filters = [];
 }

@@ -48,6 +48,27 @@ class MyPayeeModel extends Model
 			die();
 		}
 
+		// Payees are matched by name everywhere (ORS, DV, LDDAP-ADA account no.), so a name
+		// may belong to one payee only (ignoring case and spaces at the ends). Checked when a
+		// payee is added or renamed, so the older duplicates can still be edited.
+		$current = empty($recid) ? null : $this->db->query("SELECT `payee_name` FROM `tbl_payee` WHERE `recid` = ?", [$recid])->getRowArray();
+		$renamed = !$current || mb_strtoupper(trim((string) $current['payee_name'])) !== mb_strtoupper(trim((string) $payee_name));
+		$same = !$renamed ? null : $this->db->query("
+			SELECT `recid` FROM `tbl_payee` WHERE UPPER(TRIM(`payee_name`)) = UPPER(TRIM(?)) AND `recid` <> ? LIMIT 1
+		", [$payee_name, (int) $recid])->getRowArray();
+		if ($same) {
+			echo "
+			<script>
+			toastr.error('Another payee already has this name. Open that payee instead.', 'Oops!', {
+					progressBar: true,
+					closeButton: true,
+					timeOut:2500,
+				});
+			</script>
+			";
+			die();
+		}
+
 
 		if (empty($recid)) {
 			fods_require_access(\Config\AccessCodes::PAYEE_ADD, 'Saving');
@@ -75,10 +96,12 @@ class MyPayeeModel extends Model
 					$this->cuser
 				]
 			);
+			if ($query) { MyHistoryModel::log('payee', $this->db->insertID(), 'CREATED', '', null, $payee_name); }
 			$status = "Payee Saved successfully";
 			$color = "success";
 		}else{
 			fods_require_access(\Config\AccessCodes::PAYEE_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('tbl_payee', $recid);
 			$query = $this->db->query("
 				UPDATE tbl_payee SET 
 				`payee_name` = ?,
@@ -103,6 +126,7 @@ class MyPayeeModel extends Model
 					$recid
 				]
 			);
+			if ($query) { MyHistoryModel::log('payee', $recid, 'UPDATED', '', MyHistoryModel::diff($before, MyHistoryModel::row('tbl_payee', $recid)), $payee_name); }
 			$status = "Payee Updated successfully";
 			$color = "info";
 		}
@@ -114,11 +138,11 @@ class MyPayeeModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mypayee?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast
@@ -137,7 +161,9 @@ class MyPayeeModel extends Model
 		fods_require_access(\Config\AccessCodes::PAYEE_DELETE, 'Deleting');
 
 
+		$before = MyHistoryModel::row('tbl_payee', $recid);
 		$query = $this->db->query("DELETE FROM `tbl_payee` WHERE `recid` = ?", [$recid]);
+		if ($query) { MyHistoryModel::log('payee', $recid, 'DELETED', '', null, $before['payee_name'] ?? ''); }
 		$status = "Payee deleted successfully";
 		
 		if ($query) {
@@ -147,11 +173,11 @@ class MyPayeeModel extends Model
 				toastr.warning('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'mypayee?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast

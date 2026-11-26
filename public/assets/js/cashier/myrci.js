@@ -209,9 +209,77 @@ function __mysys_rci_ent() {
 			.fail(function () { toastr.error('Could not load LDDAP-ADA ' + item.lddapadano + '.', 'Oops!', { closeButton: true }); });
 	}
 
+	// LDDAP-ADA suggestions (shared by the picker above the grid and each line's LDDAP-ADA no.)
+	function ldSource(req, resp) {
+		var terms = req.term.toLowerCase().split(/\s+/).filter(Boolean);
+		var out = [];
+		var list = lookups.lddapadas || [];
+		for (var i = 0; i < list.length && out.length < 40; i++) {
+			var hay = (list[i].lddapadano + ' ' + list[i].ckno).toLowerCase();
+			if (terms.every(function (t) { return hay.indexOf(t) !== -1; })) { out.push(list[i]); }
+		}
+		resp(out);
+	}
+
+	function ldRender(ul, item) {
+		return window.jQuery('<li>').append('<div><b>' + esc(item.lddapadano) + '</b> <span class="text-muted">' + money(item.net_amount) + '</span>'
+			+ '<span class="ors-ac-sub">' + fmtDate(item.lddapada_date) + ' · check ' + esc(item.ckno) + ' · ' + item.dv_count + ' DV' + (+item.dv_count === 1 ? '' : 's')
+			+ (item.on_rci ? ' · on report ' + esc(item.on_rci) : '') + '</span></div>').appendTo(ul);
+	}
+
+	// One line's cells from an LDDAP-ADA DV line (same fields as lineHtml)
+	function fillRow(tr, l) {
+		var cells = { ld: 'lddapadano', date: 'lddapada_date', ck: 'ckno', dv: 'dvno', serial: 'serialno', rc: 'responsibility_code',
+			payee: 'payee_name', part: 'particulars', gross: 'gross_amount', ph: 'philhealth_amount', tax: 'tax_amount', net: 'net_amount' };
+		Object.keys(cells).forEach(function (c) {
+			var v = l[cells[c]] == null ? '' : l[cells[c]];
+			tr.find('.g-' + c).val(v).attr('title', v);
+		});
+	}
+
+	// Picking an LDDAP-ADA on a line: that line takes its first DV not yet on the report,
+	// and its other DVs are added as lines (as on the previous form, where the line filled in)
+	function fillLineFrom(tr, item) {
+		var $ = window.jQuery;
+		$.getJSON(mesiteurl + 'myrci', { meaction: 'LDDAPADA-LINES', id: item.id })
+			.done(function (lines) {
+				var own = tr.find('.g-dv').val();
+				var have = dvsOnReport().filter(function (d) { return d && d !== own; });
+				var fresh = (lines || []).filter(function (l) { return !(l.dvno && have.indexOf(l.dvno) !== -1); });
+				if (!fresh.length) {
+					tr.find('.g-ld').val(tr.find('.g-ld').attr('title') || '');
+					toastr.info('All DVs of LDDAP-ADA ' + item.lddapadano + ' are already on this report.', 'Nothing added', { closeButton: true });
+					return;
+				}
+				fillRow(tr, fresh[0]);
+				var after = tr;
+				fresh.slice(1).forEach(function (l) { after = $(lineHtml(l)).insertAfter(after); });
+				recalc();
+			})
+			.fail(function () { toastr.error('Could not load LDDAP-ADA ' + item.lddapadano + '.', 'Oops!', { closeButton: true }); });
+	}
+
 	this.__rc_lines = function () {
 		var $ = window.jQuery;
 		var modal = $('#rcModal');
+
+		// Each line's LDDAP-ADA no. is a lookup too (set up the first time the cell is focused)
+		modal.on('focus', '#rcGrid .g-ld', function () {
+			var input = $(this);
+			if (!input.data('ui-autocomplete')) {
+				input.autocomplete({
+					appendTo: '#rcModal',
+					minLength: 0,
+					source: ldSource,
+					select: function (event, ui) {
+						input.val(ui.item.lddapadano);
+						fillLineFrom(input.closest('tr'), ui.item);
+						return false;
+					}
+				}).autocomplete('instance')._renderItem = ldRender;
+			}
+			if (!this.disabled && !this.readOnly) { input.autocomplete('search', this.value); }
+		});
 
 		modal.on('input', '#rcGrid input[type=number]', recalc);
 		modal.on('change', '#rcGrid input[type=text]', function () { this.title = this.value; });
@@ -226,16 +294,7 @@ function __mysys_rci_ent() {
 		$('#ld_lookup').autocomplete({
 			appendTo: '#rcModal',
 			minLength: 0,
-			source: function (req, resp) {
-				var terms = req.term.toLowerCase().split(/\s+/).filter(Boolean);
-				var out = [];
-				var list = lookups.lddapadas || [];
-				for (var i = 0; i < list.length && out.length < 40; i++) {
-					var hay = (list[i].lddapadano + ' ' + list[i].ckno).toLowerCase();
-					if (terms.every(function (t) { return hay.indexOf(t) !== -1; })) { out.push(list[i]); }
-				}
-				resp(out);
-			},
+			source: ldSource,
 			select: function (event, ui) {
 				addLddapada(ui.item);
 				$(this).val('');
@@ -243,11 +302,7 @@ function __mysys_rci_ent() {
 			}
 		}).on('focus', function () {
 			if (!this.disabled) { $(this).autocomplete('search', this.value); }
-		}).autocomplete('instance')._renderItem = function (ul, item) {
-			return $('<li>').append('<div><b>' + esc(item.lddapadano) + '</b> <span class="text-muted">' + money(item.net_amount) + '</span>'
-				+ '<span class="ors-ac-sub">' + fmtDate(item.lddapada_date) + ' · check ' + esc(item.ckno) + ' · ' + item.dv_count + ' DV' + (+item.dv_count === 1 ? '' : 's')
-				+ (item.on_rci ? ' · on report ' + esc(item.on_rci) : '') + '</span></div>').appendTo(ul);
-		};
+		}).autocomplete('instance')._renderItem = ldRender;
 
 		// MDS sub-account follows the fund cluster, as on LDDAP-ADA
 		document.getElementById('fund_cluster_code').addEventListener('change', function () {

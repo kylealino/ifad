@@ -32,7 +32,7 @@ WHERE
 );
 
 $data = $query->getRowArray();
-$entity_name = $data['entity_name'];
+$entity_name = \App\Models\MyPRModel::ENTITY_NAME;
 $office = $data['office'];
 $prno = $data['prno'];
 $responsibility_code = $data['responsibility_code'];
@@ -162,12 +162,52 @@ $pdf->Cell(94, 5, '' , 0, 1, 'c');
 
 $Y = $pdf->GetY()-15;
 $pdf->SetFont('Arial', '',9);
-$pdf->SetXY(105, $Y);
-$pdf->Cell(47, 10, $responsibility_code , 'B', 1, 'L');
+// One code prints as before. Several (picked PPMPs with different codes, "a, b") are
+// packed into lines that fit the 47 mm box, the font stepping down from 9 pt only as
+// far as needed so they fit 14 mm of height; the underline sits under the last line.
+$rc_codes = array_values(array_filter(array_map('trim', explode(',', (string) $responsibility_code)), 'strlen'));
+$rc_lines = [];
+$rc_size = 9;
+if (count($rc_codes) > 1 || $pdf->GetStringWidth((string) $responsibility_code) > 46) {
+    for ($rc_size = 9; $rc_size >= 5; $rc_size -= 0.5) {
+        $pdf->SetFont('Arial', '', $rc_size);
+        $rc_lines = [];
+        $line = '';
+        foreach ($rc_codes as $i => $code) {
+            $piece = $code . ($i < count($rc_codes) - 1 ? ',' : '');
+            $try = $line === '' ? $piece : $line . ' ' . $piece;
+            if ($line !== '' && $pdf->GetStringWidth($try) > 46) {
+                $rc_lines[] = $line;
+                $line = $piece;
+            } else {
+                $line = $try;
+            }
+        }
+        $rc_lines[] = $line;
+        $fits = max(array_map([$pdf, 'GetStringWidth'], $rc_lines)) <= 46;
+        if ($fits && count($rc_lines) * $rc_size * 0.42 <= 14) {
+            break;
+        }
+    }
+}
+if (count($rc_lines) > 1 || ($rc_lines && $rc_size < 9)) {
+    $rc_lh = $rc_size * 0.42;                                   // line height (mm) for this size
+    $rc_h = max(10, count($rc_lines) * $rc_lh + 1);              // box keeps at least its old 10 mm
+    $rc_top = $Y + ($rc_h - count($rc_lines) * $rc_lh) / 2;
+    foreach ($rc_lines as $k => $text) {
+        $pdf->SetXY(105, $rc_top + $k * $rc_lh);
+        $pdf->Cell(47, $rc_lh, $text, 0, 0, 'L');
+    }
+    $pdf->Line(105, $Y + $rc_h, 152, $Y + $rc_h);
+    $pdf->SetXY(105, $Y + $rc_h);
+} else {
+    $pdf->SetXY(105, $Y);
+    $pdf->Cell(47, 10, $responsibility_code , 'B', 1, 'L');
+}
 $pdf->SetFont('Arial', '', 10);
 
 $pdf->SetXY(152, $Y);
-$pdf->Cell(48, 15, 'test' , 'LR', 1, 'c');
+$pdf->Cell(48, 15, '' , 'LR', 1, 'c');
 
 $Y = $pdf->GetY();
 $pdf->SetXY(10, $Y);

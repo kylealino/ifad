@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use CodeIgniter\Controller;
 use App\Models\MyPOModel;
+use App\Models\MyApproverMapModel;
 
 class MyPO extends BaseController
 {
@@ -22,7 +23,7 @@ class MyPO extends BaseController
 
         switch ($meaction) {
             case 'MAIN':
-                if (fods_has_access(\Config\AccessCodes::PO_VIEW)) {
+                if (fods_has_any_access([\Config\AccessCodes::PO_VIEW, \Config\AccessCodes::POAPPROVAL_VIEW])) {
                     return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -30,7 +31,7 @@ class MyPO extends BaseController
 
             // One PO with its items (and the RFQs of its PR), for the editor modal
             case 'MAIN-LOAD':
-                if (!fods_has_access(\Config\AccessCodes::PO_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::PO_VIEW, \Config\AccessCodes::POAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $record = $this->mypo->po_load($this->request->getGet('recid'));
@@ -56,7 +57,7 @@ class MyPO extends BaseController
                 break;
 
             case 'PRINT-PO':
-                if (!fods_has_access(\Config\AccessCodes::PO_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::PO_VIEW, \Config\AccessCodes::POAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('procurement/po/po-pdf');
                 break;
         }
@@ -153,19 +154,19 @@ class MyPO extends BaseController
                 'obligations' => $obligationdata,
                 'modes' => ['SVP', 'Direct Acquisition', 'Direct Contracting', 'Public Bidding'],
                 'fund_clusters' => ['01', '07'],
-                'defaults' => MyPOModel::DEFAULTS,
-                // Box A: accounting signatories to pick from
-                'accountants' => $this->db->query("SELECT `full_name`, `position` FROM myua_user WHERE cert_tag = '3' AND is_active = 1 ORDER BY `full_name` ASC")->getResultArray(),
-                // Box B: follows the PO total (same rule as MyPOModel::approver_for)
-                'approval' => [
-                    'limit' => MyPOModel::APPROVAL_LIMIT,
-                    'below' => MyPOModel::approver_for(0),
-                    'above' => MyPOModel::approver_for(MyPOModel::APPROVAL_LIMIT),
+                'defaults' => MyPOModel::DEFAULTS + [
+                    'accountant' => MyApproverMapModel::default_of('po', 'a')['name'],
+                    'accountant_position' => MyApproverMapModel::default_of('po', 'a')['position'],
                 ],
+                // Box A: accounting signatories to pick from (Approver Mapping)
+                'accountants' => MyApproverMapModel::options('po', 'a'),
+                // Box B: follows the PO total (same tiers as MyPOModel::approver_for)
+                'approval' => MyApproverMapModel::tiers('po', 'b'),
             ],
             'perms' => [
                 'add' => fods_has_access(\Config\AccessCodes::PO_ADD),
                 'edit' => fods_has_access(\Config\AccessCodes::PO_UPDATE),
+                'approve' => fods_has_access(\Config\AccessCodes::POAPPROVAL_APPROVE),
             ],
             'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that PO directly
         ]);

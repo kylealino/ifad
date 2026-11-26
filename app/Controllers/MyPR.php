@@ -5,6 +5,7 @@ namespace App\Controllers;
 use CodeIgniter\Controller;
 use App\Models\MyPRModel;
 use App\Models\MyPOModel;
+use App\Models\MyApproverMapModel;
 
 class MyPR extends BaseController
 {
@@ -23,7 +24,7 @@ class MyPR extends BaseController
 
         switch ($meaction) {
             case 'PR-MAIN':
-                if (fods_has_access(\Config\AccessCodes::PR_VIEW)) {
+                if (fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) {
                     return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -31,7 +32,7 @@ class MyPR extends BaseController
 
             // One PR with its items, PPMPs and RFQs, for the editor modal
             case 'MAIN-LOAD':
-                if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $record = $this->mypr->pr_load($this->request->getGet('recid'));
@@ -42,10 +43,14 @@ class MyPR extends BaseController
 
             // Items of the picked PPMPs, summed per description and unit
             case 'LOAD-PPMP':
-                if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
-                return $this->response->setJSON($this->mypr->ppmp_items((array) $this->request->getPost('ppmpno')));
+                // only what is left of them: what other PRs took is not offered again
+                return $this->response->setJSON((new \App\Models\MyPPMPUsageModel())->remaining_items(
+                    (array) $this->request->getPost('ppmpno'),
+                    $this->request->getPost('recid')
+                ));
 
             case 'PR-SAVE':
                 $this->mypr->pr_save();
@@ -58,12 +63,12 @@ class MyPR extends BaseController
                 break;
 
             case 'PR-PRINT':
-                if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('procurement/pr/pr-pdf');
                 break;
 
             case 'RFQ-PRINT':
-                if (!fods_has_access(\Config\AccessCodes::PR_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::PR_VIEW, \Config\AccessCodes::PRAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('procurement/pr/rfq-pdf');
                 break;
         }
@@ -126,29 +131,42 @@ class MyPR extends BaseController
         SELECT
             `ppmpno` AS value,
             `end_user`,
-            `fiscal_year`
+            `fiscal_year`,
+            `project_title`,
+            `responsibility_code`,
+            `is_indicative`,
+            `is_final`
         FROM `tbl_ppmp_hd`
         WHERE `ppmpno` <> ''
-        ORDER BY `ppmpno` ASC
+        ORDER BY `fiscal_year` DESC, `ppmpno` ASC
         ")->getResultArray();
+        // what is left of each PPMP after every counted PR (a fully used one cannot be picked)
+        $bal = (new \App\Models\MyPPMPUsageModel())->balances();
+        foreach ($ppmpdata as &$p) {
+            $b = $bal[mb_strtolower(trim($p['value']))] ?? ['items' => 0, 'total_qty' => 0, 'left_qty' => 0, 'total_amount' => 0, 'left_amount' => 0];
+            $p['status'] = MyPPMP::statusOf($p);
+            unset($p['is_indicative'], $p['is_final']);
+            $p['items'] = (int) $b['items'];
+            $p['total'] = (int) $b['total_qty'];
+            $p['left'] = (int) $b['left_qty'];
+            $p['left_amount'] = round((float) $b['left_amount'], 2);
+        }
+        unset($p);
 
         return view('procurement/pr/pr-main', [
             'prhddata' => $prhddata,
             'lookups' => [
                 'products' => $productsdata,
                 'ppmps' => $ppmpdata,
-                // Box A: heads of the requesting offices (supervisors and PPMP signatories)
-                'signatories' => $this->db->query("SELECT DISTINCT `full_name`, `position` FROM myua_user WHERE (`cert_tag` = '1' OR `is_ppmp_signatory` = 1) AND `is_active` = 1 AND TRIM(`full_name`) <> '' ORDER BY `full_name` ASC")->getResultArray(),
+                // Box A: heads of the requesting offices (Approver Mapping)
+                'signatories' => MyApproverMapModel::options('pr', 'a'),
                 // Box B follows the estimated cost (MyPRModel::approver_for, mirrored in mypr.js)
-                'approval' => [
-                    'limit' => MyPOModel::APPROVAL_LIMIT,
-                    'below' => MyPRModel::approver_for(0),
-                    'above' => MyPRModel::approver_for(MyPOModel::APPROVAL_LIMIT),
-                ],
+                'approval' => MyApproverMapModel::tiers('pr', 'b'),
             ],
             'perms' => [
                 'add' => fods_has_access(\Config\AccessCodes::PR_ADD),
                 'edit' => fods_has_access(\Config\AccessCodes::PR_UPDATE),
+                'approve' => fods_has_access(\Config\AccessCodes::PRAPPROVAL_APPROVE),
             ],
             'open' => (string) $this->request->getGet('recid'),  // ?recid= opens that PR directly
             'tab' => (string) $this->request->getGet('tab'),     // ...on this tab (rfq)

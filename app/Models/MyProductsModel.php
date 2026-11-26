@@ -64,10 +64,12 @@ class MyProductsModel extends Model
 				]
 			);
 
+			if ($query) { MyHistoryModel::log('supplies', $this->db->insertID(), 'CREATED', '', null, $product_code ?: $product_desc); }
 			$status = "Product Saved Successfully";
 			$color = "success";
 		}else{
 			fods_require_access(\Config\AccessCodes::SUPPLIES_UPDATE, 'Updating');
+			$before = MyHistoryModel::row('mst_products', $recid);
 			$query = $this->db->query("
 				UPDATE
 					`mst_products`
@@ -89,6 +91,7 @@ class MyProductsModel extends Model
 				$recid
 			]);
 
+			if ($query) { MyHistoryModel::log('supplies', $recid, 'UPDATED', '', MyHistoryModel::diff($before, MyHistoryModel::row('mst_products', $recid)), $product_code ?: $product_desc); }
 			$status = "Product Updated Successfully";
 			$color = "info";
 		}
@@ -101,11 +104,11 @@ class MyProductsModel extends Model
 				toastr.$color('{$status}!', 'Well Done!', {
 						progressBar: true,
 						closeButton: true,
-						timeOut:2500,
+						timeOut:2000,
 					});
 				setTimeout(function() {
 						window.location.href = 'myproducts?meaction=MAIN'; // Redirect to MAIN view
-					}, 2500); // 2-second delay for user to see the toast
+					}, 1000); // reload after 1 s; the toast still runs its 2.5 s (fods-flash.js carries it over)
 			</script>
 			";
 			exit; // Stop further PHP execution after the toast

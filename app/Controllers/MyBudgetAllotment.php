@@ -21,7 +21,7 @@ class MyBudgetAllotment extends BaseController
 
         switch ($meaction) {
             case 'MAIN':
-                if (fods_has_access(\Config\AccessCodes::BUDGET_VIEW)) {
+                if (fods_has_any_access([\Config\AccessCodes::BUDGET_VIEW, \Config\AccessCodes::BUDGETAPPROVAL_VIEW])) {
                     return $this->loadMainView();
                 }else {
                     return view('errors/html/access-restricted');
@@ -31,7 +31,7 @@ class MyBudgetAllotment extends BaseController
 
             // One allotment with its line items, for the editor modal
             case 'MAIN-LOAD':
-                if (!fods_has_access(\Config\AccessCodes::BUDGET_VIEW)) {
+                if (!fods_has_any_access([\Config\AccessCodes::BUDGET_VIEW, \Config\AccessCodes::BUDGETAPPROVAL_VIEW])) {
                     return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
                 }
                 $record = $this->mybudgetallotment->budget_load($this->request->getGet('recid'));
@@ -62,7 +62,7 @@ class MyBudgetAllotment extends BaseController
                 break;
 
             case 'PRINT-LIB':
-                if (!fods_has_access(\Config\AccessCodes::BUDGET_VIEW)) { return view('errors/html/access-restricted'); }
+                if (!fods_has_any_access([\Config\AccessCodes::BUDGET_VIEW, \Config\AccessCodes::BUDGETAPPROVAL_VIEW])) { return view('errors/html/access-restricted'); }
                 return view('budget/budget-lib-print');
                 break;
 

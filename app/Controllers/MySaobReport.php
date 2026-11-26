@@ -57,6 +57,44 @@ class MySaobReport extends BaseController
                 return redirect()->to('mysaobrpt?meaction=MAIN');
                 break;
 
+            // Monthly status of one program as JSON, for the status dashboard
+            case 'MONTHLY-STATUS':
+                if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) {
+                    return $this->response->setStatusCode(403)->setJSON(['error' => 'Access denied']);
+                }
+                $program = trim((string) $this->request->getGet('program_title'));
+                $month = (string) $this->request->getGet('month');
+                if ($program === '' || !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+                    return $this->response->setStatusCode(422)->setJSON(['error' => 'Pick a program title and a month.']);
+                }
+                return $this->response->setJSON($this->mysaob->monthly_status($program, $month));
+
+            // The status dashboard as an Excel workbook (same rows as the dashboard and Print status)
+            case 'MONTHLY-STATUS-XLSX':
+                if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
+                $program = trim((string) $this->request->getGet('program_title'));
+                $month = (string) $this->request->getGet('month');
+                if ($program === '' || !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+                    return redirect()->to('mysaobrpt?meaction=MAIN');
+                }
+                $status = $this->mysaob->monthly_status($program, $month);
+                $xlsx = new \App\Libraries\FodsXlsx('Monthly status', [
+                    'Responsibility code' => 's', 'Project title' => 's', 'Unit/Division' => 's', 'Project leader' => 's',
+                    'Allotment' => 'n', 'Admin. cost' => 'n', 'Revised allotment' => 'n',
+                    'Obligated this month' => 'n', 'Obligated to date' => 'n', 'Balance' => 'n', 'Utilization' => 'p',
+                ]);
+                $xlsx->title('Monthly status of operations funds: ' . $program, 'As of ' . $status['as_of']);
+                foreach ($status['rows'] as $r) {
+                    $xlsx->row([$r['project_title'] === 'Unprogrammed' ? '-' : $r['responsibility_code'], $r['project_title'], $r['unit_division'], $r['project_leader'],
+                        $r['allotment'], $r['admin_cost'], $r['revised'], $r['this_month'], $r['todate'], $r['balance'], $r['percent']]);
+                }
+                $tt = $status['totals'];
+                if ($status['rows']) {
+                    $xlsx->total(['Program total', null, null, null, $tt['allotment'], $tt['admin_cost'], $tt['revised'], $tt['this_month'], $tt['todate'], $tt['balance'], $tt['percent']]);
+                }
+                $xlsx->download('MONTHLY_STATUS_' . preg_replace('/[^A-Za-z0-9]+/', '_', mb_substr($program, 0, 40)) . '_' . $month . '.xlsx');
+                break;
+
             case 'SAVINGS-PRINT':
                 if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
                 return view('report/saob-savings-pdf');
@@ -65,6 +103,8 @@ class MySaobReport extends BaseController
     }
     
     public function exportCsv(){
+        if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
+
         $from = $this->request->getGet('date_from');
         $to   = $this->request->getGet('date_to');
 
@@ -128,23 +168,27 @@ class MySaobReport extends BaseController
         $query = $this->db->query($sql, [$from, $to]);
         $data  = $query->getResultArray();
 
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="SAOB_'.$from.'_to_'.$to.'.csv"');
-
-        $out = fopen('php://output', 'w');
-
-        if (!empty($data)) {
-            fputcsv($out, array_keys($data[0]));
-            foreach ($data as $row) {
-                fputcsv($out, $row);
-            }
+        // Excel workbook (was a CSV file); same rows and order
+        $xlsx = new \App\Libraries\FodsXlsx('ORS lines', [
+            'ORS date' => 'd', 'Payee' => 's', 'Serial no.' => 's', 'Particulars' => 's',
+            'Program title' => 's', 'Project title' => 's', 'Responsibility code' => 's', 'MFO/PAP code' => 's',
+            'Allotment class' => 's', 'Object code' => 's', 'Sub-object code' => 's', 'UACS code' => 's', 'Amount' => 'n',
+        ]);
+        $xlsx->title('ORS extraction', 'ORS lines dated ' . date('F j, Y', strtotime($from)) . ' to ' . date('F j, Y', strtotime($to)));
+        $sum = 0;
+        foreach ($data as $row) {
+            $xlsx->row(array_values($row));
+            $sum += (float) $row['amount'];
         }
-
-        fclose($out);
-        exit;
+        if ($data) {
+            $xlsx->total(['Total', null, null, null, null, null, null, null, null, null, null, null, round($sum, 2)]);
+        }
+        $xlsx->download('ORS_EXTRACTION_' . $from . '_to_' . $to . '.xlsx');
     }
 
     public function monthlyExportCsv(){
+        if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
+
         $from = $this->request->getGet('date_from'); // selected start month
         $to   = $this->request->getGet('date_to');   // selected end month
         $year_start = date('Y-01-01', strtotime($to)); // Jan 1 of selected year
@@ -427,27 +471,33 @@ class MySaobReport extends BaseController
 
         $query = $this->db->query($sql, $bindings);
 
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="SAOB_MONTHLY_REPORT_'.$from.'_to_'.$to.'.csv"');
-
-        $out = fopen('php://output', 'w');
-
-        // Write header manually
-        fputcsv($out, [
-            'Program Title', 'Project Title', 'Responsibility Code',
-            'Project Leader', 'Allotment',
-            'Admin Cost', 'Revised Allotment', 'This Month', 'Up to Date', 'Balance', 'Percent of Utilization'
+        // Excel workbook (was a CSV file); same columns and rows
+        $xlsx = new \App\Libraries\FodsXlsx('Monthly report', [
+            'Program title' => 's', 'Project title' => 's', 'Responsibility code' => 's',
+            'Project leader' => 's', 'Allotment' => 'n',
+            'Admin. cost' => 'n', 'Revised allotment' => 'n', 'This month' => 'n', 'To date' => 'n', 'Balance' => 'n', 'Utilization' => 'p',
         ]);
-
+        $xlsx->title('Monthly report: ' . $program_title, 'As of ' . date('F j, Y', strtotime($to)));
+        $sum = array_fill(4, 6, 0.0);
+        $n = 0;
         while ($row = $query->getUnbufferedRow('array')) {
-            fputcsv($out, $row);
+            $row = array_values($row);
+            $xlsx->row($row);
+            foreach ($sum as $k => $v) {
+                $sum[$k] = $v + (float) $row[$k];
+            }
+            $n++;
         }
-
-        fclose($out);
-        exit;
+        if ($n) {
+            $xlsx->total(array_merge(['Total', null, null, null], array_map(fn ($v) => round($v, 2), array_values($sum)),
+                [$sum[6] > 0 ? round($sum[8] / $sum[6] * 100, 2) : 0]));
+        }
+        $xlsx->download('SAOB_MONTHLY_REPORT_' . $from . '_to_' . $to . '.xlsx');
     }
 
     public function saobExportCsv(){
+        if (!fods_has_access(\Config\AccessCodes::SAOB_VIEW)) { return view('errors/html/access-restricted'); }
+
         $month = $this->request->getGet('month'); // January - December
         $year  = $this->request->getGet('year');  // e.g. 2026
 
@@ -1720,13 +1770,8 @@ class MySaobReport extends BaseController
         | CSV Export
         |--------------------------------------------------------------------------
         */
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="SAOB_REPORT_'.$from.'_to_'.$to.'.csv"');
-
-        $out = fopen('php://output', 'w');
-
-        // Header row
-        fputcsv($out, [
+        // Excel workbook (was a CSV file): the first five columns are text, the rest amounts
+        $labels = [
         'Program Title',
         'Allotment Class',
         'Object Code',
@@ -1778,14 +1823,18 @@ class MySaobReport extends BaseController
         '4th Quarter',
         'Obligation To Date',
         'Unobligated Balance'
-        ]);
+        ];
 
-        while ($row = $query->getUnbufferedRow('array')) {
-            fputcsv($out, $row);
+        $columns = [];
+        foreach ($labels as $i => $label) {
+            $columns[] = [$label, $i < 5 ? 's' : 'n'];   // labels repeat (quarter totals), so label/type pairs
         }
-
-        fclose($out);
-        exit;
+        $xlsx = new \App\Libraries\FodsXlsx('SAOB', $columns);
+        $xlsx->title('Statement of Allotment, Obligation and Balances', 'As of ' . date('F j, Y', strtotime($to)));
+        while ($row = $query->getUnbufferedRow('array')) {
+            $xlsx->row(array_values($row));
+        }
+        $xlsx->download('SAOB_REPORT_' . $from . '_to_' . $to . '.xlsx');
     }
 
     private function loadMainView() {
@@ -1852,11 +1901,13 @@ class MySaobReport extends BaseController
                 'psuacs' => $uacsLookup('Personnel Services'),
                 'mooeuacs' => $uacsLookup('Maintenance and Other Operating Expenses'),
                 'couacs' => $uacsLookup('Capital Outlay'),
-                // the monthly report matches budgets on their program title, so suggest those
-                'programs' => array_column(
-                    $this->db->query("SELECT DISTINCT TRIM(`program_title`) AS program_title FROM tbl_budget_hd WHERE TRIM(`program_title`) NOT IN ('', 'N/A') ORDER BY 1 ASC")->getResultArray(),
-                    'program_title'
-                ),
+                // programs per budget year span, so the Reports tab lists only programs with projects in the "As of" year
+                'program_years' => $this->db->query("
+                    SELECT TRIM(`program_title`) AS p, YEAR(`duration_from`) AS y1, YEAR(`duration_to`) AS y2, COUNT(*) AS n
+                    FROM tbl_budget_hd
+                    WHERE TRIM(`program_title`) NOT IN ('', 'N/A')
+                    GROUP BY 1, 2, 3
+                ")->getResultArray(),
                 'years' => range((int) date('Y') + 1, 2025),        // allotment year
                 'report_years' => range((int) date('Y'), 2022),     // SAOB report year
             ],
